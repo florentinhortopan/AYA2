@@ -1,0 +1,171 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  name          String?
+  image         String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  profile       Profile?
+  agentSessions AgentSession[]
+  achievements  UserAchievement[]
+  content       Content[]
+  progress      UserProgress[]
+  trainingLogs  TrainingLog[]
+  financialData FinancialData[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Profile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  age             Int?
+  location        String?
+  interests       String[] // Career interests, skills
+  fitnessLevel    String?  // beginner, intermediate, advanced
+  mentalHealth    String?  // self-reported level
+  careerGoals     Json?    // Structured career path preferences
+  preferences     Json?    // User preferences for recommendations
+  onboardingComplete Boolean @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Agent Sessions - track interactions with AI agents
+model AgentSession {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentType   String   // recruitment, training, financial, educational
+  sessionData Json     // Conversation history, context
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Gamification - Achievements
+model Achievement {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  icon        String?
+  points      Int      @default(0)
+  category    String   // training, career, community, learning
+  users       UserAchievement[]
+  createdAt   DateTime @default(now())
+}
+
+model UserAchievement {
+  id            String     @id @default(cuid())
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  unlockedAt    DateTime   @default(now())
+
+  @@unique([userId, achievementId])
+}
+
+// User-generated content
+model Content {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // guide, review, tip, story
+  title       String
+  description String?
+  body        String   @db.Text
+  tags        String[]
+  approved    Boolean  @default(false)
+  views       Int      @default(0)
+  likes       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Training and Progress Tracking
+model TrainingLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // physical, mental
+  activity    String
+  duration    Int?     // minutes
+  intensity   String?  // low, medium, high
+  notes       String?  @db.Text
+  completed   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model UserProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category    String   // career, physical, mental, financial, education
+  progress    Json     // Structured progress data
+  level       Int      @default(1)
+  experience  Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, category])
+}
+
+// Financial Data (for financial assistant agent)
+model FinancialData {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // goal, budget, benefit, question
+  data        Json     // Structured financial information
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
