@@ -3,12 +3,16 @@ import { createAgent } from '@/agents'
 import { AgentType } from '@/types'
 import { prisma } from '@/lib/db'
 
+// Mark route as dynamic to prevent build-time analysis
+export const dynamic = 'force-dynamic'
+
 export async function POST(
   request: NextRequest,
-  { params }: { params: { type: string } }
+  { params }: { params: Promise<{ type: string }> }
 ) {
   try {
-    const agentType = params.type as AgentType
+    const { type } = await params
+    const agentType = type as AgentType
     const body = await request.json()
     const { message, sessionId, userId, history = [] } = body
 
@@ -105,10 +109,11 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { type: string } }
+  { params }: { params: Promise<{ type: string }> }
 ) {
   try {
-    const agentType = params.type as AgentType
+    const { type } = await params
+    const agentType = type as AgentType
     const agent = createAgent(agentType)
     
     return NextResponse.json({
