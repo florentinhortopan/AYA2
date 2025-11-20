@@ -1,4 +1,4 @@
-# AYAYA2 - Army Recruitment Platform
+# AYAYA2 - AAA Recruitment Platform
 
 A comprehensive AI-powered platform for army recruitment, offering personalized career paths, training resources, financial guidance, and educational support.
 
