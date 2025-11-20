@@ -29,7 +29,7 @@ export async function POST(
     }
 
     // Get user profile if logged in
-    let profile = null
+    let profile: Record<string, unknown> | undefined = undefined
     if (userId) {
       const userProfile = await prisma.profile.findUnique({
         where: { userId }
