@@ -46,6 +46,7 @@ export async function saveInsightsSnapshot(
     if (!lastSnapshot) {
       // First snapshot - always save
       hasChanged = true
+      console.log(`First insights snapshot for user ${userId}`)
     } else {
       // Compare with last snapshot
       const lastEngagement = lastSnapshot.engagementLevel
@@ -66,7 +67,6 @@ export async function saveInsightsSnapshot(
       const summaryLengthDiff = Math.abs(currentSummary.length - lastSummary.length)
       const summarySubstantiallyDifferent = currentSummary !== lastSummary && 
         (currentSummary.length > 30 || lastSummary.length === 0 || summaryLengthDiff >= 20)
-      const summaryChanged = summarySubstantiallyDifferent
       
       const sentimentChanged = currentSentimentLabel !== lastSentimentLabel || 
         Math.abs(currentSentimentScore - lastSentimentScore) >= 0.15
@@ -74,38 +74,42 @@ export async function saveInsightsSnapshot(
 
       // Save if any meaningful change detected
       hasChanged = engagementChanged || preferencesChanged || personalityChanged || 
-                   summaryChanged || sentimentChanged || experienceChanged
+                   summarySubstantiallyDifferent || sentimentChanged || experienceChanged
+
+      // Also check time-based: save if last snapshot was more than 10 minutes ago (even if no change)
+      // This ensures we capture insights even if changes are subtle
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000)
+      const shouldSaveByTime = lastSnapshot.createdAt < tenMinutesAgo
+
+      // If summary changed (even if other fields didn't), always save
+      // AI-generated summaries change frequently and represent real insight updates
+      const shouldSaveForSummaryChange = summarySubstantiallyDifferent && currentSummary.length > 30
 
       // Debug logging
-      if (hasChanged) {
-        console.log(`Insights change detected for user ${userId}:`, {
+      if (hasChanged || shouldSaveByTime || shouldSaveForSummaryChange) {
+        console.log(`Insights snapshot decision for user ${userId}:`, {
+          hasChanged,
+          shouldSaveByTime,
+          shouldSaveForSummaryChange,
           engagementChanged,
           preferencesChanged,
           personalityChanged,
-          summaryChanged,
+          summaryChanged: summarySubstantiallyDifferent,
           sentimentChanged,
           experienceChanged,
           currentEngagement,
           lastEngagement,
           currentSummaryLength: currentSummary.length,
-          lastSummaryLength: lastSummary.length
+          lastSummaryLength: lastSummary.length,
+          timeSinceLastSnapshot: Math.round((Date.now() - lastSnapshot.createdAt.getTime()) / 1000 / 60) + ' minutes'
         })
       }
-    }
 
-    // Also check time-based: save if last snapshot was more than 10 minutes ago (even if no change)
-    // This ensures we capture insights even if changes are subtle
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000)
-    const shouldSaveByTime = !lastSnapshot || lastSnapshot.createdAt < tenMinutesAgo
-
-    // If summary changed (even if other fields didn't), always save
-    // AI-generated summaries change frequently and represent real insight updates
-    const shouldSaveForSummaryChange = summaryChanged && currentSummary.length > 30
-
-    if (!hasChanged && !shouldSaveByTime && !shouldSaveForSummaryChange) {
-      // No meaningful changes and recent snapshot exists
-      console.log(`Skipping snapshot for user ${userId} - no significant changes detected`)
-      return
+      if (!hasChanged && !shouldSaveByTime && !shouldSaveForSummaryChange) {
+        // No meaningful changes and recent snapshot exists
+        console.log(`Skipping snapshot for user ${userId} - no significant changes detected`)
+        return
+      }
     }
 
     // Create comprehensive snapshot with conversation insights
