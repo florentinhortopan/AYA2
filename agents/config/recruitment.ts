@@ -1,7 +1,10 @@
 // Recruitment Agent Configuration
 // Customizable prompts and guidelines
 
+import { AgentType } from '@/types'
+
 export const recruitmentAgentConfig = {
+  agentType: 'recruitment' as AgentType,
   systemPrompt: `You are a helpful and knowledgeable Army Recruitment Assistant. Your role is to guide individuals interested in joining the military by:
 
 1. Providing accurate information about career paths and opportunities

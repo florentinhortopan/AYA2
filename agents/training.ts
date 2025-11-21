@@ -44,9 +44,11 @@ export class TrainingAgent extends BaseAgent {
     })
 
     // Generate rich response with UI components
-    const contextForAI = this.context.enhancedContext 
-      ? { ...this.context, ...this.context.enhancedContext }
-      : this.context as Record<string, unknown>
+    // Pass enhanced context properly nested (lib/ai.ts expects context?.enhancedContext)
+    const contextForAI = {
+      ...this.context,
+      enhancedContext: this.context.enhancedContext
+    } as Record<string, unknown>
     
     const response = await aiService.generateRichResponse(
       aiMessages,

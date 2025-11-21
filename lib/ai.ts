@@ -1,5 +1,7 @@
 import OpenAI from 'openai'
 import { RichAgentResponse, AnyUIComponent } from '@/types/ui'
+import { AgentType } from '@/types'
+import { personalizeGuidelines } from './guideline-personalizer'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
@@ -9,6 +11,7 @@ interface AIPromptConfig {
   systemPrompt: string
   guidelines?: Record<string, unknown>
   uiPrompts?: Record<string, string>
+  agentType?: AgentType // Add agent type for personalization
 }
 
 interface AIMessage {
@@ -176,8 +179,23 @@ Use components to make responses interactive and engaging.`
   ): string {
     let prompt = config.systemPrompt + '\n\n'
 
-    if (config.guidelines) {
-      prompt += 'Guidelines:\n' + JSON.stringify(config.guidelines, null, 2) + '\n\n'
+    // Personalize guidelines based on user context if available
+    let guidelines = config.guidelines
+    if (config.guidelines && config.agentType && context?.enhancedContext) {
+      const enhancedContext = context.enhancedContext as any
+      guidelines = personalizeGuidelines(
+        config.guidelines as Record<string, any>,
+        config.agentType,
+        {
+          profile: enhancedContext.profile,
+          insights: enhancedContext.insights,
+          sentiment: enhancedContext.sentiment
+        }
+      )
+    }
+
+    if (guidelines) {
+      prompt += 'Personalized Guidelines:\n' + JSON.stringify(guidelines, null, 2) + '\n\n'
     }
 
     // Use enhanced context if available, otherwise fall back to basic profile

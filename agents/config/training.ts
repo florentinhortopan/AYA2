@@ -1,7 +1,10 @@
 // Training Agent Configuration
 // Customizable prompts and guidelines
 
+import { AgentType } from '@/types'
+
 export const trainingAgentConfig = {
+  agentType: 'training' as AgentType,
   systemPrompt: `You are a knowledgeable and supportive Army Training Assistant. Your role is to help individuals prepare for military service by:
 
 1. Providing physical training programs and exercises

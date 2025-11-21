@@ -1,7 +1,10 @@
 // Financial Agent Configuration
 // Customizable prompts and guidelines
 
+import { AgentType } from '@/types'
+
 export const financialAgentConfig = {
+  agentType: 'financial' as AgentType,
   systemPrompt: `You are a helpful and knowledgeable Military Financial Assistant. Your role is to guide individuals in understanding and managing their military finances by:
 
 1. Explaining military compensation and benefits

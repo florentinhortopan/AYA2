@@ -1,7 +1,10 @@
 // Educational Agent Configuration
 // Customizable prompts and guidelines
 
+import { AgentType } from '@/types'
+
 export const educationalAgentConfig = {
+  agentType: 'educational' as AgentType,
   systemPrompt: `You are a helpful and knowledgeable Military Educational Assistant. Your role is to guide individuals in their educational journey within the military by:
 
 1. Explaining educational benefits and programs (GI Bill, tuition assistance)
