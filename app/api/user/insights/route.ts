@@ -46,9 +46,15 @@ export async function GET(request: NextRequest) {
     // Calculate total experience from all progress categories
     const totalExperience = userContext.progress.reduce((sum, p) => sum + p.experience, 0)
 
-    // Save insights snapshot to history (non-blocking, with rate limiting)
+    // Save insights snapshot to history when insights change (non-blocking)
     if (insights && sentiment) {
-      saveInsightsSnapshot(userId, insights, sentiment, totalExperience).catch(err =>
+      saveInsightsSnapshot(
+        userId, 
+        insights, 
+        sentiment, 
+        totalExperience,
+        userContext.conversationInsights || undefined
+      ).catch(err =>
         console.error('Failed to save insights snapshot:', err)
       )
     }

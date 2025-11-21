@@ -59,10 +59,16 @@ export async function POST(
         // Generate insights (cache this - could be expensive, run periodically)
         const insights = await generateUserInsights(userContext, sentiment || undefined)
 
-        // Calculate total experience and save insights snapshot (non-blocking)
+        // Calculate total experience and save insights snapshot when insights change (non-blocking)
         if (insights && sentiment) {
           const totalExperience = userContext.progress.reduce((sum, p) => sum + p.experience, 0)
-          saveInsightsSnapshot(userId, insights, sentiment, totalExperience).catch(err =>
+          saveInsightsSnapshot(
+            userId, 
+            insights, 
+            sentiment, 
+            totalExperience,
+            userContext.conversationInsights || undefined
+          ).catch(err =>
             console.error('Failed to save insights snapshot:', err)
           )
         }
