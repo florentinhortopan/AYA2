@@ -289,27 +289,27 @@ export function formatContextForPrompt(
     }
   }
 
-  // Conversation insights section
-  if (context.conversations.length > 0) {
-    lines.push('\n=== CONVERSATION HISTORY ===')
-    context.conversations.forEach(conv => {
-      lines.push(`- ${conv.agentType}: ${conv.sessionCount} sessions, ${conv.totalMessages} messages`)
-      if (conv.topics.length > 0) {
-        lines.push(`  Topics discussed: ${conv.topics.slice(0, 5).join(', ')}`)
-      }
-    })
-  }
-
-  // Current agent context
-  const currentAgentContext = context.conversations.find(c => c.agentType === currentAgentType)
-  if (currentAgentContext) {
-    lines.push(`\n=== CURRENT AGENT (${currentAgentType}) ===`)
-    lines.push(`- Previous sessions: ${currentAgentContext.sessionCount}`)
-    lines.push(`- Total messages: ${currentAgentContext.totalMessages}`)
-    if (currentAgentContext.topics.length > 0) {
-      lines.push(`- Previously discussed: ${currentAgentContext.topics.join(', ')}`)
+    // Conversation insights section
+    if (context.conversations.length > 0) {
+      lines.push('\n=== CONVERSATION HISTORY ===')
+      context.conversations.forEach(conv => {
+        lines.push(`- ${conv.agentType}: ${conv.sessionCount} sessions, ${conv.totalMessages} messages`)
+        if (conv.topics && conv.topics.length > 0) {
+          lines.push(`  Topics discussed: ${conv.topics.slice(0, 5).join(', ')}`)
+        }
+      })
     }
-  }
+
+    // Current agent context
+    const currentAgentContext = context.conversations.find(c => c.agentType === currentAgentType)
+    if (currentAgentContext) {
+      lines.push(`\n=== CURRENT AGENT (${currentAgentType}) ===`)
+      lines.push(`- Previous sessions: ${currentAgentContext.sessionCount}`)
+      lines.push(`- Total messages: ${currentAgentContext.totalMessages}`)
+      if (currentAgentContext.topics && currentAgentContext.topics.length > 0) {
+        lines.push(`- Previously discussed: ${currentAgentContext.topics.join(', ')}`)
+      }
+    }
 
   return lines.join('\n')
 }
