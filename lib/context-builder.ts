@@ -1,5 +1,6 @@
 import { prisma } from './db'
 import { AgentType } from '@/types'
+import { extractConversationInsights, extractConversationInsightsSimple, ConversationInsights } from './conversation-extractor'
 
 export interface UserContextData {
   profile: {
@@ -45,6 +46,7 @@ export interface UserContextData {
     lastInteraction: Date
     topics?: string[]
   }>
+  conversationInsights?: ConversationInsights | null // AI-extracted conversation insights
 }
 
 /**
@@ -189,6 +191,21 @@ export async function buildUserContext(userId: string): Promise<UserContextData 
       ...data
     }))
 
+    // Extract meaningful conversation insights using AI (if available)
+    // Fallback to simple extraction if AI is not available
+    let conversationInsights: ConversationInsights | null = null
+    try {
+      conversationInsights = await extractConversationInsights(userId, 50)
+      if (!conversationInsights) {
+        // Fallback to simple extraction
+        conversationInsights = extractConversationInsightsSimple(agentSessions)
+      }
+    } catch (error) {
+      console.error('Failed to extract conversation insights:', error)
+      // Fallback to simple extraction
+      conversationInsights = extractConversationInsightsSimple(agentSessions)
+    }
+
     return {
       profile: {
         age: profile.age,
@@ -217,7 +234,8 @@ export async function buildUserContext(userId: string): Promise<UserContextData 
         totalInteractions: agentSessions.length
       },
       usage,
-      conversations
+      conversations,
+      conversationInsights
     }
   } catch (error) {
     console.error('Error building user context:', error)

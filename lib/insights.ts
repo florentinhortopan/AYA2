@@ -33,7 +33,7 @@ export async function generateUserInsights(
 
   try {
     // Format context data for AI analysis
-    const contextSummary = `
+    let contextSummary = `
 Profile:
 - Age: ${context.profile.age || 'Unknown'}
 - Location: ${context.profile.location || 'Unknown'}
@@ -54,15 +54,44 @@ Usage Patterns:
 - Most Used Agent: ${context.usage.mostUsedAgent || 'None'}
 - Agent Distribution: ${Object.entries(context.usage.agentCounts).map(([k, v]) => `${k}: ${v}`).join(', ') || 'None'}
 
-Conversations:
+Conversation Statistics:
 ${context.conversations.map(c => {
   const topicsText = c.topics && c.topics.length > 0 
     ? `, topics: ${c.topics.slice(0, 3).join(', ')}` 
     : ''
   return `- ${c.agentType}: ${c.sessionCount} sessions, ${c.totalMessages} messages${topicsText}`
 }).join('\n') || 'No conversations'}
+`
 
-${sentiment ? `Sentiment: ${sentiment.sentiment} (${sentiment.summary})` : ''}
+    // Add detailed conversation insights if available
+    if (context.conversationInsights) {
+      const insights = context.conversationInsights
+      contextSummary += `
+
+=== CONVERSATION CONTENT ANALYSIS ===
+Summary: ${insights.summary || 'No summary available'}
+
+Topics Discussed:
+${insights.topics.length > 0 ? insights.topics.map(t => `- ${t}`).join('\n') : '- None identified'}
+
+Interests Expressed:
+${insights.interests.length > 0 ? insights.interests.map(i => `- ${i}`).join('\n') : '- None identified'}
+
+Key Questions Asked:
+${insights.questions.length > 0 ? insights.questions.map(q => `- ${q}`).join('\n') : '- None identified'}
+
+Concerns Mentioned:
+${insights.concerns.length > 0 ? insights.concerns.map(c => `- ${c}`).join('\n') : '- None identified'}
+
+Goals Expressed:
+${insights.goals.length > 0 ? insights.goals.map(g => `- ${g}`).join('\n') : '- None identified'}
+
+Preferences Expressed:
+${insights.preferences.length > 0 ? insights.preferences.map(p => `- ${p}`).join('\n') : '- None identified'}
+`
+    }
+
+    contextSummary += `\n${sentiment ? `Sentiment: ${sentiment.sentiment} (${sentiment.summary})` : ''}
 `
 
     const response = await openai.chat.completions.create({
@@ -70,7 +99,9 @@ ${sentiment ? `Sentiment: ${sentiment.sentiment} (${sentiment.summary})` : ''}
       messages: [
         {
           role: 'system',
-          content: `Analyze the user data and generate behavioral insights. Return ONLY valid JSON in this format:
+          content: `Analyze the user data and generate behavioral insights. Pay special attention to the conversation content analysis section which shows what the user has actually discussed with agents. Use this to understand their real interests, concerns, goals, and preferences.
+
+Return ONLY valid JSON in this format:
 {
   "summary": "<2-3 sentence summary of user's behavior, interests, and engagement patterns>",
   "preferences": [<array of identified preferences, e.g., "structured guidance", "technical content", "fitness focused">],
