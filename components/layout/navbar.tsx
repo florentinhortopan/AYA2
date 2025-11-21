@@ -27,6 +27,9 @@ export function Navbar() {
                   <Link href="/community" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
                     Community
                   </Link>
+                  <Link href="/insights" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
+                    Recruiter View
+                  </Link>
                 </>
               )}
             </div>
