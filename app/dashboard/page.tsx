@@ -39,51 +39,45 @@ export default function DashboardPage() {
     }
 
     if (status === 'authenticated' && session?.user?.id) {
-      fetchDashboardData()
-    }
-  }, [status, session, router])
+      const fetchData = async () => {
+        try {
+          // Fetch profile
+          const profileRes = await fetch('/api/profile/update')
+          if (profileRes.ok) {
+            const profileData = await profileRes.json()
+            setProfile(profileData.profile)
 
-  const fetchDashboardData = async () => {
-    try {
-      // Fetch profile
-      const profileRes = await fetch('/api/profile/update')
-      if (profileRes.ok) {
-        const profileData = await profileRes.json()
-        setProfile(profileData.profile)
+            // Redirect to onboarding if not complete
+            if (!profileData.profile.onboardingComplete) {
+              router.push('/onboarding')
+              return
+            }
+          }
 
-        // Redirect to onboarding if not complete
-        if (!profileData.profile.onboardingComplete) {
-          router.push('/onboarding')
-          return
+          // Fetch progress
+          const progressRes = await fetch('/api/progress')
+          if (progressRes.ok) {
+            const progressData = await progressRes.json()
+            setProgress(progressData.progress || [])
+          }
+
+          // Fetch recent activity
+          const activityRes = await fetch('/api/activity')
+          if (activityRes.ok) {
+            const activityData = await activityRes.json()
+            setRecentActivity(activityData.activity || [])
+          }
+        } catch (error) {
+          console.error('Error fetching dashboard data:', error)
+        } finally {
+          setLoading(false)
         }
       }
 
-      // Fetch progress
-      const progressRes = await fetch('/api/progress')
-      if (progressRes.ok) {
-        const progressData = await progressRes.json()
-        setProgress(progressData.progress || [])
-      }
-
-      // Fetch achievements (placeholder for now)
-      // const achievementsRes = await fetch('/api/achievements')
-      // if (achievementsRes.ok) {
-      //   const achievementsData = await achievementsRes.json()
-      //   setAchievements(achievementsData.achievements || [])
-      // }
-
-      // Fetch recent activity
-      const activityRes = await fetch('/api/activity')
-      if (activityRes.ok) {
-        const activityData = await activityRes.json()
-        setRecentActivity(activityData.activity || [])
-      }
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error)
-    } finally {
-      setLoading(false)
+      fetchData()
     }
-  }
+  }, [status, session, router])
+
 
   if (status === 'loading' || loading) {
     return (

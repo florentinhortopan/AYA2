@@ -108,7 +108,7 @@ export default function OnboardingPage() {
         <CardHeader>
           <CardTitle className="text-2xl text-center">Welcome to AYAYA2!</CardTitle>
           <CardDescription className="text-center">
-            Let's set up your profile to personalize your experience
+            Let&apos;s set up your profile to personalize your experience
           </CardDescription>
           <Progress value={progress} className="mt-4" />
           <p className="text-sm text-center text-muted-foreground mt-2">
