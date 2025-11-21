@@ -44,10 +44,14 @@ export class EducationalAgent extends BaseAgent {
     })
 
     // Generate rich response with UI components
+    const contextForAI = this.context.enhancedContext 
+      ? { ...this.context, ...this.context.enhancedContext }
+      : this.context as Record<string, unknown>
+    
     const response = await aiService.generateRichResponse(
       aiMessages,
       educationalAgentConfig,
-      this.context as Record<string, unknown>
+      contextForAI
     )
 
     // Enhance response with dynamic CTAs based on message intent

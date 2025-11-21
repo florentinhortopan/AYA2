@@ -64,6 +64,21 @@ export async function POST(request: NextRequest) {
 
     const userId = session.user.id
 
+    // Track action activity
+    try {
+      await prisma.userActivity.create({
+        data: {
+          userId,
+          type: 'action',
+          action,
+          metadata: { data } as any
+        }
+      })
+    } catch (error) {
+      // Non-critical, continue even if tracking fails
+      console.error('Activity tracking error:', error)
+    }
+
     // Handle different actions
     switch (action) {
       case 'save_interest':

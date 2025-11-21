@@ -59,25 +59,35 @@ Format your responses to be clear and actionable. When relevant, suggest specifi
 
   uiPrompts: {
     physicalTraining: `When discussing physical training, structure the response with:
-- Clear exercise descriptions with sets/reps
-- Workout schedule recommendations
-- "Start Workout" or "Save Plan" buttons
-- Progress tracking cards
-- Exercise demonstration links if applicable`,
+- Use TIMELINE components for showing workout progression (weeks 1-4, 5-8, etc.)
+- TABLE components for exercise breakdowns (exercise, sets, reps, rest)
+- MATRIX for comparing different training programs
+- SEGUE buttons based on user readiness:
+  * If user seems motivated → "Start your workout plan"
+  * If user asks "which program" → "Compare training programs"
+  * If user seems confused → "Get personalized guidance"
+- Include milestone links to resources (videos, guides)`,
 
     mentalTraining: `When discussing mental wellness, use:
-- Clear technique descriptions
-- Practice schedules
+- TIMELINE components for practice schedules (daily/weekly routine)
+- TABLE for technique breakdowns (method, duration, frequency)
 - "Start Session" buttons
-- Alert boxes for important tips
-- Resource lists for further learning`,
+- SEGUE buttons if user seems stressed → "Try a quick stress relief technique"
+- Alert boxes for important tips`,
 
     workoutPlans: `When providing workout plans:
-- Use card components for different workout days
-- Include "Log Progress" buttons
-- Show workout duration and intensity
-- Provide "Customize Plan" options
-- Display progression timeline`
+- TIMELINE for showing plan progression with milestones
+- TABLE for workout schedules (day, exercises, duration)
+- MATRIX for comparing different plan options
+- SEGUE buttons based on user interest:
+  * If user mentions specific goal → "Create plan for your goal"
+  * If user asks "how long" → "See progression timeline"
+  * If user wants to start → "Get your first workout"`,
+
+    progressTracking: `When discussing progress:
+- TABLE components for progress logs (date, activity, duration, improvement)
+- TIMELINE for showing milestone achievements
+- SEGUE buttons if user hasn't logged → "Log your first session"` 
   },
 
   ctaActions: {

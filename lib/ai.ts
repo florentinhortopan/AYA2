@@ -180,7 +180,45 @@ Use components to make responses interactive and engaging.`
       prompt += 'Guidelines:\n' + JSON.stringify(config.guidelines, null, 2) + '\n\n'
     }
 
-    if (context?.profile) {
+    // Use enhanced context if available, otherwise fall back to basic profile
+    if (context?.enhancedContext) {
+      const enhanced = context.enhancedContext as any
+      
+      // Add formatted context (comprehensive user data)
+      if (enhanced.formattedContext) {
+        prompt += `${enhanced.formattedContext}\n\n`
+      }
+
+      // Add sentiment insights
+      if (enhanced.sentiment && enhanced.sentiment.summary) {
+        prompt += `=== USER SENTIMENT ===\n`
+        prompt += `Overall Sentiment: ${enhanced.sentiment.sentiment} (${enhanced.sentiment.summary})\n`
+        prompt += `Use this to tailor your tone and approach.\n\n`
+      }
+
+      // Add behavioral insights
+      if (enhanced.insights) {
+        const insights = enhanced.insights as any
+        prompt += `=== BEHAVIORAL INSIGHTS ===\n`
+        if (insights.summary) {
+          prompt += `${insights.summary}\n\n`
+        }
+        if (insights.preferences && insights.preferences.length > 0) {
+          prompt += `User Preferences: ${insights.preferences.join(', ')}\n`
+        }
+        if (insights.engagement) {
+          prompt += `Engagement Level: ${insights.engagement.level} - ${insights.engagement.description}\n`
+        }
+        if (insights.recommendations && insights.recommendations.length > 0) {
+          prompt += `Recommended Approach: ${insights.recommendations.join(', ')}\n`
+        }
+        if (insights.personality?.traits && insights.personality.traits.length > 0) {
+          prompt += `Personality Traits: ${insights.personality.traits.join(', ')}\n`
+        }
+        prompt += `Use these insights to personalize your responses.\n\n`
+      }
+    } else if (context?.profile) {
+      // Fallback to basic profile if enhanced context not available
       prompt += `User context:\n${JSON.stringify(context.profile, null, 2)}\n\n`
     }
 

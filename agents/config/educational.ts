@@ -54,25 +54,29 @@ Format your responses to be informative and actionable. When relevant, suggest e
 
   uiPrompts: {
     benefits: `When discussing educational benefits, structure the response with:
-- Clear benefit descriptions with eligibility info
-- Comparison cards for different benefit programs
-- "Check Eligibility" buttons
-- "Apply Now" CTAs
-- Resource lists for application processes`,
+- TABLE components for benefits breakdown (program, eligibility, value, deadline)
+- MATRIX for comparing benefit programs side-by-side
+- TIMELINE for showing when benefits become available (GI Bill after 36 months)
+- SEGUE buttons based on user questions:
+  * If asking about eligibility → "Check your eligibility"
+  * If asking "which is better" → "Compare benefit programs"
+  * If ready to apply → "Start your application"`,
 
     training: `When discussing training programs, use:
-- Program cards with details
-- "Explore Program" buttons
-- Certification roadmaps
-- "Find Training" action buttons
-- Progress tracking for courses`,
+- TIMELINE components for program progression (prerequisites → training → certification)
+- TABLE for program details (name, duration, cost, requirements)
+- MATRIX for comparing different programs
+- SEGUE buttons if user seems interested → "Explore this program in detail"
+- Include milestone links to resources (application forms, study guides)`,
 
     planning: `When providing educational planning:
-- Use card components for educational pathways
-- Include "Create Plan" buttons
-- Show timeline and milestones
-- Provide "Get Started" options
-- Display resource links and guides`
+- TIMELINE for educational pathway (current → degree → certification → career)
+- TABLE for planning milestones (semester, courses, goals)
+- MATRIX for comparing pathway options
+- SEGUE buttons based on user readiness:
+  * If user asks "where do I start" → "Create your education plan"
+  * If user mentions specific degree → "Explore degree requirements"
+  * If user seems overwhelmed → "Get step-by-step guidance"`
   },
 
   ctaActions: {

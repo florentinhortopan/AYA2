@@ -11,6 +11,7 @@ export interface AgentContext {
   sessionId?: string
   profile?: Record<string, unknown>
   preferences?: Record<string, unknown>
+  enhancedContext?: Record<string, unknown> // Comprehensive context with insights, sentiment, etc.
 }
 
 export abstract class BaseAgent {

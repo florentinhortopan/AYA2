@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAgent, hasRichResponse } from '@/agents'
 import { AgentType, RichAgentResponse } from '@/types'
 import { prisma } from '@/lib/db'
+import { buildUserContext, formatContextForPrompt } from '@/lib/context-builder'
+import { analyzeConversationSentiment } from '@/lib/sentiment'
+import { generateUserInsights } from '@/lib/insights'
 
 // Mark route as dynamic to prevent build-time analysis
 export const dynamic = 'force-dynamic'
@@ -31,27 +34,72 @@ export async function POST(
       )
     }
 
-    // Get user profile if logged in
-    let profile: Record<string, unknown> | undefined = undefined
+    // Build comprehensive user context if logged in
+    let enhancedContext: Record<string, unknown> | undefined = undefined
+    
     if (userId) {
-      const userProfile = await prisma.profile.findUnique({
-        where: { userId }
-      })
-      if (userProfile) {
-        profile = {
-          interests: userProfile.interests,
-          fitnessLevel: userProfile.fitnessLevel,
-          careerGoals: userProfile.careerGoals,
-          preferences: userProfile.preferences
+      // Get comprehensive context data
+      const userContext = await buildUserContext(userId)
+      
+      if (userContext) {
+        // Get user's previous sessions with current agent for sentiment
+        const currentAgentSessions = await prisma.agentSession.findMany({
+          where: {
+            userId,
+            agentType
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: 10
+        })
+
+        // Analyze sentiment from conversations
+        const sentiment = await analyzeConversationSentiment(currentAgentSessions)
+        
+        // Generate insights (cache this - could be expensive, run periodically)
+        const insights = await generateUserInsights(userContext, sentiment || undefined)
+
+        // Format context for prompt
+        const formattedContext = formatContextForPrompt(userContext, agentType)
+
+        // Build enhanced context object
+        enhancedContext = {
+          profile: {
+            age: userContext.profile.age,
+            location: userContext.profile.location,
+            interests: userContext.profile.interests,
+            fitnessLevel: userContext.profile.fitnessLevel,
+            mentalHealth: userContext.profile.mentalHealth,
+            careerGoals: userContext.profile.careerGoals,
+            preferences: userContext.profile.preferences
+          },
+          progress: userContext.progress,
+          activity: userContext.activity,
+          usage: userContext.usage,
+          conversations: userContext.conversations,
+          formattedContext, // Pre-formatted string for prompts
+          sentiment: sentiment || null,
+          insights: insights || null
         }
+
+        // Track this interaction (non-blocking)
+        prisma.userActivity.create({
+          data: {
+            userId,
+            type: 'agent_interaction',
+            agentType,
+            action: 'message_sent',
+            metadata: { messageLength: message.length } as any
+          }
+        }).catch(err => console.error('Activity tracking error:', err))
       }
     }
 
-    // Create agent with context
+    // Create agent with enhanced context
     const agent = createAgent(agentType, {
       userId,
       sessionId,
-      profile
+      profile: enhancedContext?.profile as Record<string, unknown> | undefined,
+      enhancedContext
     })
 
     // Process message with rich UI support

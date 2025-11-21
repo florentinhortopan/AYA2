@@ -12,14 +12,14 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String?   @unique
+  id            String            @id @default(cuid())
+  email         String?           @unique
   name          String?
   image         String?
-  password      String?   @db.Text // Hashed password for credentials auth
+  password      String?           @db.Text // Hashed password for credentials auth
   emailVerified DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
   accounts      Account[]
   sessions      Session[]
   profile       Profile?
@@ -29,6 +29,7 @@ model User {
   progress      UserProgress[]
   trainingLogs  TrainingLog[]
   financialData FinancialData[]
+  activities    UserActivity[]
 }
 
 model Account {
@@ -66,19 +67,19 @@ model VerificationToken {
 }
 
 model Profile {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  age             Int?
-  location        String?
-  interests       String[] // Career interests, skills
-  fitnessLevel    String?  // beginner, intermediate, advanced
-  mentalHealth    String?  // self-reported level
-  careerGoals     Json?    // Structured career path preferences
-  preferences     Json?    // User preferences for recommendations
-  onboardingComplete Boolean @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  age                Int?
+  location           String?
+  interests          String[] // Career interests, skills
+  fitnessLevel       String? // beginner, intermediate, advanced
+  mentalHealth       String? // self-reported level
+  careerGoals        Json? // Structured career path preferences
+  preferences        Json? // User preferences for recommendations
+  onboardingComplete Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 // Agent Sessions - track interactions with AI agents
@@ -86,31 +87,31 @@ model AgentSession {
   id          String   @id @default(cuid())
   userId      String?
   user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agentType   String   // recruitment, training, financial, educational
-  sessionData Json     // Conversation history, context
+  agentType   String // recruitment, training, financial, educational
+  sessionData Json // Conversation history, context
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
 // Gamification - Achievements
 model Achievement {
-  id          String   @id @default(cuid())
+  id          String            @id @default(cuid())
   name        String
   description String
   icon        String?
-  points      Int      @default(0)
-  category    String   // training, career, community, learning
+  points      Int               @default(0)
+  category    String // training, career, community, learning
   users       UserAchievement[]
-  createdAt   DateTime @default(now())
+  createdAt   DateTime          @default(now())
 }
 
 model UserAchievement {
-  id            String     @id @default(cuid())
+  id            String      @id @default(cuid())
   userId        String
-  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   achievementId String
   achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
-  unlockedAt    DateTime   @default(now())
+  unlockedAt    DateTime    @default(now())
 
   @@unique([userId, achievementId])
 }
@@ -120,7 +121,7 @@ model Content {
   id          String   @id @default(cuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type        String   // guide, review, tip, story
+  type        String // guide, review, tip, story
   title       String
   description String?
   body        String   @db.Text
@@ -134,39 +135,55 @@ model Content {
 
 // Training and Progress Tracking
 model TrainingLog {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type        String   // physical, mental
-  activity    String
-  duration    Int?     // minutes
-  intensity   String?  // low, medium, high
-  notes       String?  @db.Text
-  completed   Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // physical, mental
+  activity  String
+  duration  Int? // minutes
+  intensity String? // low, medium, high
+  notes     String?  @db.Text
+  completed Boolean  @default(true)
+  createdAt DateTime @default(now())
 }
 
 model UserProgress {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category    String   // career, physical, mental, financial, education
-  progress    Json     // Structured progress data
-  level       Int      @default(1)
-  experience  Int      @default(0)
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   String // career, physical, mental, financial, education
+  progress   Json // Structured progress data
+  level      Int      @default(1)
+  experience Int      @default(0)
+  updatedAt  DateTime @updatedAt
 
   @@unique([userId, category])
 }
 
 // Financial Data (for financial assistant agent)
 model FinancialData {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type        String   // goal, budget, benefit, question
-  data        Json     // Structured financial information
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // goal, budget, benefit, question
+  data      Json // Structured financial information
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
+// User Activity Tracking - navigation, interactions, usage patterns
+model UserActivity {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // agent_interaction, page_view, action, navigation
+  agentType String? // recruitment, training, financial, educational
+  page      String? // page path
+  action    String? // action identifier
+  metadata  Json? // Additional context data
+  createdAt DateTime @default(now())
+
+  @@index([userId, type])
+  @@index([userId, agentType])
+  @@index([createdAt])
+}
