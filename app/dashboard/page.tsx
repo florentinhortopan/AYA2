@@ -228,11 +228,18 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 )}
-                <Link href="/profile">
-                  <Button variant="outline" className="w-full mt-4" size="sm">
-                    Edit Profile
-                  </Button>
-                </Link>
+                <div className="flex gap-2 mt-4">
+                  <Link href="/profile" className="flex-1">
+                    <Button variant="outline" className="w-full" size="sm">
+                      Edit Profile
+                    </Button>
+                  </Link>
+                  <Link href="/insights" className="flex-1">
+                    <Button variant="outline" className="w-full" size="sm">
+                      View Insights
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </CardContent>
           </Card>
