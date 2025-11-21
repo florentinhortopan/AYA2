@@ -127,6 +127,7 @@ npx prisma migrate deploy
 - `DIRECT_URL` - Direct PostgreSQL connection (for migrations)
 - `NEXTAUTH_SECRET` - Secret for NextAuth.js (generate with `openssl rand -base64 32`)
 - `NEXTAUTH_URL` - Your app URL (e.g., `https://your-app.vercel.app`)
+- `OPENAI_API_KEY` - OpenAI API key for AI agent responses (get from https://platform.openai.com/api-keys)
 - `GOOGLE_CLIENT_ID` - (Optional) For Google OAuth
 - `GOOGLE_CLIENT_SECRET` - (Optional) For Google OAuth
 
