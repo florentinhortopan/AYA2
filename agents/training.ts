@@ -1,5 +1,7 @@
 import { BaseAgent, AgentMessage } from './base'
 import { RichAgentResponse } from '@/types'
+import { aiService } from '@/lib/ai'
+import { trainingAgentConfig } from './config/training'
 
 export class TrainingAgent extends BaseAgent {
   constructor(context = {}) {
@@ -10,59 +12,130 @@ export class TrainingAgent extends BaseAgent {
     return "Hello! I'm your training assistant. I can help you with both physical and mental training programs, track your progress, and provide personalized workout plans. Are you looking for physical training, mental wellness guidance, or both?"
   }
 
-  async processMessageRich(
-    message: string,
-    history: AgentMessage[]
-  ): Promise<RichAgentResponse> {
-    // For now, use legacy method until we implement AI integration
-    const legacyResult = await this.processMessage(message, history)
-    return {
-      text: legacyResult.response,
-      components: [],
-      metadata: legacyResult.metadata
-    }
-  }
-
+  // Legacy method - keep for backwards compatibility
   async processMessage(
     message: string,
     history: AgentMessage[]
   ): Promise<{ response: string; metadata?: Record<string, unknown> }> {
-    const lowerMessage = message.toLowerCase()
+    const richResponse = await this.processMessageRich(message, history)
+    return {
+      response: richResponse.text,
+      metadata: richResponse.metadata
+    }
+  }
 
+  // Rich UI method with AI integration
+  async processMessageRich(
+    message: string,
+    history: AgentMessage[]
+  ): Promise<RichAgentResponse> {
+    // Convert history to AI message format
+    const aiMessages = history
+      .filter(m => m.role !== 'system')
+      .map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content
+      }))
+
+    // Add current message
+    aiMessages.push({
+      role: 'user',
+      content: message
+    })
+
+    // Generate rich response with UI components
+    const response = await aiService.generateRichResponse(
+      aiMessages,
+      trainingAgentConfig,
+      this.context as Record<string, unknown>
+    )
+
+    // Enhance response with dynamic CTAs based on message intent
+    const enhancedResponse = this.enhanceWithCTAs(response, message)
+
+    return enhancedResponse
+  }
+
+  private enhanceWithCTAs(
+    response: RichAgentResponse,
+    message: string
+  ): RichAgentResponse {
+    const lowerMessage = message.toLowerCase()
+    const components = response.components || []
+
+    // Add relevant CTAs based on intent
     if (lowerMessage.includes('physical') || lowerMessage.includes('fitness') || lowerMessage.includes('workout')) {
-      return {
-        response: this.getPhysicalTrainingResponse(),
-        metadata: { type: 'physical_training' }
+      if (!components.some(c => c.type === 'button' && (c.props as any).action?.includes('workout'))) {
+        components.push({
+          type: 'button',
+          props: {
+            label: 'Start Workout Plan',
+            action: 'start_workout',
+            variant: 'default',
+            size: 'default'
+          }
+        } as any)
+        
+        components.push({
+          type: 'button',
+          props: {
+            label: 'Save Workout Plan',
+            action: 'save_plan',
+            variant: 'outline',
+            size: 'default'
+          }
+        } as any)
       }
     }
 
     if (lowerMessage.includes('mental') || lowerMessage.includes('wellness') || lowerMessage.includes('stress')) {
-      return {
-        response: this.getMentalTrainingResponse(),
-        metadata: { type: 'mental_training' }
+      if (!components.some(c => c.type === 'button' && (c.props as any).action?.includes('session'))) {
+        components.push({
+          type: 'button',
+          props: {
+            label: 'Start Training Session',
+            action: 'start_session',
+            variant: 'default',
+            size: 'default'
+          }
+        } as any)
       }
     }
 
-    if (lowerMessage.includes('schedule') || lowerMessage.includes('plan')) {
-      return {
-        response: this.getTrainingPlanResponse(),
-        metadata: { type: 'training_plan' }
+    if (lowerMessage.includes('progress') || lowerMessage.includes('track') || lowerMessage.includes('log')) {
+      if (!components.some(c => c.type === 'button' && (c.props as any).action?.includes('progress'))) {
+        components.push({
+          type: 'button',
+          props: {
+            label: 'Log Progress',
+            action: 'log_progress',
+            variant: 'default',
+            size: 'default'
+          }
+        } as any)
       }
     }
 
-    if (lowerMessage.includes('progress') || lowerMessage.includes('track')) {
-      return {
-        response: this.getProgressResponse(),
-        metadata: { type: 'progress' }
-      }
+    // Add general "Get Started" CTA if no specific actions
+    if (components.length === 0 && response.text.length > 100) {
+      components.push({
+        type: 'button',
+        props: {
+          label: 'Get Started',
+          action: 'get_started',
+          variant: 'outline',
+          size: 'default'
+        }
+      } as any)
     }
 
     return {
-      response: "I can help you with physical fitness training, mental wellness programs, creating training schedules, and tracking your progress. What would you like to focus on?",
-      metadata: { type: 'general' }
+      ...response,
+      components
     }
   }
 
+  // Legacy helper methods (kept for reference, but AI will handle most responses)
   private getPhysicalTrainingResponse(): string {
     return `I can help you with physical training! Here's a starting plan:
     
@@ -132,4 +205,3 @@ export class TrainingAgent extends BaseAgent {
     Would you like to start logging your training sessions? I can create a personalized tracking system for you.`
   }
 }
-

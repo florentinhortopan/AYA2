@@ -1,5 +1,7 @@
 import { BaseAgent, AgentMessage } from './base'
 import { RichAgentResponse } from '@/types'
+import { aiService } from '@/lib/ai'
+import { educationalAgentConfig } from './config/educational'
 
 export class EducationalAgent extends BaseAgent {
   constructor(context = {}) {
@@ -10,59 +12,140 @@ export class EducationalAgent extends BaseAgent {
     return "Hello! I'm your educational assistant. I can help you understand educational opportunities in the military, guide you through training programs, assist with skill development, and provide resources for continuing education. What would you like to learn about?"
   }
 
-  async processMessageRich(
-    message: string,
-    history: AgentMessage[]
-  ): Promise<RichAgentResponse> {
-    // For now, use legacy method until we implement AI integration
-    const legacyResult = await this.processMessage(message, history)
-    return {
-      text: legacyResult.response,
-      components: [],
-      metadata: legacyResult.metadata
-    }
-  }
-
+  // Legacy method - keep for backwards compatibility
   async processMessage(
     message: string,
     history: AgentMessage[]
   ): Promise<{ response: string; metadata?: Record<string, unknown> }> {
-    const lowerMessage = message.toLowerCase()
-
-    if (lowerMessage.includes('gi bill') || lowerMessage.includes('education') || lowerMessage.includes('degree')) {
-      return {
-        response: this.getEducationBenefitsResponse(),
-        metadata: { type: 'education_benefits' }
-      }
-    }
-
-    if (lowerMessage.includes('training') || lowerMessage.includes('skill') || lowerMessage.includes('certification')) {
-      return {
-        response: this.getTrainingResponse(),
-        metadata: { type: 'training' }
-      }
-    }
-
-    if (lowerMessage.includes('career') || lowerMessage.includes('development')) {
-      return {
-        response: this.getCareerDevelopmentResponse(),
-        metadata: { type: 'career_development' }
-      }
-    }
-
-    if (lowerMessage.includes('resource') || lowerMessage.includes('material') || lowerMessage.includes('study')) {
-      return {
-        response: this.getResourcesResponse(),
-        metadata: { type: 'resources' }
-      }
-    }
-
+    const richResponse = await this.processMessageRich(message, history)
     return {
-      response: "I can help you with educational benefits (like the GI Bill), training programs, skill certifications, career development resources, and study materials. What educational topic interests you?",
-      metadata: { type: 'general' }
+      response: richResponse.text,
+      metadata: richResponse.metadata
     }
   }
 
+  // Rich UI method with AI integration
+  async processMessageRich(
+    message: string,
+    history: AgentMessage[]
+  ): Promise<RichAgentResponse> {
+    // Convert history to AI message format
+    const aiMessages = history
+      .filter(m => m.role !== 'system')
+      .map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content
+      }))
+
+    // Add current message
+    aiMessages.push({
+      role: 'user',
+      content: message
+    })
+
+    // Generate rich response with UI components
+    const response = await aiService.generateRichResponse(
+      aiMessages,
+      educationalAgentConfig,
+      this.context as Record<string, unknown>
+    )
+
+    // Enhance response with dynamic CTAs based on message intent
+    const enhancedResponse = this.enhanceWithCTAs(response, message)
+
+    return enhancedResponse
+  }
+
+  private enhanceWithCTAs(
+    response: RichAgentResponse,
+    message: string
+  ): RichAgentResponse {
+    const lowerMessage = message.toLowerCase()
+    const components = response.components || []
+
+    // Add relevant CTAs based on intent
+    if (lowerMessage.includes('gi bill') || lowerMessage.includes('education') || lowerMessage.includes('benefit')) {
+      if (!components.some(c => c.type === 'button' && (c.props as any).action?.includes('eligibility'))) {
+        components.push({
+          type: 'button',
+          props: {
+            label: 'Check Eligibility',
+            action: 'check_eligibility',
+            variant: 'default',
+            size: 'default'
+          }
+        } as any)
+        
+        components.push({
+          type: 'button',
+          props: {
+            label: 'Apply for Benefits',
+            action: 'apply_now',
+            variant: 'outline',
+            size: 'default'
+          }
+        } as any)
+      }
+    }
+
+    if (lowerMessage.includes('training') || lowerMessage.includes('skill') || lowerMessage.includes('program')) {
+      if (!components.some(c => c.type === 'button' && (c.props as any).action?.includes('program'))) {
+        components.push({
+          type: 'button',
+          props: {
+            label: 'Explore Programs',
+            action: 'explore_program',
+            variant: 'default',
+            size: 'default'
+          }
+        } as any)
+        
+        components.push({
+          type: 'button',
+          props: {
+            label: 'Find Training',
+            action: 'find_training',
+            variant: 'outline',
+            size: 'default'
+          }
+        } as any)
+      }
+    }
+
+    if (lowerMessage.includes('plan') || lowerMessage.includes('pathway') || lowerMessage.includes('degree')) {
+      if (!components.some(c => c.type === 'button' && (c.props as any).action?.includes('plan'))) {
+        components.push({
+          type: 'button',
+          props: {
+            label: 'Create Educational Plan',
+            action: 'create_plan',
+            variant: 'default',
+            size: 'lg'
+          }
+        } as any)
+      }
+    }
+
+    // Add general "Get Started" CTA if no specific actions
+    if (components.length === 0 && response.text.length > 100) {
+      components.push({
+        type: 'button',
+        props: {
+          label: 'Get Started',
+          action: 'get_started',
+          variant: 'outline',
+          size: 'default'
+        }
+      } as any)
+    }
+
+    return {
+      ...response,
+      components
+    }
+  }
+
+  // Legacy helper methods (kept for reference, but AI will handle most responses)
   private getEducationBenefitsResponse(): string {
     return `The military offers excellent educational opportunities:
     
@@ -147,4 +230,3 @@ export class EducationalAgent extends BaseAgent {
     What subject or skill would you like to study? I can recommend specific resources.`
   }
 }
-

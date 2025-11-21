@@ -1,5 +1,7 @@
 import { BaseAgent, AgentMessage } from './base'
 import { RichAgentResponse } from '@/types'
+import { aiService } from '@/lib/ai'
+import { financialAgentConfig } from './config/financial'
 
 export class FinancialAgent extends BaseAgent {
   constructor(context = {}) {
@@ -10,59 +12,142 @@ export class FinancialAgent extends BaseAgent {
     return "Hello! I'm your financial assistant. I can help you understand military benefits, plan your finances, set savings goals, and provide guidance on managing money during and after service. What financial topic would you like to explore?"
   }
 
-  async processMessageRich(
-    message: string,
-    history: AgentMessage[]
-  ): Promise<RichAgentResponse> {
-    // For now, use legacy method until we implement AI integration
-    const legacyResult = await this.processMessage(message, history)
-    return {
-      text: legacyResult.response,
-      components: [],
-      metadata: legacyResult.metadata
-    }
-  }
-
+  // Legacy method - keep for backwards compatibility
   async processMessage(
     message: string,
     history: AgentMessage[]
   ): Promise<{ response: string; metadata?: Record<string, unknown> }> {
-    const lowerMessage = message.toLowerCase()
+    const richResponse = await this.processMessageRich(message, history)
+    return {
+      response: richResponse.text,
+      metadata: richResponse.metadata
+    }
+  }
 
+  // Rich UI method with AI integration
+  async processMessageRich(
+    message: string,
+    history: AgentMessage[]
+  ): Promise<RichAgentResponse> {
+    // Convert history to AI message format
+    const aiMessages = history
+      .filter(m => m.role !== 'system')
+      .map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content
+      }))
+
+    // Add current message
+    aiMessages.push({
+      role: 'user',
+      content: message
+    })
+
+    // Generate rich response with UI components
+    const response = await aiService.generateRichResponse(
+      aiMessages,
+      financialAgentConfig,
+      this.context as Record<string, unknown>
+    )
+
+    // Enhance response with dynamic CTAs based on message intent
+    const enhancedResponse = this.enhanceWithCTAs(response, message)
+
+    return enhancedResponse
+  }
+
+  private enhanceWithCTAs(
+    response: RichAgentResponse,
+    message: string
+  ): RichAgentResponse {
+    const lowerMessage = message.toLowerCase()
+    const components = response.components || []
+
+    // Add relevant CTAs based on intent
     if (lowerMessage.includes('benefit') || lowerMessage.includes('pay') || lowerMessage.includes('salary')) {
-      return {
-        response: this.getBenefitsResponse(),
-        metadata: { type: 'benefits' }
+      if (!components.some(c => c.type === 'button' && (c.props as any).action?.includes('benefit'))) {
+        components.push({
+          type: 'button',
+          props: {
+            label: 'Calculate My Benefits',
+            action: 'calculate_benefits',
+            variant: 'default',
+            size: 'default'
+          }
+        } as any)
+        
+        components.push({
+          type: 'button',
+          props: {
+            label: 'View All Benefits',
+            action: 'view_benefits',
+            variant: 'outline',
+            size: 'default'
+          }
+        } as any)
       }
     }
 
     if (lowerMessage.includes('budget') || lowerMessage.includes('save') || lowerMessage.includes('money')) {
-      return {
-        response: this.getBudgetingResponse(),
-        metadata: { type: 'budgeting' }
+      if (!components.some(c => c.type === 'button' && (c.props as any).action?.includes('budget'))) {
+        components.push({
+          type: 'button',
+          props: {
+            label: 'Create Budget',
+            action: 'create_budget',
+            variant: 'default',
+            size: 'default'
+          }
+        } as any)
       }
     }
 
-    if (lowerMessage.includes('goal') || lowerMessage.includes('plan')) {
-      return {
-        response: this.getGoalsResponse(),
-        metadata: { type: 'goals' }
+    if (lowerMessage.includes('goal') || lowerMessage.includes('plan') || lowerMessage.includes('retirement')) {
+      if (!components.some(c => c.type === 'button' && (c.props as any).action?.includes('goal'))) {
+        components.push({
+          type: 'button',
+          props: {
+            label: 'Set Savings Goal',
+            action: 'set_savings_goal',
+            variant: 'default',
+            size: 'default'
+          }
+        } as any)
+        
+        if (lowerMessage.includes('retirement')) {
+          components.push({
+            type: 'button',
+            props: {
+              label: 'Plan for Retirement',
+              action: 'plan_retirement',
+              variant: 'outline',
+              size: 'default'
+            }
+          } as any)
+        }
       }
     }
 
-    if (lowerMessage.includes('retirement') || lowerMessage.includes('pension')) {
-      return {
-        response: this.getRetirementResponse(),
-        metadata: { type: 'retirement' }
-      }
+    // Add general "Get Started" CTA if no specific actions
+    if (components.length === 0 && response.text.length > 100) {
+      components.push({
+        type: 'button',
+        props: {
+          label: 'Get Started',
+          action: 'get_started',
+          variant: 'outline',
+          size: 'default'
+        }
+      } as any)
     }
 
     return {
-      response: "I can help you with military benefits, budgeting, financial planning, savings goals, and retirement planning. What specific financial topic would you like to discuss?",
-      metadata: { type: 'general' }
+      ...response,
+      components
     }
   }
 
+  // Legacy helper methods (kept for reference, but AI will handle most responses)
   private getBenefitsResponse(): string {
     return `Military service comes with excellent benefits:
     
@@ -132,4 +217,3 @@ export class FinancialAgent extends BaseAgent {
     Are you planning for a full 20-year career, or exploring shorter service options?`
   }
 }
-
