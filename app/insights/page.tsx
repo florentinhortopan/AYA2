@@ -8,7 +8,9 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { TrendingUp, Brain, Heart, Activity, BarChart3, MessageSquare } from 'lucide-react'
+import { TrendingUp, Brain, Heart, Activity, BarChart3, MessageSquare, History, Clock } from 'lucide-react'
+import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { format } from 'date-fns'
 
 interface InsightsData {
   profile: any
@@ -28,6 +30,9 @@ export default function InsightsPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<InsightsData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [history, setHistory] = useState<any[]>([])
+  const [historyFilter, setHistoryFilter] = useState<'all' | 'week' | 'month' | 'year'>('all')
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -37,8 +42,15 @@ export default function InsightsPage() {
 
     if (status === 'authenticated' && session?.user?.id) {
       fetchInsights()
+      fetchHistory()
     }
   }, [status, session, router])
+
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.id) {
+      fetchHistory()
+    }
+  }, [historyFilter, status, session])
 
   const fetchInsights = async () => {
     try {
@@ -54,6 +66,22 @@ export default function InsightsPage() {
       setError(err.message || 'Failed to load insights')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchHistory = async () => {
+    setHistoryLoading(true)
+    try {
+      const response = await fetch(`/api/user/insights/history?filter=${historyFilter}`)
+      
+      if (response.ok) {
+        const historyData = await response.json()
+        setHistory(historyData.history || [])
+      }
+    } catch (err) {
+      console.error('Failed to fetch insights history:', err)
+    } finally {
+      setHistoryLoading(false)
     }
   }
 
@@ -371,6 +399,185 @@ export default function InsightsPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Insights History & Chart */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {/* Engagement vs Experience Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Engagement vs Experience
+              </CardTitle>
+              <CardDescription>Track your engagement and experience levels over time</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {history.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <ScatterChart>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      type="number" 
+                      dataKey="experienceTotal" 
+                      name="Experience"
+                      label={{ value: 'Total Experience', position: 'insideBottom', offset: -5 }}
+                    />
+                    <YAxis 
+                      type="number" 
+                      dataKey="engagementScore" 
+                      name="Engagement"
+                      label={{ value: 'Engagement Score', angle: -90, position: 'insideLeft' }}
+                      domain={[0, 100]}
+                    />
+                    <Tooltip 
+                      cursor={{ strokeDasharray: '3 3' }}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload
+                          return (
+                            <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
+                              <p className="font-semibold mb-2">
+                                {format(new Date(data.createdAt), 'MMM dd, yyyy HH:mm')}
+                              </p>
+                              <p className="text-sm">Experience: {data.experienceTotal}</p>
+                              <p className="text-sm">Engagement: {data.engagementScore}/100</p>
+                              <p className="text-sm">Level: {data.engagementLevel}</p>
+                              <p className="text-sm">Sentiment: {data.sentimentLabel}</p>
+                            </div>
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <Legend />
+                    <Scatter 
+                      name="Insights" 
+                      data={history.map(h => ({
+                        experienceTotal: h.experienceTotal || 0,
+                        engagementScore: h.engagementScore || 0,
+                        engagementLevel: h.engagementLevel,
+                        sentimentLabel: h.sentimentLabel,
+                        createdAt: h.createdAt
+                      }))} 
+                      fill="#8884d8" 
+                    />
+                  </ScatterChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                  {historyLoading ? 'Loading chart data...' : 'No historical data available yet'}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Insights History Panel */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Insights History
+              </CardTitle>
+              <CardDescription>Previous insights changes over time</CardDescription>
+              <div className="flex gap-2 mt-4">
+                <Button
+                  variant={historyFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setHistoryFilter('all')}
+                >
+                  All
+                </Button>
+                <Button
+                  variant={historyFilter === 'week' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setHistoryFilter('week')}
+                >
+                  Week
+                </Button>
+                <Button
+                  variant={historyFilter === 'month' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setHistoryFilter('month')}
+                >
+                  Month
+                </Button>
+                <Button
+                  variant={historyFilter === 'year' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setHistoryFilter('year')}
+                >
+                  Year
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {historyLoading ? (
+                <div className="flex items-center justify-center h-64">
+                  <p className="text-muted-foreground">Loading history...</p>
+                </div>
+              ) : history.length > 0 ? (
+                <div className="space-y-3 max-h-[400px] overflow-y-auto">
+                  {history.map((item) => (
+                    <div
+                      key={item.id}
+                      className="border rounded-lg p-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm font-medium">
+                              {format(new Date(item.createdAt), 'MMM dd, yyyy HH:mm')}
+                            </span>
+                          </div>
+                          <div className="flex gap-2 flex-wrap mt-2">
+                            <Badge variant="outline">
+                              Engagement: {item.engagementLevel || 'N/A'}
+                            </Badge>
+                            <Badge variant="secondary">
+                              Experience: {item.experienceTotal || 0}
+                            </Badge>
+                            <Badge 
+                              variant={
+                                item.sentimentLabel?.includes('positive') ? 'default' :
+                                item.sentimentLabel?.includes('negative') ? 'destructive' :
+                                'outline'
+                              }
+                            >
+                              {item.sentimentLabel || 'N/A'}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      {item.snapshot?.summary && (
+                        <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                          {item.snapshot.summary}
+                        </p>
+                      )}
+                      {Array.isArray(item.preferences) && item.preferences.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {item.preferences.slice(0, 3).map((pref: string, idx: number) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">
+                              {pref}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-64">
+                  <p className="text-muted-foreground text-center">
+                    No insights history available for this period.
+                    <br />
+                    <span className="text-xs">Insights are saved when you interact with agents.</span>
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Formatted Context (Raw) */}
         <Card>

@@ -30,6 +30,7 @@ model User {
   trainingLogs  TrainingLog[]
   financialData FinancialData[]
   activities    UserActivity[]
+  insightsHistory InsightsHistory[]
 }
 
 model Account {
@@ -185,5 +186,24 @@ model UserActivity {
 
   @@index([userId, type])
   @@index([userId, agentType])
+  @@index([createdAt])
+}
+
+// Insights History - track insights changes over time
+model InsightsHistory {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  engagementLevel String? // low, medium, high, very_high
+  engagementScore Int?    // 0-100
+  experienceTotal Int?    // Total experience points
+  sentimentLabel  String? // very_negative, negative, neutral, positive, very_positive
+  sentimentScore  Float?  // -1 to 1
+  preferences     Json?   // Array of preferences
+  personalityTraits Json? // Array of personality traits
+  insightsSnapshot Json   // Full insights snapshot at this point in time
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
   @@index([createdAt])
 }

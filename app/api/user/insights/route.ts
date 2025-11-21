@@ -42,6 +42,44 @@ export async function GET(request: NextRequest) {
     // Generate insights
     const insights = await generateUserInsights(userContext, sentiment || undefined)
 
+    // Calculate total experience from all progress categories
+    const totalExperience = userContext.progress.reduce((sum, p) => sum + p.experience, 0)
+
+    // Save insights snapshot to history (non-blocking)
+    if (insights && sentiment) {
+      const engagementLevelToScore: Record<string, number> = {
+        low: 25,
+        medium: 50,
+        high: 75,
+        very_high: 100
+      }
+
+      prisma.insightsHistory.create({
+        data: {
+          userId,
+          engagementLevel: insights.engagement.level,
+          engagementScore: engagementLevelToScore[insights.engagement.level] || 50,
+          experienceTotal: totalExperience,
+          sentimentLabel: sentiment.sentiment,
+          sentimentScore: sentiment.score,
+          preferences: JSON.parse(JSON.stringify(insights.preferences || [])) as any,
+          personalityTraits: JSON.parse(JSON.stringify(insights.personality?.traits || [])) as any,
+          insightsSnapshot: JSON.parse(JSON.stringify({
+            summary: insights.summary,
+            preferences: insights.preferences,
+            engagement: insights.engagement,
+            recommendations: insights.recommendations,
+            personality: insights.personality,
+            sentiment: {
+              sentiment: sentiment.sentiment,
+              score: sentiment.score,
+              summary: sentiment.summary
+            }
+          })) as any
+        }
+      }).catch(err => console.error('Failed to save insights snapshot:', err))
+    }
+
     // Get formatted context
     const formattedContext = formatContextForPrompt(userContext, 'recruitment' as any)
 
