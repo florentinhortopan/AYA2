@@ -55,9 +55,12 @@ Usage Patterns:
 - Agent Distribution: ${Object.entries(context.usage.agentCounts).map(([k, v]) => `${k}: ${v}`).join(', ') || 'None'}
 
 Conversations:
-${context.conversations.map(c => 
-  `- ${c.agentType}: ${c.sessionCount} sessions, ${c.totalMessages} messages${c.topics?.length > 0 ? `, topics: ${c.topics.slice(0, 3).join(', ')}` : ''}`
-).join('\n') || 'No conversations'}
+${context.conversations.map(c => {
+  const topicsText = c.topics && c.topics.length > 0 
+    ? `, topics: ${c.topics.slice(0, 3).join(', ')}` 
+    : ''
+  return `- ${c.agentType}: ${c.sessionCount} sessions, ${c.totalMessages} messages${topicsText}`
+}).join('\n') || 'No conversations'}
 
 ${sentiment ? `Sentiment: ${sentiment.sentiment} (${sentiment.summary})` : ''}
 `
