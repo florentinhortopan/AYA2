@@ -281,7 +281,7 @@ export default function InsightsPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {Object.entries(data.usage.agentCounts).map(([agent, count]) => (
                 <div key={agent} className="text-center p-4 border rounded-lg">
-                  <p className="text-2xl font-bold">{count}</p>
+                  <p className="text-2xl font-bold">{count as number}</p>
                   <p className="text-sm text-muted-foreground capitalize">{agent}</p>
                 </div>
               ))}
@@ -290,7 +290,7 @@ export default function InsightsPage() {
               <div className="mt-4">
                 <p className="text-sm font-medium">
                   Most Used Agent: <span className="capitalize">{data.usage.mostUsedAgent}</span>
-                  {' '}({data.usage.agentCounts[data.usage.mostUsedAgent]} sessions)
+                  {' '}({data.usage.agentCounts[data.usage.mostUsedAgent] as number} sessions)
                 </p>
               </div>
             )}
