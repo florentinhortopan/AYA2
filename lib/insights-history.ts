@@ -57,27 +57,54 @@ export async function saveInsightsSnapshot(
       const lastSentimentScore = lastSnapshot.sentimentScore || 0
       const lastExperienceTotal = lastSnapshot.experienceTotal || 0
 
-      // Check for meaningful changes
-      const engagementChanged = currentEngagement !== lastEngagement || Math.abs(currentEngagementScore - lastEngagementScore) >= 5
+      // Check for meaningful changes (more lenient thresholds)
+      const engagementChanged = currentEngagement !== lastEngagement || Math.abs(currentEngagementScore - lastEngagementScore) >= 3
       const preferencesChanged = currentPreferences !== lastPreferences
       const personalityChanged = currentPersonalityTraits !== lastPersonalityTraits
-      const summaryChanged = currentSummary !== lastSummary && 
-        (currentSummary.length > 50 || lastSummary.length === 0) // Only if meaningful summary
+      
+      // More lenient summary change detection - check if substantially different
+      const summaryLengthDiff = Math.abs(currentSummary.length - lastSummary.length)
+      const summarySubstantiallyDifferent = currentSummary !== lastSummary && 
+        (currentSummary.length > 30 || lastSummary.length === 0 || summaryLengthDiff >= 20)
+      const summaryChanged = summarySubstantiallyDifferent
+      
       const sentimentChanged = currentSentimentLabel !== lastSentimentLabel || 
-        Math.abs(currentSentimentScore - lastSentimentScore) >= 0.2
-      const experienceChanged = Math.abs(totalExperience - lastExperienceTotal) >= 10
+        Math.abs(currentSentimentScore - lastSentimentScore) >= 0.15
+      const experienceChanged = Math.abs(totalExperience - lastExperienceTotal) >= 5
 
       // Save if any meaningful change detected
       hasChanged = engagementChanged || preferencesChanged || personalityChanged || 
                    summaryChanged || sentimentChanged || experienceChanged
+
+      // Debug logging
+      if (hasChanged) {
+        console.log(`Insights change detected for user ${userId}:`, {
+          engagementChanged,
+          preferencesChanged,
+          personalityChanged,
+          summaryChanged,
+          sentimentChanged,
+          experienceChanged,
+          currentEngagement,
+          lastEngagement,
+          currentSummaryLength: currentSummary.length,
+          lastSummaryLength: lastSummary.length
+        })
+      }
     }
 
-    // Also check time-based: save if last snapshot was more than 30 minutes ago (even if no change)
-    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000)
-    const shouldSaveByTime = !lastSnapshot || lastSnapshot.createdAt < thirtyMinutesAgo
+    // Also check time-based: save if last snapshot was more than 10 minutes ago (even if no change)
+    // This ensures we capture insights even if changes are subtle
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000)
+    const shouldSaveByTime = !lastSnapshot || lastSnapshot.createdAt < tenMinutesAgo
 
-    if (!hasChanged && !shouldSaveByTime) {
+    // If summary changed (even if other fields didn't), always save
+    // AI-generated summaries change frequently and represent real insight updates
+    const shouldSaveForSummaryChange = summaryChanged && currentSummary.length > 30
+
+    if (!hasChanged && !shouldSaveByTime && !shouldSaveForSummaryChange) {
       // No meaningful changes and recent snapshot exists
+      console.log(`Skipping snapshot for user ${userId} - no significant changes detected`)
       return
     }
 

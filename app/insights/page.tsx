@@ -52,6 +52,17 @@ export default function InsightsPage() {
     }
   }, [historyFilter, status, session])
 
+  // Refresh history when insights page is visible/refocused
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.id) {
+      const interval = setInterval(() => {
+        fetchHistory()
+      }, 30000) // Refresh every 30 seconds
+
+      return () => clearInterval(interval)
+    }
+  }, [status, session])
+
   const fetchInsights = async () => {
     try {
       const response = await fetch('/api/user/insights')
@@ -72,11 +83,15 @@ export default function InsightsPage() {
   const fetchHistory = async () => {
     setHistoryLoading(true)
     try {
-      const response = await fetch(`/api/user/insights/history?filter=${historyFilter}`)
+      const response = await fetch(`/api/user/insights/history?filter=${historyFilter}&t=${Date.now()}`)
       
       if (response.ok) {
         const historyData = await response.json()
-        setHistory(historyData.history || [])
+        const newHistory = historyData.history || []
+        setHistory(newHistory)
+        console.log(`Fetched ${newHistory.length} insights history entries`)
+      } else {
+        console.error('Failed to fetch insights history:', response.statusText)
       }
     } catch (err) {
       console.error('Failed to fetch insights history:', err)
@@ -452,13 +467,17 @@ export default function InsightsPage() {
                     <Legend />
                     <Scatter 
                       name="Insights" 
-                      data={history.map(h => ({
-                        experienceTotal: h.experienceTotal || 0,
-                        engagementScore: h.engagementScore || 0,
-                        engagementLevel: h.engagementLevel,
-                        sentimentLabel: h.sentimentLabel,
-                        createdAt: h.createdAt
-                      }))} 
+                      data={history
+                        .filter(h => h.experienceTotal !== null && h.experienceTotal !== undefined && 
+                                     h.engagementScore !== null && h.engagementScore !== undefined)
+                        .map(h => ({
+                          experienceTotal: Number(h.experienceTotal) || 0,
+                          engagementScore: Number(h.engagementScore) || 0,
+                          engagementLevel: h.engagementLevel,
+                          sentimentLabel: h.sentimentLabel,
+                          createdAt: h.createdAt
+                        }))
+                        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())} 
                       fill="#8884d8" 
                     />
                   </ScatterChart>
