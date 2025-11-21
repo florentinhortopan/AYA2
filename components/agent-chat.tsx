@@ -25,6 +25,7 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
   const [loading, setLoading] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [initialized, setInitialized] = useState(false)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -105,6 +106,60 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
     }
   }
 
+  const handleAction = async (action: string, data?: Record<string, unknown>) => {
+    if (!userId) {
+      // Prompt user to sign in
+      const confirmSignIn = confirm('Please sign in to perform this action. Would you like to sign in now?')
+      if (confirmSignIn) {
+        window.location.href = '/auth/signin'
+      }
+      return
+    }
+
+    setActionLoading(action)
+
+    try {
+      const response = await fetch('/api/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, data })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Action failed')
+      }
+
+      // Show success message
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: result.message || 'Action completed successfully!',
+        timestamp: new Date().toISOString()
+      }])
+
+      // Handle redirect if provided
+      if (result.redirect) {
+        setTimeout(() => {
+          window.location.href = result.redirect
+        }, 1000)
+      }
+
+      // Refresh page data if needed
+      if (result.refresh) {
+        window.location.reload()
+      }
+    } catch (error: any) {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `Sorry, I couldn't complete that action: ${error.message || 'Unknown error'}`,
+        timestamp: new Date().toISOString()
+      }])
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   const agentNames: Record<AgentType, string> = {
     recruitment: 'Recruitment Assistant',
     training: 'Training Assistant',
@@ -135,12 +190,10 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
                 {msg.components && msg.components.length > 0 && (
                   <UIComponentsRenderer 
                     components={msg.components}
-                    onAction={(action, data) => {
-                      // Handle action buttons
-                      console.log('Action triggered:', action, data)
-                      // You can implement specific action handlers here
-                      // For example: navigate to a page, save data, etc.
+                    onAction={async (action, data) => {
+                      await handleAction(action, data)
                     }}
+                    actionLoading={actionLoading}
                   />
                 )}
               </div>

@@ -10,9 +10,10 @@ import Link from 'next/link'
 interface UIComponentsRendererProps {
   components: AnyUIComponent[]
   onAction?: (action: string, data?: Record<string, unknown>) => void
+  actionLoading?: string | null
 }
 
-export function UIComponentsRenderer({ components, onAction }: UIComponentsRendererProps) {
+export function UIComponentsRenderer({ components, onAction, actionLoading }: UIComponentsRendererProps) {
   if (!components || components.length === 0) {
     return null
   }
@@ -24,6 +25,7 @@ export function UIComponentsRenderer({ components, onAction }: UIComponentsRende
           key={component.id || index}
           component={component}
           onAction={onAction}
+          actionLoading={actionLoading}
         />
       ))}
     </div>
@@ -32,10 +34,12 @@ export function UIComponentsRenderer({ components, onAction }: UIComponentsRende
 
 function ComponentRenderer({ 
   component, 
-  onAction 
+  onAction,
+  actionLoading
 }: { 
   component: AnyUIComponent
-  onAction?: (action: string, data?: Record<string, unknown>) => void 
+  onAction?: (action: string, data?: Record<string, unknown>) => void
+  actionLoading?: string | null
 }) {
   switch (component.type) {
     case 'text':
@@ -55,14 +59,17 @@ function ComponentRenderer({
 
     case 'button':
       const buttonProps = component.props as any
+      const isActionLoading = actionLoading === buttonProps.action
+      
       const ButtonContent = buttonProps.href ? (
         <Link href={buttonProps.href}>
           <Button
             variant={buttonProps.variant || 'default'}
             size={buttonProps.size || 'default'}
             onClick={() => onAction?.(buttonProps.action, buttonProps)}
+            disabled={isActionLoading}
           >
-            {buttonProps.label}
+            {isActionLoading ? 'Processing...' : buttonProps.label}
           </Button>
         </Link>
       ) : (
@@ -70,8 +77,9 @@ function ComponentRenderer({
           variant={buttonProps.variant || 'default'}
           size={buttonProps.size || 'default'}
           onClick={() => onAction?.(buttonProps.action, buttonProps)}
+          disabled={isActionLoading}
         >
-          {buttonProps.label}
+          {isActionLoading ? 'Processing...' : buttonProps.label}
         </Button>
       )
       return <div>{ButtonContent}</div>
