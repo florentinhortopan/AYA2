@@ -16,6 +16,7 @@ model User {
   email         String?   @unique
   name          String?
   image         String?
+  password      String?   @db.Text // Hashed password for credentials auth
   emailVerified DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
