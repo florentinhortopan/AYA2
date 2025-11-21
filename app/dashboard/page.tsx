@@ -4,11 +4,11 @@ import Link from 'next/link'
 
 export default function DashboardPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-background to-muted">
+    <main className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-16">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold tracking-tight mb-2">Dashboard</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-5xl font-bold tracking-tight mb-2 text-gold">Dashboard</h1>
+          <p className="text-foreground text-lg">
             Welcome back! Here&apos;s your personalized overview.
           </p>
         </div>
@@ -48,7 +48,7 @@ export default function DashboardPage() {
                   Start your journey to unlock achievements!
                 </p>
                 <Link href="/explore">
-                  <Button className="mt-4">Get Started</Button>
+                  <Button className="mt-4 bg-primary text-primary-foreground hover:bg-primary/90">Get Started</Button>
                 </Link>
               </div>
             </CardContent>
@@ -62,12 +62,12 @@ export default function DashboardPage() {
             <CardContent>
               <div className="space-y-2">
                 <Link href="/community">
-                  <Button variant="outline" className="w-full">
+                  <Button variant="outline" className="w-full border-border hover:bg-muted">
                     Browse Content
                   </Button>
                 </Link>
                 <Link href="/community/create">
-                  <Button variant="outline" className="w-full">
+                  <Button variant="outline" className="w-full border-border hover:bg-muted">
                     Create Post
                   </Button>
                 </Link>
@@ -85,16 +85,16 @@ export default function DashboardPage() {
             <CardContent>
               <div className="grid grid-cols-2 gap-2">
                 <Link href="/explore/recruitment">
-                  <Button variant="outline" className="w-full">Recruitment</Button>
+                  <Button variant="outline" className="w-full border-border hover:bg-muted">Recruitment</Button>
                 </Link>
                 <Link href="/explore/training">
-                  <Button variant="outline" className="w-full">Training</Button>
+                  <Button variant="outline" className="w-full border-border hover:bg-muted">Training</Button>
                 </Link>
                 <Link href="/explore/financial">
-                  <Button variant="outline" className="w-full">Financial</Button>
+                  <Button variant="outline" className="w-full border-border hover:bg-muted">Financial</Button>
                 </Link>
                 <Link href="/explore/educational">
-                  <Button variant="outline" className="w-full">Educational</Button>
+                  <Button variant="outline" className="w-full border-border hover:bg-muted">Educational</Button>
                 </Link>
               </div>
             </CardContent>
@@ -111,7 +111,7 @@ export default function DashboardPage() {
                   No recent activity. Start exploring!
                 </p>
                 <Link href="/explore">
-                  <Button className="mt-4">Explore Features</Button>
+                  <Button className="mt-4 bg-primary text-primary-foreground hover:bg-primary/90">Explore Features</Button>
                 </Link>
               </div>
             </CardContent>

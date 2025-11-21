@@ -26,7 +26,7 @@ export default function AgentPage({ params }: PageProps) {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-background to-muted">
+    <main className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-16">
         <AgentChat agentType={agentType} />
       </div>

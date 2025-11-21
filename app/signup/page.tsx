@@ -60,11 +60,11 @@ export default function SignUpPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted p-4">
-      <Card className="w-full max-w-md">
+    <main className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md border-border bg-card">
         <CardHeader>
-          <CardTitle className="text-2xl text-center">Create Account</CardTitle>
-          <CardDescription className="text-center">
+          <CardTitle className="text-3xl text-center text-gold font-bold">Create Account</CardTitle>
+          <CardDescription className="text-center text-foreground/80">
             Join AYAYA2 to access UGC content, detailed guides, and track your progress
           </CardDescription>
         </CardHeader>
@@ -127,14 +127,14 @@ export default function SignUpPage() {
                 disabled={loading}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
               {loading ? 'Creating Account...' : 'Create Account'}
             </Button>
           </form>
 
           <p className="text-center text-sm text-muted-foreground">
             Already have an account?{' '}
-            <Link href="/auth/signin" className="text-primary hover:underline">
+            <Link href="/auth/signin" className="text-gold hover:underline font-medium">
               Sign in
             </Link>
           </p>

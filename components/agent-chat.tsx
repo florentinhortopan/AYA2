@@ -110,12 +110,12 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
   }
 
   return (
-    <Card className="w-full max-w-3xl mx-auto">
+    <Card className="w-full max-w-3xl mx-auto border-border bg-card">
       <CardHeader>
-        <CardTitle>{agentNames[agentType]}</CardTitle>
+        <CardTitle className="text-2xl text-gold font-bold">{agentNames[agentType]}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="h-96 overflow-y-auto space-y-4 p-4 bg-muted/50 rounded-lg">
+        <div className="h-96 overflow-y-auto space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
           {messages.map((msg, idx) => (
             <div
               key={idx}
@@ -125,7 +125,7 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
                 className={`max-w-[80%] rounded-lg p-3 ${
                   msg.role === 'user'
                     ? 'bg-primary text-primary-foreground'
-                    : 'bg-background border border-border'
+                    : 'bg-card border border-border text-foreground'
                 }`}
               >
                 <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
@@ -134,7 +134,7 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
           ))}
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-background border border-border rounded-lg p-3">
+              <div className="bg-card border border-border rounded-lg p-3">
                 <p className="text-sm text-muted-foreground">Thinking...</p>
               </div>
             </div>
@@ -148,8 +148,13 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
             onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
             placeholder="Type your message..."
             disabled={loading}
+            className="bg-background border-border"
           />
-          <Button onClick={sendMessage} disabled={loading || !input.trim()}>
+          <Button 
+            onClick={sendMessage} 
+            disabled={loading || !input.trim()}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+          >
             Send
           </Button>
         </div>
