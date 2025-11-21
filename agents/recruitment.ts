@@ -1,5 +1,7 @@
 import { BaseAgent, AgentMessage } from './base'
-import { CareerGoal } from '@/types'
+import { RichAgentResponse } from '@/types'
+import { aiService } from '@/lib/ai'
+import { recruitmentAgentConfig } from './config/recruitment'
 
 export class RecruitmentAgent extends BaseAgent {
   constructor(context = {}) {
@@ -10,69 +12,126 @@ export class RecruitmentAgent extends BaseAgent {
     return "Hello! I'm your recruitment assistant. I can help you explore career paths, understand requirements, and provide personalized recommendations based on your interests and goals. What would you like to know?"
   }
 
+  // Legacy method - keep for backwards compatibility
   async processMessage(
     message: string,
     history: AgentMessage[]
   ): Promise<{ response: string; metadata?: Record<string, unknown> }> {
-    // Placeholder implementation - will be replaced with actual AI integration
+    const richResponse = await this.processMessageRich(message, history)
+    return {
+      response: richResponse.text,
+      metadata: richResponse.metadata
+    }
+  }
+
+  // New rich UI method
+  async processMessageRich(
+    message: string,
+    history: AgentMessage[]
+  ): Promise<RichAgentResponse> {
+    // Convert history to AI message format
+    const aiMessages = history
+      .filter(m => m.role !== 'system')
+      .map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content
+      }))
+
+    // Add current message
+    aiMessages.push({
+      role: 'user',
+      content: message
+    })
+
+    // Generate rich response with UI components
+    const response = await aiService.generateRichResponse(
+      aiMessages,
+      recruitmentAgentConfig,
+      this.context
+    )
+
+    // Enhance response with dynamic CTAs based on message intent
+    const enhancedResponse = this.enhanceWithCTAs(response, message)
+
+    return enhancedResponse
+  }
+
+  private enhanceWithCTAs(
+    response: RichAgentResponse,
+    message: string
+  ): RichAgentResponse {
     const lowerMessage = message.toLowerCase()
+    const components = response.components || []
 
-    if (lowerMessage.includes('career') || lowerMessage.includes('path')) {
-      return {
-        response: this.getCareerPathResponse(),
-        metadata: { type: 'career_path' }
+    // Add relevant CTAs based on intent
+    if (lowerMessage.includes('career') || lowerMessage.includes('path') || lowerMessage.includes('role')) {
+      if (!components.some(c => c.type === 'button' && (c.props as any).action?.includes('career'))) {
+        components.push({
+          type: 'button',
+          props: {
+            label: 'Explore Career Paths',
+            action: 'explore_career',
+            variant: 'default',
+            size: 'default'
+          }
+        } as any)
       }
     }
 
-    if (lowerMessage.includes('requirement') || lowerMessage.includes('qualification')) {
-      return {
-        response: this.getRequirementsResponse(),
-        metadata: { type: 'requirements' }
+    if (lowerMessage.includes('requirement') || lowerMessage.includes('qualification') || lowerMessage.includes('need')) {
+      if (!components.some(c => c.type === 'button' && (c.props as any).action?.includes('requirement'))) {
+        components.push({
+          type: 'button',
+          props: {
+            label: 'View Requirements',
+            action: 'view_requirements',
+            variant: 'outline',
+            size: 'default'
+          }
+        } as any)
       }
     }
 
-    if (lowerMessage.includes('recommend') || lowerMessage.includes('suggest')) {
-      return {
-        response: this.getRecommendationResponse(),
-        metadata: { type: 'recommendation' }
+    if (lowerMessage.includes('recommend') || lowerMessage.includes('suggest') || lowerMessage.includes('best')) {
+      if (!components.some(c => c.type === 'button' && (c.props as any).action?.includes('assessment'))) {
+        components.push({
+          type: 'button',
+          props: {
+            label: 'Start Career Assessment',
+            action: 'start_assessment',
+            variant: 'default',
+            size: 'lg'
+          }
+        } as any)
+        
+        components.push({
+          type: 'button',
+          props: {
+            label: 'Save to My Interests',
+            action: 'save_interest',
+            variant: 'outline',
+            size: 'default'
+          }
+        } as any)
       }
+    }
+
+    // Add general "Learn More" CTA if no specific actions
+    if (components.length === 0 && response.text.length > 100) {
+      components.push({
+        type: 'button',
+        props: {
+          label: 'Learn More',
+          action: 'learn_more',
+          variant: 'outline',
+          size: 'default'
+        }
+      } as any)
     }
 
     return {
-      response: "I understand you're exploring army recruitment options. I can help you with career paths, requirements, and personalized recommendations. What specific area interests you?",
-      metadata: { type: 'general' }
+      ...response,
+      components
     }
-  }
-
-  private getCareerPathResponse(): string {
-    return `There are numerous exciting career paths in the military! Some popular options include:
-    - Combat roles (Infantry, Special Forces)
-    - Technical roles (IT, Engineering, Communications)
-    - Medical roles (Medic, Nurse, Surgeon)
-    - Administrative roles (HR, Finance, Logistics)
-    
-    What type of work interests you most? I can provide more detailed information based on your preferences.`
-  }
-
-  private getRequirementsResponse(): string {
-    return `Basic requirements typically include:
-    - Age: Usually 17-35 years old
-    - Education: High school diploma or equivalent
-    - Physical fitness: Meet minimum fitness standards
-    - Medical: Pass medical examination
-    - Legal: Clean criminal record
-    
-    Specific roles may have additional requirements. Would you like to know about requirements for a specific career path?`
-  }
-
-  private getRecommendationResponse(): string {
-    const profile = this.context.profile as { interests?: string[]; age?: number } | undefined
-    
-    if (!profile || !profile.interests) {
-      return `To provide personalized recommendations, I'd like to know more about your interests and goals. What areas are you most passionate about? Are you more interested in hands-on work, technology, helping others, or leadership roles?`
-    }
-
-    return `Based on your interests in ${profile.interests.join(', ')}, I'd recommend exploring roles that align with these areas. Would you like me to generate a detailed career path recommendation for you?`
   }
 }
-

@@ -3,7 +3,8 @@ import { TrainingAgent } from './training'
 import { FinancialAgent } from './financial'
 import { EducationalAgent } from './educational'
 import { BaseAgent, AgentContext } from './base'
-import { AgentType } from '@/types'
+import { AgentType, RichAgentResponse } from '@/types'
+import { AgentMessage } from './base'
 
 export function createAgent(type: AgentType, context: AgentContext = {}): BaseAgent {
   switch (type) {
@@ -18,6 +19,13 @@ export function createAgent(type: AgentType, context: AgentContext = {}): BaseAg
     default:
       throw new Error(`Unknown agent type: ${type}`)
   }
+}
+
+// Type guard to check if agent supports rich responses
+export function hasRichResponse(agent: BaseAgent): agent is BaseAgent & {
+  processMessageRich: (message: string, history: AgentMessage[]) => Promise<RichAgentResponse>
+} {
+  return typeof (agent as any).processMessageRich === 'function'
 }
 
 export { BaseAgent, RecruitmentAgent, TrainingAgent, FinancialAgent, EducationalAgent }

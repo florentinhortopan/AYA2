@@ -1,4 +1,4 @@
-import { AgentType } from '@/types'
+import { AgentType, RichAgentResponse } from '@/types'
 
 export interface AgentMessage {
   role: 'user' | 'assistant' | 'system'
@@ -22,10 +22,17 @@ export abstract class BaseAgent {
     this.context = context
   }
 
+  // Legacy method for text-only responses
   abstract processMessage(
     message: string,
     history: AgentMessage[]
   ): Promise<{ response: string; metadata?: Record<string, unknown> }>
+
+  // New method for rich UI responses
+  abstract processMessageRich(
+    message: string,
+    history: AgentMessage[]
+  ): Promise<RichAgentResponse>
 
   abstract getInitialMessage(): string
 

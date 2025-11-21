@@ -96,3 +96,6 @@ export interface Achievement {
   category: 'training' | 'career' | 'community' | 'learning'
 }
 
+// Export UI types
+export * from './ui'
+

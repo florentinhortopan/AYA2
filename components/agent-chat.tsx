@@ -4,12 +4,14 @@ import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AgentType } from '@/types'
+import { AgentType, RichAgentResponse } from '@/types'
+import { UIComponentsRenderer } from './ui-components-renderer'
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: string
+  components?: RichAgentResponse['components']
 }
 
 interface AgentChatProps {
@@ -79,16 +81,17 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
 
       const data = await response.json()
 
-      if (data.response) {
-        const assistantMessage: Message = {
-          role: 'assistant',
-          content: data.response,
-          timestamp: new Date().toISOString()
-        }
-        setMessages(prev => [...prev, assistantMessage])
-        if (data.sessionId && !sessionId) {
-          setSessionId(data.sessionId)
-        }
+      // Handle both legacy response format and rich UI format
+      const assistantMessage: Message = {
+        role: 'assistant',
+        content: data.text || data.response || 'I apologize, but I could not generate a response.',
+        timestamp: new Date().toISOString(),
+        components: data.components || []
+      }
+      
+      setMessages(prev => [...prev, assistantMessage])
+      if (data.sessionId && !sessionId) {
+        setSessionId(data.sessionId)
       }
     } catch (error) {
       console.error('Error sending message:', error)
@@ -129,6 +132,17 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
                 }`}
               >
                 <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                {msg.components && msg.components.length > 0 && (
+                  <UIComponentsRenderer 
+                    components={msg.components}
+                    onAction={(action, data) => {
+                      // Handle action buttons
+                      console.log('Action triggered:', action, data)
+                      // You can implement specific action handlers here
+                      // For example: navigate to a page, save data, etc.
+                    }}
+                  />
+                )}
               </div>
             </div>
           ))}

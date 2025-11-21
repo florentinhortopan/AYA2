@@ -1,4 +1,5 @@
 import { BaseAgent, AgentMessage } from './base'
+import { RichAgentResponse } from '@/types'
 
 export class TrainingAgent extends BaseAgent {
   constructor(context = {}) {
@@ -7,6 +8,19 @@ export class TrainingAgent extends BaseAgent {
 
   getInitialMessage(): string {
     return "Hello! I'm your training assistant. I can help you with both physical and mental training programs, track your progress, and provide personalized workout plans. Are you looking for physical training, mental wellness guidance, or both?"
+  }
+
+  async processMessageRich(
+    message: string,
+    history: AgentMessage[]
+  ): Promise<RichAgentResponse> {
+    // For now, use legacy method until we implement AI integration
+    const legacyResult = await this.processMessage(message, history)
+    return {
+      text: legacyResult.response,
+      components: [],
+      metadata: legacyResult.metadata
+    }
   }
 
   async processMessage(

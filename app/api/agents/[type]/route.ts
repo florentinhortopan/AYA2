@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAgent } from '@/agents'
-import { AgentType } from '@/types'
+import { createAgent, hasRichResponse } from '@/agents'
+import { AgentType, RichAgentResponse } from '@/types'
 import { prisma } from '@/lib/db'
 
 // Mark route as dynamic to prevent build-time analysis
@@ -54,8 +54,26 @@ export async function POST(
       profile
     })
 
-    // Process message
-    const result = await agent.processMessage(message, history)
+    // Process message with rich UI support
+    let result: RichAgentResponse
+    if (hasRichResponse(agent)) {
+      // Use rich response if agent supports it
+      result = await agent.processMessageRich(message, history)
+    } else {
+      // Fallback to legacy method
+      const legacyResult = await agent.processMessage(message, history)
+      result = {
+        text: legacyResult.response,
+        components: [],
+        metadata: legacyResult.metadata
+      }
+    }
+
+    const assistantMessage = {
+      role: 'assistant' as const,
+      content: result.text,
+      timestamp: new Date().toISOString()
+    }
 
     // Save or update agent session
     if (sessionId) {
@@ -66,8 +84,9 @@ export async function POST(
             messages: [
               ...history,
               { role: 'user', content: message, timestamp: new Date().toISOString() },
-              { role: 'assistant', content: result.response, timestamp: new Date().toISOString() }
-            ]
+              assistantMessage
+            ],
+            lastResponse: result // Store rich response
           }
         }
       })
@@ -80,22 +99,21 @@ export async function POST(
           sessionData: {
             messages: [
               { role: 'user', content: message, timestamp: new Date().toISOString() },
-              { role: 'assistant', content: result.response, timestamp: new Date().toISOString() }
-            ]
+              assistantMessage
+            ],
+            lastResponse: result
           }
         }
       })
       return NextResponse.json({
-        response: result.response,
-        sessionId: session.id,
-        metadata: result.metadata
+        ...result,
+        sessionId: session.id
       })
     }
 
     return NextResponse.json({
-      response: result.response,
-      sessionId,
-      metadata: result.metadata
+      ...result,
+      sessionId
     })
   } catch (error) {
     console.error('Agent API error:', error)
