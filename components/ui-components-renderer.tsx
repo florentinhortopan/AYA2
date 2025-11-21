@@ -218,61 +218,63 @@ function ComponentRenderer({
       return (
         <div className="space-y-4">
           {timelineProps.title && (
-            <div>
+            <div className="mb-4">
               <h4 className="font-semibold text-lg">{timelineProps.title}</h4>
               {timelineProps.description && (
-                <p className="text-sm text-muted-foreground">{timelineProps.description}</p>
+                <p className="text-sm text-muted-foreground mt-1">{timelineProps.description}</p>
               )}
             </div>
           )}
-          <div className="relative pl-8 space-y-6">
-            {timelineProps.milestones?.map((milestone: any, idx: number) => (
-              <div key={idx} className="relative">
-                {/* Timeline line */}
-                {idx < timelineProps.milestones.length - 1 && (
-                  <div className="absolute left-2 top-8 bottom-0 w-0.5 bg-border" />
-                )}
-                {/* Timeline dot */}
-                <div className={`absolute left-0 top-1 w-4 h-4 rounded-full border-2 ${
-                  milestone.status === 'completed' ? 'bg-primary border-primary' :
-                  milestone.status === 'current' ? 'bg-primary border-primary animate-pulse' :
-                  'bg-background border-border'
-                }`} />
-                {/* Milestone content */}
-                <div className="pb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h5 className="font-semibold">{milestone.title}</h5>
-                        {milestone.badge && (
-                          <Badge variant="outline" className="text-xs">{milestone.badge}</Badge>
+          <div className="relative">
+            {/* Vertical timeline line */}
+            <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-border" />
+            
+            <div className="space-y-6">
+              {timelineProps.milestones?.map((milestone: any, idx: number) => (
+                <div key={idx} className="relative pl-10">
+                  {/* Timeline dot */}
+                  <div className={`absolute left-1 top-1.5 w-4 h-4 rounded-full border-2 z-10 ${
+                    milestone.status === 'completed' ? 'bg-primary border-primary' :
+                    milestone.status === 'current' ? 'bg-primary border-primary animate-pulse' :
+                    'bg-background border-border'
+                  }`} />
+                  
+                  {/* Milestone content */}
+                  <div className="pb-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h5 className="font-semibold text-base">{milestone.title}</h5>
+                          {milestone.badge && (
+                            <Badge variant="outline" className="text-xs">{milestone.badge}</Badge>
+                          )}
+                        </div>
+                        {milestone.date && (
+                          <p className="text-xs text-muted-foreground mt-1">{milestone.date}</p>
+                        )}
+                        {milestone.description && (
+                          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{milestone.description}</p>
+                        )}
+                        {milestone.links && milestone.links.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            {milestone.links.map((link: any, linkIdx: number) => (
+                              <a
+                                key={linkIdx}
+                                href={link.href}
+                                className="text-xs text-primary hover:underline flex items-center gap-1 transition-colors"
+                              >
+                                <span>{link.label}</span>
+                                <span>→</span>
+                              </a>
+                            ))}
+                          </div>
                         )}
                       </div>
-                      {milestone.date && (
-                        <p className="text-xs text-muted-foreground mt-1">{milestone.date}</p>
-                      )}
-                      {milestone.description && (
-                        <p className="text-sm text-muted-foreground mt-2">{milestone.description}</p>
-                      )}
-                      {milestone.links && milestone.links.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          {milestone.links.map((link: any, linkIdx: number) => (
-                            <a
-                              key={linkIdx}
-                              href={link.href}
-                              className="text-xs text-primary hover:underline flex items-center gap-1"
-                            >
-                              <span>{link.label}</span>
-                              <span>→</span>
-                            </a>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )
