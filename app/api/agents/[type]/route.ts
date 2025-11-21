@@ -77,19 +77,22 @@ export async function POST(
       timestamp: new Date().toISOString()
     }
 
+    // Prepare session data as JSON-compatible
+    const sessionData = {
+      messages: [
+        ...history,
+        { role: 'user', content: message, timestamp: new Date().toISOString() },
+        assistantMessage
+      ],
+      lastResponse: JSON.parse(JSON.stringify(result)) as unknown // Serialize to ensure JSON compatibility
+    }
+
     // Save or update agent session
     if (sessionId) {
       await prisma.agentSession.update({
         where: { id: sessionId },
         data: {
-          sessionData: {
-            messages: [
-              ...history,
-              { role: 'user', content: message, timestamp: new Date().toISOString() },
-              assistantMessage
-            ],
-            lastResponse: result // Store rich response
-          }
+          sessionData: sessionData as any
         }
       })
     } else {
@@ -103,8 +106,8 @@ export async function POST(
               { role: 'user', content: message, timestamp: new Date().toISOString() },
               assistantMessage
             ],
-            lastResponse: result
-          }
+            lastResponse: JSON.parse(JSON.stringify(result)) as unknown
+          } as any
         }
       })
       return NextResponse.json({
