@@ -216,18 +216,18 @@ async function handleSavePlan(userId: string, data: unknown) {
       create: {
         userId,
         category: validated.category as any,
-        progress: {
+        progress: JSON.parse(JSON.stringify({
           savedPlans: [{
             name: validated.planName,
             data: validated.planData,
             savedAt: new Date().toISOString()
           }]
-        },
+        })) as any,
         level: 1,
         experience: 20
       },
       update: {
-        progress: {
+        progress: JSON.parse(JSON.stringify({
           savedPlans: [
             ...((await prisma.userProgress.findUnique({
               where: { userId_category: { userId, category: validated.category as any } }
@@ -238,7 +238,7 @@ async function handleSavePlan(userId: string, data: unknown) {
               savedAt: new Date().toISOString()
             }
           ]
-        }
+        })) as any
       }
     })
 
