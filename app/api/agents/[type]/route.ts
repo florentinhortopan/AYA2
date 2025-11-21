@@ -56,21 +56,13 @@ export async function POST(
 
     // Process message with rich UI support
     let result: RichAgentResponse
-    try {
-      // Try rich response if agent supports it
-      if (hasRichResponse(agent)) {
-        result = await agent.processMessageRich(message, history)
-      } else {
-        // Fallback to legacy method
-        const legacyResult = await agent.processMessage(message, history)
-        result = {
-          text: legacyResult.response,
-          components: [],
-          metadata: legacyResult.metadata
-        }
-      }
-    } catch (error) {
-      // Always fallback to legacy method on error
+    
+    // Check if agent has processMessageRich method
+    if ('processMessageRich' in agent && typeof (agent as any).processMessageRich === 'function') {
+      // Use rich response if agent supports it
+      result = await (agent as any).processMessageRich(message, history)
+    } else {
+      // Fallback to legacy method - BaseAgent always has processMessage
       const legacyResult = await agent.processMessage(message, history)
       result = {
         text: legacyResult.response,
