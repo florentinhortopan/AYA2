@@ -52,7 +52,7 @@ export default function SignUpPage() {
         return
       }
 
-      router.push('/dashboard')
+      router.push('/onboarding')
     } catch (err) {
       setError('An unexpected error occurred. Please try again.')
       setLoading(false)
