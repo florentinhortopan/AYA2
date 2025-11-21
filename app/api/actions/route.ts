@@ -306,12 +306,12 @@ async function handleSetSavingsGoal(userId: string, data: unknown) {
       data: {
         userId,
         type: 'goal',
-        data: {
+        data: JSON.parse(JSON.stringify({
           name: validated.goalName,
           targetAmount: validated.targetAmount,
           deadline: validated.deadline,
           createdAt: new Date().toISOString()
-        }
+        })) as any
       }
     })
 
@@ -342,7 +342,7 @@ async function handleCreateBudget(userId: string, data: unknown) {
       data: {
         userId,
         type: 'budget',
-        data: validated.budgetData
+        data: JSON.parse(JSON.stringify(validated.budgetData)) as any
       }
     })
 
@@ -415,10 +415,10 @@ async function updateUserProgress(
     update: {
       level: newLevel,
       experience: newExperience,
-      progress: {
-        ...(current?.progress as any || {}),
-        lastActivity: new Date().toISOString()
-      }
+        progress: JSON.parse(JSON.stringify({
+          ...(current?.progress as any || {}),
+          lastActivity: new Date().toISOString()
+        })) as any
     }
   })
 }
