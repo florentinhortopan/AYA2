@@ -47,7 +47,7 @@ export class RecruitmentAgent extends BaseAgent {
     const response = await aiService.generateRichResponse(
       aiMessages,
       recruitmentAgentConfig,
-      this.context
+      this.context as Record<string, unknown>
     )
 
     // Enhance response with dynamic CTAs based on message intent

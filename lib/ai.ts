@@ -52,7 +52,7 @@ export class AIService {
   async generateRichResponse(
     messages: AIMessage[],
     config: AIPromptConfig,
-    context?: Record<string, unknown>
+    context?: Record<string, unknown> | { [key: string]: unknown }
   ): Promise<RichAgentResponse> {
     if (!process.env.OPENAI_API_KEY) {
       return this.getPlaceholderRichResponse(messages, config)
