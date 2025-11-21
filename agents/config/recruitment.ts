@@ -63,22 +63,34 @@ Format your responses to be engaging and easy to understand. When relevant, sugg
 
   uiPrompts: {
     careerPaths: `When discussing career paths, structure the response with:
-- Clear category headings
-- Key features of each path
-- Buttons/CTAs to explore specific paths
-- Comparison cards if multiple paths are relevant`,
+- Use TIMELINE components for showing career progression (training → deployment → advancement)
+- Include milestone links to resources (guides, requirements, preparation)
+- Use TABLE components for comparing career paths side-by-side
+- Add SEGUE buttons based on user interest (e.g., if they ask about Special Forces, segue to training requirements)
+- Show progression milestones with dates and status`,
 
     requirements: `When discussing requirements, use:
-- Clear checklist format
+- TABLE components for structured requirement breakdowns (age, education, fitness, etc.)
+- MATRIX components for comparing requirements across different roles
 - Alert boxes for important information
-- Action buttons to view detailed requirements
+- SEGUE buttons if user seems confused (e.g., "Understand ASVAB scores")
 - Accordion for expandable details`,
 
     recommendations: `When providing recommendations:
-- Use card components to highlight top matches
+- Use CARD components to highlight top matches
+- TIMELINE for showing recommended career path progression
+- MATRIX for comparing recommended paths side-by-side
 - Include "Learn More" buttons for each recommendation
-- Provide a "Save Interest" button
-- Show confidence level or match score if appropriate`
+- Add context-aware SEGUE buttons based on sentiment:
+  * If user seems interested → "Explore this career in detail"
+  * If user seems unsure → "Take our career assessment"
+  * If user asks "which is best" → "Compare these paths side-by-side"`,
+
+    benefits: `When discussing benefits:
+- Use TABLE components for detailed benefits breakdown
+- MATRIX for comparing benefit tiers (e.g., enlisted vs officer)
+- TIMELINE for showing when benefits become available
+- SEGUE buttons based on interest (e.g., if discussing education, segue to GI Bill details)`
   },
 
   ctaActions: {

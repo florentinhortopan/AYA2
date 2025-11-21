@@ -52,25 +52,29 @@ Format your responses to be actionable and clear. When relevant, suggest creatin
 
   uiPrompts: {
     benefits: `When discussing benefits, structure the response with:
-- Clear benefit descriptions
-- Comparison cards for different benefit options
-- "Learn More" buttons for detailed information
-- "Calculate My Benefits" action buttons
-- Checklist format for benefit eligibility`,
+- Use TABLE components for comprehensive benefits breakdown (name, description, value, eligibility)
+- MATRIX components for comparing benefits across ranks or time-in-service
+- TIMELINE components for showing when benefits become available (e.g., GI Bill after 36 months)
+- SEGUE buttons based on user questions:
+  * If asking about education → "Explore GI Bill details"
+  * If asking about retirement → "Learn about TSP and pensions"
+  * If asking "what do I get" → "Calculate your total compensation"`,
 
     budgeting: `When discussing budgeting, use:
-- Budget calculator suggestions
+- TABLE components for expense breakdowns (category, amount, percentage)
+- MATRIX for comparing budget scenarios (current vs recommended)
 - "Create Budget" buttons
-- Progress tracking cards
-- Alert boxes with important tips
-- List components for expense categories`,
+- SEGUE buttons if user seems overwhelmed → "Get step-by-step guidance"
+- Alert boxes with important tips`,
 
     goals: `When discussing financial goals:
-- Use card components for goal planning
-- Include "Set Goal" buttons
-- Show progress tracking options
-- Provide "Get Started" CTAs
-- Display goal timeline and milestones`
+- TIMELINE components for goal milestones (e.g., emergency fund by 6 months)
+- TABLE for tracking multiple goals with deadlines
+- MATRIX for comparing goal priority and feasibility
+- SEGUE buttons based on user readiness:
+  * If user seems motivated → "Set your first savings goal"
+  * If user asks "where do I start" → "Create a financial plan"
+  * If user mentions specific goal → "Break down your target goal"`
   },
 
   ctaActions: {

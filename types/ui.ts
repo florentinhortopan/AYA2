@@ -9,6 +9,10 @@ export type UIComponentType =
   | 'badge'
   | 'alert'
   | 'form'
+  | 'table'
+  | 'timeline'
+  | 'matrix'
+  | 'segue'
 
 export interface UIComponent {
   type: UIComponentType
@@ -89,6 +93,63 @@ export interface AccordionComponent extends UIComponent {
   }
 }
 
+export interface TableComponent extends UIComponent {
+  type: 'table'
+  props: {
+    title?: string
+    description?: string
+    headers: string[]
+    rows: Array<string[] | { [key: string]: string | number }>
+    variant?: 'default' | 'striped' | 'bordered'
+  }
+}
+
+export interface TimelineComponent extends UIComponent {
+  type: 'timeline'
+  props: {
+    title?: string
+    description?: string
+    milestones: Array<{
+      title: string
+      description?: string
+      date?: string
+      status?: 'completed' | 'current' | 'upcoming'
+      links?: Array<{
+        label: string
+        href: string
+        type?: 'resource' | 'application' | 'info'
+      }>
+      badge?: string
+    }>
+    orientation?: 'vertical' | 'horizontal'
+  }
+}
+
+export interface MatrixComponent extends UIComponent {
+  type: 'matrix'
+  props: {
+    title?: string
+    description?: string
+    rows: Array<{
+      label: string
+      values: Array<string | number | { value: string | number; highlight?: boolean }>
+    }>
+    columns?: string[]
+    highlightPattern?: 'row' | 'column' | 'cell'
+  }
+}
+
+export interface SegueComponent extends UIComponent {
+  type: 'segue'
+  props: {
+    label: string
+    action: string
+    sentiment?: 'positive' | 'neutral' | 'exploratory' | 'informative'
+    context?: string // What prompted this segue
+    variant?: 'default' | 'outline' | 'ghost'
+  }
+}
+
 export type AnyUIComponent = 
   | TextComponent
   | ButtonComponent
@@ -97,13 +158,20 @@ export type AnyUIComponent =
   | BadgeComponent
   | AlertComponent
   | AccordionComponent
+  | TableComponent
+  | TimelineComponent
+  | MatrixComponent
+  | SegueComponent
 
 export interface RichAgentResponse {
   text: string // Main text response
   components?: AnyUIComponent[] // UI components to render
+  segues?: SegueComponent[] // Context-aware segue buttons based on sentiment/previous inputs
   metadata?: {
     type?: string
     suggestedActions?: string[]
+    sentiment?: 'positive' | 'neutral' | 'exploratory' | 'informative' | 'curious'
+    context?: Record<string, unknown>
     data?: Record<string, unknown>
   }
 }

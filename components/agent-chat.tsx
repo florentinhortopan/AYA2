@@ -12,6 +12,7 @@ interface Message {
   content: string
   timestamp: string
   components?: RichAgentResponse['components']
+  segues?: RichAgentResponse['segues']
 }
 
 interface AgentChatProps {
@@ -87,7 +88,8 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
         role: 'assistant',
         content: data.text || data.response || 'I apologize, but I could not generate a response.',
         timestamp: new Date().toISOString(),
-        components: data.components || []
+        components: data.components || [],
+        segues: data.segues || []
       }
       
       setMessages(prev => [...prev, assistantMessage])
@@ -195,6 +197,21 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
                     }}
                     actionLoading={actionLoading}
                   />
+                )}
+                {msg.segues && msg.segues.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-border/50 space-y-2">
+                    <p className="text-xs text-muted-foreground mb-2">You might also want to:</p>
+                    {msg.segues.map((segue, idx) => (
+                      <UIComponentsRenderer
+                        key={idx}
+                        components={[segue]}
+                        onAction={async (action, data) => {
+                          await handleAction(action, data)
+                        }}
+                        actionLoading={actionLoading}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
             </div>

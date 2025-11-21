@@ -77,29 +77,69 @@ export class AIService {
   "text": "Your main text response here",
   "components": [
     {
-      "type": "button",
+      "type": "table",
       "props": {
-        "label": "Button text",
-        "action": "action_identifier",
-        "variant": "default"
+        "title": "Benefits Breakdown",
+        "headers": ["Benefit", "Description", "Value"],
+        "rows": [
+          ["GI Bill", "Education benefits", "$4,500/year"],
+          ["Housing", "BAH allowance", "Varies by location"]
+        ]
       }
     },
     {
-      "type": "card",
+      "type": "timeline",
       "props": {
-        "title": "Card title",
-        "description": "Card description",
-        "content": "Card content"
+        "title": "Career Path Timeline",
+        "milestones": [
+          {
+            "title": "Basic Training",
+            "date": "Weeks 1-10",
+            "status": "upcoming",
+            "links": [
+              {"label": "Preparation Guide", "href": "/guides/basic-training", "type": "resource"}
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "segues": [
+    {
+      "type": "segue",
+      "props": {
+        "label": "Explore similar benefits",
+        "action": "explore_benefits",
+        "sentiment": "exploratory",
+        "context": "User asked about benefits"
       }
     }
   ],
   "metadata": {
     "type": "response_type",
-    "suggestedActions": ["action1", "action2"]
+    "sentiment": "informative",
+    "context": {}
   }
 }
 
-Available component types: text, button, card, list, badge, alert, accordion
+Available component types:
+- text, button, card, list, badge, alert, accordion (basic)
+- table: For structured data like benefits breakdowns, comparisons
+- timeline: For career paths, training schedules with milestones and resource links
+- matrix: For comparisons, feature matrices (e.g., career path comparison)
+- segue: Context-aware buttons based on conversation sentiment and previous inputs
+
+When to use components:
+- Tables: Benefits breakdowns, requirements lists, comparison data
+- Timelines: Career paths, training programs, application processes with milestones
+- Matrices: Side-by-side comparisons (e.g., career paths, benefit tiers)
+- Segues: Add natural follow-up actions based on what user said or showed interest in
+
+Generate segues based on:
+- User's sentiment (curious, interested, confused, ready to act)
+- Previous questions/inputs in conversation
+- Natural conversation flow (what would they likely want to explore next?)
+
 Use components to make responses interactive and engaging.`
           }
         ],
@@ -121,7 +161,8 @@ Use components to make responses interactive and engaging.`
       // Fallback to text-only response
       return {
         text: content || this.getPlaceholderResponse(messages, config),
-        components: []
+        components: [],
+        segues: []
       }
     } catch (error) {
       console.error('AI API error:', error)
@@ -171,6 +212,9 @@ Use components to make responses interactive and engaging.`
       components: Array.isArray(parsed.components) 
         ? parsed.components.filter((c: any) => c && c.type && c.props)
         : [],
+      segues: Array.isArray(parsed.segues)
+        ? parsed.segues.filter((s: any) => s && s.type === 'segue' && s.props)
+        : [],
       metadata: parsed.metadata || {}
     }
   }
@@ -189,7 +233,8 @@ Use components to make responses interactive and engaging.`
   ): RichAgentResponse {
     return {
       text: this.getPlaceholderResponse(messages, config),
-      components: []
+      components: [],
+      segues: []
     }
   }
 
