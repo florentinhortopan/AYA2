@@ -12,7 +12,7 @@ export async function PUT(request: NextRequest, { params }: { params: { answerId
       validationStatus,
       ratingValue,
       sourceLink,
-      characterCount: answerText ? answerText.length : undefined,
+      characterCount: answerText !== undefined ? answerText.length : undefined,
       ratingUpdatedAt: ratingValue ? new Date() : undefined,
     }
   })

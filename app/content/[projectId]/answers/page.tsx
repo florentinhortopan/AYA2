@@ -52,7 +52,7 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
                       <Badge variant="outline">{answer.validationStatus}</Badge>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Rating: {answer.ratingValue ?? answer.rating}
+                      Rating: {answer.ratingValue ?? answer.ratingDefault ?? '—'}
                     </div>
                   </div>
                   {answer.question?.questionText && (

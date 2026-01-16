@@ -63,13 +63,13 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
                   {questions.map((question) => (
                     <tr key={question.id} className="border-t border-border">
                       <td className="p-3">{question.topic}</td>
-                      <td className="p-3">{question.persona}</td>
-                      <td className="p-3">{question.tone}</td>
+                      <td className="p-3">{question.persona || '—'}</td>
+                      <td className="p-3">{question.tone || '—'}</td>
                       <td className="p-3">{question.questionText}</td>
                       <td className="p-3">
                         <Badge variant="outline">{question.status}</Badge>
                       </td>
-                      <td className="p-3">{question.ratingValue ?? question.rating}</td>
+                      <td className="p-3">{question.ratingValue ?? question.ratingDefault ?? '—'}</td>
                       <td className="p-3">
                         <Link href={`/content/${params.projectId}/answers`}>
                           <Button size="sm" variant="outline">View Answers</Button>

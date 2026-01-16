@@ -23,13 +23,13 @@ export interface ContentProject {
 export interface ContentQuestion {
   id: string
   topic: string
-  persona: string
-  tone: string
+  persona?: string | null
+  tone?: string | null
   questionText: string
   status: QuestionStatus
   sourceUrls: string[]
-  rating: RatingValue
-  ratingValue?: RatingValue
+  ratingDefault?: RatingValue
+  ratingValue?: RatingValue | null
 }
 
 export interface ContentAnswer {
@@ -39,8 +39,8 @@ export interface ContentAnswer {
   answerText: string
   sourceLink?: string
   validationStatus: AnswerValidationStatus
-  rating: RatingValue
-  ratingValue?: RatingValue
+  ratingDefault?: RatingValue
+  ratingValue?: RatingValue | null
 }
 
 export interface ContentPrompt {
