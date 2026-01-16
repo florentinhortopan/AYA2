@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { RequireAuth } from '@/components/content/require-auth'
 import { PageHeader } from '@/components/content/page-header'
@@ -17,22 +17,29 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
   const [generationOutput, setGenerationOutput] = useState('')
   const [generationError, setGenerationError] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [parsedRows, setParsedRows] = useState<Array<{
+    topic: string
+    persona?: string
+    tone?: string
+    questionText: string
+    sourceUrl?: string
+  }>>([])
+
+  const loadQuestions = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/content-tool/projects/${params.projectId}/questions`)
+      if (response.ok) {
+        const data = await response.json()
+        setQuestions(data.questions || [])
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [params.projectId])
 
   useEffect(() => {
-    const loadQuestions = async () => {
-      try {
-        const response = await fetch(`/api/content-tool/projects/${params.projectId}/questions`)
-        if (response.ok) {
-          const data = await response.json()
-          setQuestions(data.questions || [])
-        }
-      } finally {
-        setLoading(false)
-      }
-    }
-
     loadQuestions()
-  }, [params.projectId])
+  }, [loadQuestions])
 
   const handleGenerate = async () => {
     if (generating) {
@@ -42,6 +49,7 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
     setGenerating(true)
     setGenerationError('')
     setGenerationOutput('')
+    setParsedRows([])
 
     try {
       const response = await fetch('/api/content-tool/prompts/questions/execute', {
@@ -60,6 +68,10 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
       }
 
       setGenerationOutput(data.output || '')
+      setParsedRows(data.parsedQuestions || [])
+      if (data.createdCount > 0) {
+        await loadQuestions()
+      }
     } catch (error) {
       setGenerationError('Generation failed.')
     } finally {
@@ -98,6 +110,34 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
             />
             {generationError && (
               <p className="text-sm text-red-500">{generationError}</p>
+            )}
+            {parsedRows.length > 0 && (
+              <div className="rounded-md border border-border">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted text-muted-foreground">
+                      <tr>
+                        <th className="text-left p-2">Topic</th>
+                        <th className="text-left p-2">Persona</th>
+                        <th className="text-left p-2">Tone</th>
+                        <th className="text-left p-2">Question</th>
+                        <th className="text-left p-2">Source URL</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedRows.map((row, index) => (
+                        <tr key={`${row.questionText}-${index}`} className="border-t border-border">
+                          <td className="p-2">{row.topic}</td>
+                          <td className="p-2">{row.persona || '—'}</td>
+                          <td className="p-2">{row.tone || '—'}</td>
+                          <td className="p-2">{row.questionText}</td>
+                          <td className="p-2">{row.sourceUrl || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
             {generationOutput && (
               <div className="rounded-md border border-border bg-muted/40 p-3 text-xs whitespace-pre-wrap">

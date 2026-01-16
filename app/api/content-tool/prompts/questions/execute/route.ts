@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runPrompt } from '@/lib/content/prompt-runner'
 import { resolvePromptAndGuideline } from '@/lib/content/prompt-resolver'
+import { parseQuestionsFromMarkdown } from '@/lib/content/qa-parser'
+import { prisma } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
@@ -29,8 +31,35 @@ export async function POST(request: NextRequest) {
       guidelineText: resolved.guidelineText || guidelineText
     })
 
+    const parsedQuestions = parseQuestionsFromMarkdown(output)
+    let createdCount = 0
+    let skippedCount = 0
+
+    if (projectId && parsedQuestions.length > 0) {
+      const payload = parsedQuestions.map((row) => ({
+        projectId,
+        topic: row.topic,
+        persona: row.persona,
+        tone: row.tone,
+        questionText: row.questionText,
+        sourceUrls: row.sourceUrl ? [row.sourceUrl] : [],
+        ratingDefault: 3,
+        ratingValue: 3,
+      }))
+
+      const result = await prisma.qaQuestion.createMany({
+        data: payload
+      })
+
+      createdCount = result.count
+      skippedCount = parsedQuestions.length - result.count
+    }
+
     return NextResponse.json({
       output,
+      parsedQuestions,
+      createdCount,
+      skippedCount,
       promptId: resolved.promptId,
       guidelineId: resolved.guidelineId
     })

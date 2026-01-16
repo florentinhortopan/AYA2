@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { RequireAuth } from '@/components/content/require-auth'
 import { PageHeader } from '@/components/content/page-header'
@@ -17,22 +17,28 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
   const [generationOutput, setGenerationOutput] = useState('')
   const [generationError, setGenerationError] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [parsedRows, setParsedRows] = useState<Array<{
+    questionText?: string
+    variantLevel: string
+    answerText: string
+    sourceLink?: string
+  }>>([])
+
+  const loadAnswers = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/content-tool/projects/${params.projectId}/answers`)
+      if (response.ok) {
+        const data = await response.json()
+        setAnswers(data.answers || [])
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [params.projectId])
 
   useEffect(() => {
-    const loadAnswers = async () => {
-      try {
-        const response = await fetch(`/api/content-tool/projects/${params.projectId}/answers`)
-        if (response.ok) {
-          const data = await response.json()
-          setAnswers(data.answers || [])
-        }
-      } finally {
-        setLoading(false)
-      }
-    }
-
     loadAnswers()
-  }, [params.projectId])
+  }, [loadAnswers])
 
   const handleGenerate = async () => {
     if (generating) {
@@ -42,6 +48,7 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
     setGenerating(true)
     setGenerationError('')
     setGenerationOutput('')
+    setParsedRows([])
 
     try {
       const response = await fetch('/api/content-tool/prompts/answers/execute', {
@@ -60,6 +67,10 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
       }
 
       setGenerationOutput(data.output || '')
+      setParsedRows(data.parsedAnswers || [])
+      if (data.createdCount > 0) {
+        await loadAnswers()
+      }
     } catch (error) {
       setGenerationError('Generation failed.')
     } finally {
@@ -95,6 +106,32 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
             />
             {generationError && (
               <p className="text-sm text-red-500">{generationError}</p>
+            )}
+            {parsedRows.length > 0 && (
+              <div className="rounded-md border border-border">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted text-muted-foreground">
+                      <tr>
+                        <th className="text-left p-2">Question</th>
+                        <th className="text-left p-2">Variant</th>
+                        <th className="text-left p-2">Answer</th>
+                        <th className="text-left p-2">Source Link</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedRows.map((row, index) => (
+                        <tr key={`${row.answerText}-${index}`} className="border-t border-border">
+                          <td className="p-2">{row.questionText || '—'}</td>
+                          <td className="p-2">{row.variantLevel}</td>
+                          <td className="p-2">{row.answerText}</td>
+                          <td className="p-2">{row.sourceLink || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             )}
             {generationOutput && (
               <div className="rounded-md border border-border bg-muted/40 p-3 text-xs whitespace-pre-wrap">
