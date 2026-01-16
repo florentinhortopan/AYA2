@@ -31,6 +31,15 @@ model User {
   financialData FinancialData[]
   activities    UserActivity[]
   insightsHistory InsightsHistory[]
+  qaProjects          QaProject[]
+  qaQuestionsEdited   QaQuestion[] @relation("QaQuestionEditor")
+  qaQuestionsRated    QaQuestion[] @relation("QaQuestionRater")
+  qaAnswersEdited     QaAnswer[]   @relation("QaAnswerEditor")
+  qaAnswersRated      QaAnswer[]   @relation("QaAnswerRater")
+  contentPrompts      ContentPrompt[]
+  contentGuidelines   ContentGuideline[]
+  corpusFiles         CorpusFile[]
+  contentAuditLogs    ContentAuditLog[]
 }
 
 model Account {
@@ -206,4 +215,187 @@ model InsightsHistory {
 
   @@index([userId, createdAt])
   @@index([createdAt])
+}
+
+// Content Tool - Projects
+model QaProject {
+  id                 String   @id @default(cuid())
+  name               String
+  description        String?
+  status             String   @default("draft") // draft, in_progress, review, published, archived
+  targetQuestionCount Int     @default(250)
+  publishedCount     Int      @default(0)
+  corpusFileId       String?
+  questionPromptId   String?
+  answerPromptId     String?
+  guidelineId        String?
+  createdById        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  archivedAt         DateTime?
+
+  corpusFile         CorpusFile?      @relation(fields: [corpusFileId], references: [id])
+  questionPrompt     ContentPrompt?   @relation("QuestionPrompt", fields: [questionPromptId], references: [id])
+  answerPrompt       ContentPrompt?   @relation("AnswerPrompt", fields: [answerPromptId], references: [id])
+  guideline          ContentGuideline? @relation(fields: [guidelineId], references: [id])
+  createdBy          User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  questions          QaQuestion[]
+  batchJobs          ContentBatchJob[]
+  auditLogs          ContentAuditLog[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model QaQuestion {
+  id                 String   @id @default(cuid())
+  projectId          String
+  topic              String
+  persona            String?
+  tone               String?
+  questionText       String   @db.Text
+  sourceUrls         String[]
+  status             String   @default("draft") // draft, approved, rejected, published
+  batchNumber        Int?
+  createdFromGenerator Boolean @default(true)
+  editedById         String?
+  editedAt           DateTime?
+  corpusValidated    Boolean  @default(false)
+  validationNotes    String?
+  ratingDefault      Int      @default(3)
+  ratingValue        Int      @default(3)
+  ratingUpdatedById  String?
+  ratingUpdatedAt    DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  project            QaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  answers            QaAnswer[]
+  editedBy           User?     @relation("QaQuestionEditor", fields: [editedById], references: [id], onDelete: SetNull)
+  ratingUpdatedBy    User?     @relation("QaQuestionRater", fields: [ratingUpdatedById], references: [id], onDelete: SetNull)
+  auditLogs          ContentAuditLog[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([batchNumber])
+}
+
+model QaAnswer {
+  id                 String   @id @default(cuid())
+  questionId         String
+  variantLevel       String   // very_direct, direct, somewhat_direct, indirect
+  answerText         String   @db.Text
+  characterCount     Int?
+  keywords           String[]
+  sourceLink         String?
+  validationStatus   String   @default("pending") // pending, valid, needs_review, invalid
+  validationNotes    String?
+  editedById         String?
+  editedAt           DateTime?
+  ratingDefault      Int      @default(3)
+  ratingValue        Int      @default(3)
+  ratingUpdatedById  String?
+  ratingUpdatedAt    DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  question           QaQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  editedBy           User?      @relation("QaAnswerEditor", fields: [editedById], references: [id], onDelete: SetNull)
+  ratingUpdatedBy    User?      @relation("QaAnswerRater", fields: [ratingUpdatedById], references: [id], onDelete: SetNull)
+  auditLogs          ContentAuditLog[]
+
+  @@index([questionId])
+  @@index([validationStatus])
+}
+
+model CorpusFile {
+  id          String   @id @default(cuid())
+  name        String
+  fileContent String   @db.Text
+  fileHash    String?
+  sourceUrls  String[]
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isActive    Boolean  @default(true)
+
+  createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  projects    QaProject[]
+
+  @@index([isActive])
+}
+
+model ContentPrompt {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // question_generator, answer_generator
+  content     String   @db.Text
+  version     String
+  isActive    Boolean  @default(false)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy   User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  questionPromptProjects QaProject[] @relation("QuestionPrompt")
+  answerPromptProjects   QaProject[] @relation("AnswerPrompt")
+
+  @@index([type])
+  @@index([isActive])
+}
+
+model ContentGuideline {
+  id          String   @id @default(cuid())
+  name        String
+  content     String   @db.Text
+  version     String
+  isActive    Boolean  @default(false)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy   User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  projects    QaProject[]
+
+  @@index([isActive])
+}
+
+model ContentBatchJob {
+  id              String   @id @default(cuid())
+  projectId       String
+  batchNumber     Int
+  questionsInBatch Int?
+  status          String   @default("pending") // pending, processing, completed, failed
+  promptType      String   // question_generator, answer_generator
+  apiResponse     Json?
+  errorMessage    String?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  project         QaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([status])
+  @@unique([projectId, batchNumber, promptType])
+}
+
+model ContentAuditLog {
+  id          String   @id @default(cuid())
+  projectId   String?
+  questionId  String?
+  answerId    String?
+  actionType  String
+  oldValue    Json?
+  newValue    Json?
+  changedById String?
+  changedAt   DateTime @default(now())
+
+  project     QaProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  question    QaQuestion? @relation(fields: [questionId], references: [id], onDelete: SetNull)
+  answer      QaAnswer?  @relation(fields: [answerId], references: [id], onDelete: SetNull)
+  changedBy   User?      @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([changedAt])
 }

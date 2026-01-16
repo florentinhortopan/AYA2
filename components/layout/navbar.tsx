@@ -24,6 +24,9 @@ export function Navbar() {
                   <Link href="/dashboard" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
                     Dashboard
                   </Link>
+                  <Link href="/content" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
+                    Content
+                  </Link>
                   <Link href="/community" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
                     Community
                   </Link>
