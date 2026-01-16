@@ -11,6 +11,12 @@ import { ContentAnswer } from '@/types/content'
 export default function AnswersPage({ params }: { params: { projectId: string } }) {
   const [answers, setAnswers] = useState<(ContentAnswer & { question?: { questionText: string } })[]>([])
   const [loading, setLoading] = useState(true)
+  const [generationInput, setGenerationInput] = useState(
+    'Generate answer variants in a markdown table with columns: question, variant_level, answer, source_link.'
+  )
+  const [generationOutput, setGenerationOutput] = useState('')
+  const [generationError, setGenerationError] = useState('')
+  const [generating, setGenerating] = useState(false)
 
   useEffect(() => {
     const loadAnswers = async () => {
@@ -28,6 +34,39 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
     loadAnswers()
   }, [params.projectId])
 
+  const handleGenerate = async () => {
+    if (generating) {
+      return
+    }
+
+    setGenerating(true)
+    setGenerationError('')
+    setGenerationOutput('')
+
+    try {
+      const response = await fetch('/api/content-tool/prompts/answers/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: params.projectId,
+          userMessage: generationInput
+        })
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        setGenerationError(data.error || 'Generation failed.')
+        return
+      }
+
+      setGenerationOutput(data.output || '')
+    } catch (error) {
+      setGenerationError('Generation failed.')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   return (
     <RequireAuth>
       <main className="min-h-screen bg-background">
@@ -36,9 +75,33 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
             title="Answers"
             description="Review answer variants, ratings, and validations."
             actions={(
-              <Button variant="outline">Generate Answers</Button>
+              <Button variant="outline" onClick={handleGenerate} disabled={generating}>
+                {generating ? 'Generating...' : 'Generate Answers'}
+              </Button>
             )}
           />
+
+          <div className="border border-border rounded-lg p-4 mb-6 space-y-3">
+            <div>
+              <p className="text-sm font-medium">Generation Instructions</p>
+              <p className="text-xs text-muted-foreground">
+                Uses the project prompt and guideline from the database.
+              </p>
+            </div>
+            <textarea
+              className="min-h-[140px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              value={generationInput}
+              onChange={(event) => setGenerationInput(event.target.value)}
+            />
+            {generationError && (
+              <p className="text-sm text-red-500">{generationError}</p>
+            )}
+            {generationOutput && (
+              <div className="rounded-md border border-border bg-muted/40 p-3 text-xs whitespace-pre-wrap">
+                {generationOutput}
+              </div>
+            )}
+          </div>
 
           {loading ? (
             <p className="text-muted-foreground">Loading answers...</p>

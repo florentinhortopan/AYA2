@@ -49,6 +49,7 @@ export interface ContentPrompt {
   type: PromptType
   version: string
   isActive: boolean
+  content?: string
 }
 
 export interface ContentGuideline {
@@ -56,4 +57,5 @@ export interface ContentGuideline {
   name: string
   version: string
   isActive: boolean
+  content?: string
 }

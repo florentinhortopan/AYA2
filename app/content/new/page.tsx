@@ -25,6 +25,7 @@ export default function NewProjectPage() {
     guidelineId: ''
   })
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const loadOptions = async () => {
@@ -48,7 +49,9 @@ export default function NewProjectPage() {
   }, [])
 
   const handleCreate = async () => {
-    if (!formState.name) {
+    setError(null)
+    if (!formState.name.trim()) {
+      setError('Project name is required.')
       return
     }
     setSubmitting(true)
@@ -62,6 +65,9 @@ export default function NewProjectPage() {
       if (response.ok) {
         const data = await response.json()
         router.push(`/content/${data.project.id}`)
+      } else {
+        const data = await response.json().catch(() => ({}))
+        setError(data.error || 'Failed to create project.')
       }
     } finally {
       setSubmitting(false)
@@ -208,6 +214,9 @@ export default function NewProjectPage() {
                 Create Project
               </Button>
             </div>
+            {error && (
+              <p className="text-sm text-red-500 text-right">{error}</p>
+            )}
           </div>
         </div>
       </main>

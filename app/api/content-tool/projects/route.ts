@@ -66,5 +66,5 @@ export async function POST(request: NextRequest) {
     }
   })
 
-  return NextResponse.json({ project, ratingDefault })
+  return NextResponse.json({ project })
 }

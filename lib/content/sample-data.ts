@@ -36,7 +36,8 @@ export const sampleQuestions: ContentQuestion[] = [
     questionText: 'What are the steps to enlist in the Army?',
     status: 'draft',
     sourceUrls: ['https://www.goarmy.com/how-to-join/steps-to-enlist.html'],
-    rating: 4
+    ratingDefault: 4,
+    ratingValue: 4
   },
   {
     id: 'question-2',
@@ -46,7 +47,8 @@ export const sampleQuestions: ContentQuestion[] = [
     questionText: 'How does housing allowance work for families?',
     status: 'approved',
     sourceUrls: ['https://www.goarmy.com/benefits/military-pay-allowances.html'],
-    rating: 3
+    ratingDefault: 3,
+    ratingValue: 3
   }
 ]
 
@@ -58,7 +60,8 @@ export const sampleAnswers: ContentAnswer[] = [
     answerText: 'Start by verifying eligibility, meet a recruiter, take the ASVAB, complete MEPS, and finish final processing before swearing in.',
     sourceLink: 'https://www.goarmy.com/how-to-join/steps-to-enlist.html',
     validationStatus: 'needs_review',
-    rating: 4
+    ratingDefault: 4,
+    ratingValue: 4
   },
   {
     id: 'answer-2',
@@ -67,7 +70,8 @@ export const sampleAnswers: ContentAnswer[] = [
     answerText: 'A recruiter can walk you through eligibility, testing, and medical steps. It helps to prepare documents early and confirm timelines with your local office.',
     sourceLink: 'https://www.goarmy.com/how-to-join/steps-to-enlist.html',
     validationStatus: 'pending',
-    rating: 3
+    ratingDefault: 3,
+    ratingValue: 3
   }
 ]
 
