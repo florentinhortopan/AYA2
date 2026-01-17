@@ -45,11 +45,19 @@ export default function ContentPage() {
             title="Content"
             description="Manage Q&A generation projects, prompts, and guidelines."
             actions={(
-              <Link href="/content/new">
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                  New Project
-                </Button>
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link href="/content/prompts">
+                  <Button variant="outline">Prompts</Button>
+                </Link>
+                <Link href="/content/guidelines">
+                  <Button variant="outline">Guidelines</Button>
+                </Link>
+                <Link href="/content/new">
+                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                    New Project
+                  </Button>
+                </Link>
+              </div>
             )}
           />
 

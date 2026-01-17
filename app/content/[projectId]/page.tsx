@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 const sections = [
   { title: 'Questions', href: 'questions', description: 'Review and edit generated questions.' },
   { title: 'Answers', href: 'answers', description: 'Review and refine answer variants.' },
+  { title: 'Prompts', href: '/content/prompts', description: 'Edit prompt templates for this workflow.' },
+  { title: 'Guidelines', href: '/content/guidelines', description: 'Edit guideline content and versions.' },
   { title: 'Batch', href: 'batch', description: 'Run and monitor batch generation.' },
   { title: 'Validation', href: 'validate', description: 'Check URLs and corpus validation.' },
   { title: 'Publish', href: 'publish', description: 'Approve and publish content.' }
@@ -37,7 +39,7 @@ export default function ProjectWorkspacePage({ params }: { params: { projectId: 
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
                   <p className="text-muted-foreground">{section.description}</p>
-                  <Link href={`/content/${params.projectId}/${section.href}`}>
+                  <Link href={section.href.startsWith('/') ? section.href : `/content/${params.projectId}/${section.href}`}>
                     <Button variant="outline">Open</Button>
                   </Link>
                 </CardContent>

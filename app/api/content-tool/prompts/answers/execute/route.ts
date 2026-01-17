@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { systemPrompt, userMessage, guidelineText, promptId, guidelineId, projectId } = body || {}
+  const { systemPrompt, userMessage, guidelineText, promptId, guidelineId, projectId, questionId } = body || {}
 
   if (!userMessage) {
     return NextResponse.json({ error: 'userMessage is required' }, { status: 400 })
@@ -25,13 +25,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'systemPrompt or promptId is required' }, { status: 400 })
     }
 
+    let resolvedQuestionText: string | undefined
+    if (questionId) {
+      const question = await prisma.qaQuestion.findUnique({
+        where: { id: questionId },
+        select: { id: true, questionText: true }
+      })
+
+      if (!question) {
+        return NextResponse.json({ error: 'Question not found' }, { status: 404 })
+      }
+
+      resolvedQuestionText = question.questionText
+    }
+
     const output = await runPrompt({
       systemPrompt: finalSystemPrompt,
-      userMessage,
+      userMessage: resolvedQuestionText
+        ? `${userMessage}\n\nQuestion:\n${resolvedQuestionText}`
+        : userMessage,
       guidelineText: resolved.guidelineText || guidelineText
     })
 
-    const parsedAnswers = parseAnswersFromMarkdown(output)
+    const parsedAnswers = parseAnswersFromMarkdown(output).map((row) => ({
+      ...row,
+      questionText: row.questionText || resolvedQuestionText
+    }))
     let createdCount = 0
     let skippedCount = 0
 
@@ -46,15 +65,15 @@ export async function POST(request: NextRequest) {
 
       const payload = parsedAnswers.flatMap((row) => {
         const questionText = row.questionText?.trim()
-        const questionId = questionText ? questionLookup.get(questionText) : undefined
+        const resolvedQuestionId = questionId || (questionText ? questionLookup.get(questionText) : undefined)
 
-        if (!questionId) {
+        if (!resolvedQuestionId) {
           skippedCount += 1
           return []
         }
 
         return [{
-          questionId,
+          questionId: resolvedQuestionId,
           variantLevel: normalizeVariantLevel(row.variantLevel),
           answerText: row.answerText,
           sourceLink: row.sourceLink,

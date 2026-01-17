@@ -32,6 +32,7 @@ export default function PromptsPage() {
   const [loading, setLoading] = useState(true)
   const [editorOpen, setEditorOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [savingAsNew, setSavingAsNew] = useState(false)
   const [formState, setFormState] = useState<PromptFormState>(emptyFormState)
 
   useEffect(() => {
@@ -77,12 +78,18 @@ export default function PromptsPage() {
     formState.version.trim().length > 0 &&
     formState.content.trim().length > 0
 
-  const savePrompt = async () => {
-    if (!isValid || saving) {
+  const savePrompt = async (options?: { forceCreate?: boolean }) => {
+    if (!isValid || saving || savingAsNew) {
       return
     }
 
-    setSaving(true)
+    const forceCreate = options?.forceCreate ?? false
+    if (forceCreate) {
+      setSavingAsNew(true)
+    } else {
+      setSaving(true)
+    }
+
     try {
       const payload = {
         name: formState.name.trim(),
@@ -93,9 +100,11 @@ export default function PromptsPage() {
       }
 
       const response = await fetch(
-        formState.id ? `/api/content-tool/prompts/${formState.id}` : '/api/content-tool/prompts',
+        formState.id && !forceCreate
+          ? `/api/content-tool/prompts/${formState.id}`
+          : '/api/content-tool/prompts',
         {
-          method: formState.id ? 'PUT' : 'POST',
+          method: formState.id && !forceCreate ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         }
@@ -109,7 +118,7 @@ export default function PromptsPage() {
       const updatedPrompt = data.prompt as ContentPrompt
 
       setPrompts((prev) => {
-        if (!formState.id) {
+        if (!formState.id || forceCreate) {
           return [updatedPrompt, ...prev]
         }
         return prev.map((prompt) => (prompt.id === updatedPrompt.id ? updatedPrompt : prompt))
@@ -118,6 +127,7 @@ export default function PromptsPage() {
       closeEditor()
     } finally {
       setSaving(false)
+      setSavingAsNew(false)
     }
   }
 
@@ -153,7 +163,16 @@ export default function PromptsPage() {
                   <Button variant="outline" onClick={closeEditor}>
                     Cancel
                   </Button>
-                  <Button onClick={savePrompt} disabled={!isValid || saving}>
+                  {formState.id && (
+                    <Button
+                      variant="outline"
+                      onClick={() => savePrompt({ forceCreate: true })}
+                      disabled={!isValid || savingAsNew}
+                    >
+                      {savingAsNew ? 'Saving Copy...' : 'Save as New'}
+                    </Button>
+                  )}
+                  <Button onClick={() => savePrompt()} disabled={!isValid || saving || savingAsNew}>
                     {saving ? 'Saving...' : 'Save Prompt'}
                   </Button>
                 </div>
@@ -206,13 +225,13 @@ export default function PromptsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="prompt-content">Prompt Content</Label>
+                <Label htmlFor="prompt-content">Prompt Content (Markdown)</Label>
                 <textarea
                   id="prompt-content"
                   className="min-h-[220px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   value={formState.content}
                   onChange={(event) => setFormState((prev) => ({ ...prev, content: event.target.value }))}
-                  placeholder="Paste the full system prompt here."
+                  placeholder="Write or paste the full prompt in markdown."
                 />
               </div>
             </div>

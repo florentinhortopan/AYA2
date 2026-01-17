@@ -1,15 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { RequireAuth } from '@/components/content/require-auth'
 import { PageHeader } from '@/components/content/page-header'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ContentAnswer } from '@/types/content'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ContentAnswer, ContentQuestion } from '@/types/content'
 
 export default function AnswersPage({ params }: { params: { projectId: string } }) {
   const [answers, setAnswers] = useState<(ContentAnswer & { question?: { questionText: string } })[]>([])
+  const [questions, setQuestions] = useState<ContentQuestion[]>([])
   const [loading, setLoading] = useState(true)
   const [generationInput, setGenerationInput] = useState(
     'Generate answer variants in a markdown table with columns: question, variant_level, answer, source_link.'
@@ -17,12 +19,18 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
   const [generationOutput, setGenerationOutput] = useState('')
   const [generationError, setGenerationError] = useState('')
   const [generating, setGenerating] = useState(false)
+  const [selectedQuestionId, setSelectedQuestionId] = useState<string>('')
   const [parsedRows, setParsedRows] = useState<Array<{
     questionText?: string
     variantLevel: string
     answerText: string
     sourceLink?: string
   }>>([])
+
+  const selectedQuestion = useMemo(
+    () => questions.find((question) => question.id === selectedQuestionId),
+    [questions, selectedQuestionId]
+  )
 
   const loadAnswers = useCallback(async () => {
     try {
@@ -36,9 +44,22 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
     }
   }, [params.projectId])
 
+  const loadQuestions = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/content-tool/projects/${params.projectId}/questions`)
+      if (response.ok) {
+        const data = await response.json()
+        setQuestions(data.questions || [])
+      }
+    } catch (error) {
+      setQuestions([])
+    }
+  }, [params.projectId])
+
   useEffect(() => {
     loadAnswers()
-  }, [loadAnswers])
+    loadQuestions()
+  }, [loadAnswers, loadQuestions])
 
   const handleGenerate = async () => {
     if (generating) {
@@ -56,6 +77,7 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: params.projectId,
+          questionId: selectedQuestionId || undefined,
           userMessage: generationInput
         })
       })
@@ -86,7 +108,11 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
             title="Answers"
             description="Review answer variants, ratings, and validations."
             actions={(
-              <Button variant="outline" onClick={handleGenerate} disabled={generating}>
+              <Button
+                variant="outline"
+                onClick={handleGenerate}
+                disabled={generating || !selectedQuestionId}
+              >
                 {generating ? 'Generating...' : 'Generate Answers'}
               </Button>
             )}
@@ -96,8 +122,33 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
             <div>
               <p className="text-sm font-medium">Generation Instructions</p>
               <p className="text-xs text-muted-foreground">
-                Uses the project prompt and guideline from the database.
+                Select a question to generate answers using the project prompt and guideline.
               </p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Question</p>
+              <Select value={selectedQuestionId} onValueChange={setSelectedQuestionId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a question to generate answers" />
+                </SelectTrigger>
+                <SelectContent>
+                  {questions.map((question) => (
+                    <SelectItem key={question.id} value={question.id}>
+                      {question.questionText}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedQuestion && (
+                <p className="text-xs text-muted-foreground">
+                  Topic: {selectedQuestion.topic} · Persona: {selectedQuestion.persona || '—'} · Tone: {selectedQuestion.tone || '—'}
+                </p>
+              )}
+              {questions.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No questions available yet. Generate questions first.
+                </p>
+              )}
             </div>
             <textarea
               className="min-h-[140px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -158,6 +209,11 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
                   {answer.question?.questionText && (
                     <p className="mt-2 text-xs text-muted-foreground">
                       Question: {answer.question.questionText}
+                    </p>
+                  )}
+                  {!answer.question?.questionText && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Question: <Link className="underline" href={`/content/${params.projectId}/questions`}>View question list</Link>
                     </p>
                   )}
                   <p className="mt-3 text-sm">{answer.answerText}</p>

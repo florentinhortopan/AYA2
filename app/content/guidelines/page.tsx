@@ -29,6 +29,7 @@ export default function GuidelinesPage() {
   const [loading, setLoading] = useState(true)
   const [editorOpen, setEditorOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [savingAsNew, setSavingAsNew] = useState(false)
   const [formState, setFormState] = useState<GuidelineFormState>(emptyFormState)
 
   useEffect(() => {
@@ -73,12 +74,18 @@ export default function GuidelinesPage() {
     formState.version.trim().length > 0 &&
     formState.content.trim().length > 0
 
-  const saveGuideline = async () => {
-    if (!isValid || saving) {
+  const saveGuideline = async (options?: { forceCreate?: boolean }) => {
+    if (!isValid || saving || savingAsNew) {
       return
     }
 
-    setSaving(true)
+    const forceCreate = options?.forceCreate ?? false
+    if (forceCreate) {
+      setSavingAsNew(true)
+    } else {
+      setSaving(true)
+    }
+
     try {
       const payload = {
         name: formState.name.trim(),
@@ -88,9 +95,11 @@ export default function GuidelinesPage() {
       }
 
       const response = await fetch(
-        formState.id ? `/api/content-tool/guidelines/${formState.id}` : '/api/content-tool/guidelines',
+        formState.id && !forceCreate
+          ? `/api/content-tool/guidelines/${formState.id}`
+          : '/api/content-tool/guidelines',
         {
-          method: formState.id ? 'PUT' : 'POST',
+          method: formState.id && !forceCreate ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         }
@@ -104,7 +113,7 @@ export default function GuidelinesPage() {
       const updatedGuideline = data.guideline as ContentGuideline
 
       setGuidelines((prev) => {
-        if (!formState.id) {
+        if (!formState.id || forceCreate) {
           return [updatedGuideline, ...prev]
         }
         return prev.map((guideline) => (guideline.id === updatedGuideline.id ? updatedGuideline : guideline))
@@ -113,6 +122,7 @@ export default function GuidelinesPage() {
       closeEditor()
     } finally {
       setSaving(false)
+      setSavingAsNew(false)
     }
   }
 
@@ -148,7 +158,16 @@ export default function GuidelinesPage() {
                   <Button variant="outline" onClick={closeEditor}>
                     Cancel
                   </Button>
-                  <Button onClick={saveGuideline} disabled={!isValid || saving}>
+                  {formState.id && (
+                    <Button
+                      variant="outline"
+                      onClick={() => saveGuideline({ forceCreate: true })}
+                      disabled={!isValid || savingAsNew}
+                    >
+                      {savingAsNew ? 'Saving Copy...' : 'Save as New'}
+                    </Button>
+                  )}
+                  <Button onClick={() => saveGuideline()} disabled={!isValid || saving || savingAsNew}>
                     {saving ? 'Saving...' : 'Save Guideline'}
                   </Button>
                 </div>
@@ -186,13 +205,13 @@ export default function GuidelinesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="guideline-content">Guideline Content</Label>
+                <Label htmlFor="guideline-content">Guideline Content (Markdown)</Label>
                 <textarea
                   id="guideline-content"
                   className="min-h-[220px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   value={formState.content}
                   onChange={(event) => setFormState((prev) => ({ ...prev, content: event.target.value }))}
-                  placeholder="Paste the guideline text here."
+                  placeholder="Write or paste the guideline text in markdown."
                 />
               </div>
             </div>
