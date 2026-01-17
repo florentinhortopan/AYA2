@@ -254,7 +254,7 @@ export default function PromptsPage() {
               <div className="space-y-2">
                 <Label htmlFor="prompt-content">Prompt Content (Markdown)</Label>
                 {previewMode ? (
-                  <div className="min-h-[220px] w-full rounded-md border border-input bg-background px-4 py-3 text-base leading-7">
+                  <div className="min-h-[220px] w-full rounded-md border border-input bg-background px-4 py-3 text-base leading-7 prose prose-sm sm:prose-base prose-invert max-w-none">
                     {formState.content.trim() ? (
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {formState.content}
