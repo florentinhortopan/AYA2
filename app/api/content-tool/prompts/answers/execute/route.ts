@@ -39,11 +39,13 @@ export async function POST(request: NextRequest) {
       resolvedQuestionText = question.questionText
     }
 
+    const strictUserMessage = `${userMessage}\n\nOutput format requirements:\n- Return ONLY a markdown table.\n- Columns must be exactly: question | variant_level | answer | source_link | keywords\n- keywords should be comma-separated if multiple.\n- Do not include commentary or additional sections.`
+
     const output = await runPrompt({
       systemPrompt: finalSystemPrompt,
       userMessage: resolvedQuestionText
-        ? `${userMessage}\n\nQuestion:\n${resolvedQuestionText}`
-        : userMessage,
+        ? `${strictUserMessage}\n\nQuestion:\n${resolvedQuestionText}`
+        : strictUserMessage,
       guidelineText: resolved.guidelineText || guidelineText
     })
 
@@ -77,7 +79,7 @@ export async function POST(request: NextRequest) {
           variantLevel: normalizeVariantLevel(row.variantLevel),
           answerText: row.answerText,
           sourceLink: row.sourceLink,
-          keywords: [],
+          keywords: row.keywords ?? [],
           characterCount: row.answerText.length,
           ratingDefault: 3,
           ratingValue: 3,

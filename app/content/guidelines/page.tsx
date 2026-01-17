@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ContentGuideline } from '@/types/content'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 type GuidelineFormState = {
   id?: string
@@ -16,6 +18,15 @@ type GuidelineFormState = {
   isActive: boolean
   content: string
 }
+
+const formatMarkdown = (value: string) =>
+  value
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/\s+$/g, ''))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 
 const emptyFormState: GuidelineFormState = {
   name: '',
@@ -31,6 +42,7 @@ export default function GuidelinesPage() {
   const [saving, setSaving] = useState(false)
   const [savingAsNew, setSavingAsNew] = useState(false)
   const [formState, setFormState] = useState<GuidelineFormState>(emptyFormState)
+  const [previewMode, setPreviewMode] = useState(false)
 
   useEffect(() => {
     const loadGuidelines = async () => {
@@ -50,6 +62,7 @@ export default function GuidelinesPage() {
 
   const openNewGuideline = () => {
     setFormState(emptyFormState)
+    setPreviewMode(false)
     setEditorOpen(true)
   }
 
@@ -61,11 +74,13 @@ export default function GuidelinesPage() {
       isActive: guideline.isActive,
       content: guideline.content ?? ''
     })
+    setPreviewMode(false)
     setEditorOpen(true)
   }
 
   const closeEditor = () => {
     setEditorOpen(false)
+    setPreviewMode(false)
     setFormState(emptyFormState)
   }
 
@@ -154,9 +169,21 @@ export default function GuidelinesPage() {
                     Update the guideline content and version details.
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button variant="outline" onClick={closeEditor}>
                     Cancel
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      setFormState((prev) => ({ ...prev, content: formatMarkdown(prev.content) }))
+                    }
+                    disabled={!formState.content.trim()}
+                  >
+                    Format Markdown
+                  </Button>
+                  <Button variant="outline" onClick={() => setPreviewMode((prev) => !prev)}>
+                    {previewMode ? 'Edit' : 'Preview'}
                   </Button>
                   {formState.id && (
                     <Button
@@ -206,13 +233,25 @@ export default function GuidelinesPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="guideline-content">Guideline Content (Markdown)</Label>
-                <textarea
-                  id="guideline-content"
-                  className="min-h-[220px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  value={formState.content}
-                  onChange={(event) => setFormState((prev) => ({ ...prev, content: event.target.value }))}
-                  placeholder="Write or paste the guideline text in markdown."
-                />
+                {previewMode ? (
+                  <div className="min-h-[220px] w-full rounded-md border border-input bg-background px-4 py-3 text-base leading-7">
+                    {formState.content.trim() ? (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {formState.content}
+                      </ReactMarkdown>
+                    ) : (
+                      <p className="text-muted-foreground">Nothing to preview yet.</p>
+                    )}
+                  </div>
+                ) : (
+                  <textarea
+                    id="guideline-content"
+                    className="min-h-[220px] w-full rounded-md border border-input bg-background px-3 py-2 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    value={formState.content}
+                    onChange={(event) => setFormState((prev) => ({ ...prev, content: event.target.value }))}
+                    placeholder="Write or paste the guideline text in markdown."
+                  />
+                )}
               </div>
             </div>
           )}

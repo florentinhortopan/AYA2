@@ -5,7 +5,7 @@ export interface ParsedQuestionRow {
   persona?: string
   tone?: string
   questionText: string
-  sourceUrl?: string
+  sourceUrls?: string[]
 }
 
 export interface ParsedAnswerRow {
@@ -13,6 +13,18 @@ export interface ParsedAnswerRow {
   variantLevel: string
   answerText: string
   sourceLink?: string
+  keywords?: string[]
+}
+
+const splitList = (value?: string) => {
+  if (!value) {
+    return []
+  }
+
+  return value
+    .split(/[,;]/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
 }
 
 export function parseQuestionsFromMarkdown(text: string): ParsedQuestionRow[] {
@@ -38,12 +50,14 @@ export function parseQuestionsFromMarkdown(text: string): ParsedQuestionRow[] {
         continue
       }
 
+      const sourceValue = sourceIdx !== -1 ? row[sourceIdx]?.trim() : undefined
+
       rows.push({
         topic,
         persona: personaIdx !== -1 ? row[personaIdx]?.trim() || undefined : undefined,
         tone: toneIdx !== -1 ? row[toneIdx]?.trim() || undefined : undefined,
         questionText,
-        sourceUrl: sourceIdx !== -1 ? row[sourceIdx]?.trim() || undefined : undefined,
+        sourceUrls: sourceValue ? splitList(sourceValue) : undefined,
       })
     }
   }
@@ -60,6 +74,7 @@ export function parseAnswersFromMarkdown(text: string): ParsedAnswerRow[] {
     const variantIdx = getColumnIndex(table.headers, ['variant', 'level'])
     const answerIdx = getColumnIndex(table.headers, ['answer'])
     const sourceIdx = getColumnIndex(table.headers, ['source', 'url', 'link'])
+    const keywordIdx = getColumnIndex(table.headers, ['keyword', 'tag'])
 
     if (answerIdx === -1 || variantIdx === -1) {
       continue
@@ -78,6 +93,7 @@ export function parseAnswersFromMarkdown(text: string): ParsedAnswerRow[] {
         variantLevel,
         answerText,
         sourceLink: sourceIdx !== -1 ? row[sourceIdx]?.trim() || undefined : undefined,
+        keywords: keywordIdx !== -1 ? splitList(row[keywordIdx]) : undefined,
       })
     }
   }

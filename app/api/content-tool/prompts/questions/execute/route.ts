@@ -25,9 +25,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'systemPrompt or promptId is required' }, { status: 400 })
     }
 
+    const strictUserMessage = `${userMessage}\n\nOutput format requirements:\n- Return ONLY a markdown table.\n- Columns must be exactly: topic | persona | tone | question | source_urls\n- source_urls should be comma-separated if multiple.\n- Do not include commentary or additional sections.`
+
     const output = await runPrompt({
       systemPrompt: finalSystemPrompt,
-      userMessage,
+      userMessage: strictUserMessage,
       guidelineText: resolved.guidelineText || guidelineText
     })
 
@@ -42,7 +44,7 @@ export async function POST(request: NextRequest) {
         persona: row.persona,
         tone: row.tone,
         questionText: row.questionText,
-        sourceUrls: row.sourceUrl ? [row.sourceUrl] : [],
+        sourceUrls: row.sourceUrls ?? [],
         ratingDefault: 3,
         ratingValue: 3,
       }))
