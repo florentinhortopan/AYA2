@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/content/page-header'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { AnswerValidationStatus, ContentAnswer, ContentQuestion } from '@/types/content'
+import { AnswerValidationStatus, ContentAnswer, ContentQuestion, RatingValue } from '@/types/content'
 
 export default function AnswersPage({ params }: { params: { projectId: string } }) {
   const [answers, setAnswers] = useState<(ContentAnswer & { question?: { questionText: string } })[]>([])
@@ -19,6 +19,7 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
   const [generationOutput, setGenerationOutput] = useState('')
   const [generationError, setGenerationError] = useState('')
   const [statusError, setStatusError] = useState('')
+  const [ratingError, setRatingError] = useState('')
   const [editingAnswerId, setEditingAnswerId] = useState<string | null>(null)
   const [editingAnswerText, setEditingAnswerText] = useState('')
   const [editingError, setEditingError] = useState('')
@@ -39,6 +40,7 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
     'needs_review',
     'invalid'
   ]
+  const ratingOptions: RatingValue[] = [1, 2, 3, 4, 5]
 
   const selectedQuestion = useMemo(
     () => questions.find((question) => question.id === selectedQuestionId),
@@ -104,6 +106,39 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
         )
       )
       setStatusError('Unable to update status. Please try again.')
+    }
+  }
+
+  const handleRatingChange = async (answerId: string, nextRating: RatingValue) => {
+    setRatingError('')
+    const previous = answers.find((answer) => answer.id === answerId)
+    if (!previous || previous.ratingValue === nextRating) {
+      return
+    }
+
+    setAnswers((current) =>
+      current.map((answer) =>
+        answer.id === answerId ? { ...answer, ratingValue: nextRating } : answer
+      )
+    )
+
+    try {
+      const response = await fetch(`/api/content-tool/answers/${answerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ratingValue: nextRating })
+      })
+
+      if (!response.ok) {
+        throw new Error('Unable to update rating.')
+      }
+    } catch (error) {
+      setAnswers((current) =>
+        current.map((answer) =>
+          answer.id === answerId ? { ...answer, ratingValue: previous.ratingValue } : answer
+        )
+      )
+      setRatingError('Unable to update rating. Please try again.')
     }
   }
 
@@ -294,6 +329,9 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
               {statusError && (
                 <p className="text-sm text-red-500">{statusError}</p>
               )}
+              {ratingError && (
+                <p className="text-sm text-red-500">{ratingError}</p>
+              )}
               {answers.map((answer) => (
                 <div key={answer.id} className="border border-border rounded-lg p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -323,7 +361,27 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                      <span>Rating: {answer.ratingValue ?? answer.ratingDefault ?? '—'}</span>
+                      <div className="min-w-[120px]">
+                        <Select
+                          value={
+                            answer.ratingValue ?? answer.ratingDefault
+                              ? String(answer.ratingValue ?? answer.ratingDefault)
+                              : ''
+                          }
+                          onValueChange={(value) => handleRatingChange(answer.id, Number(value) as RatingValue)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Rating" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ratingOptions.map((rating) => (
+                              <SelectItem key={rating} value={String(rating)}>
+                                {rating}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       {editingAnswerId === answer.id ? (
                         <>
                           <Button

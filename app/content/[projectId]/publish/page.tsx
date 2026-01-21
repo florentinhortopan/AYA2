@@ -1,12 +1,85 @@
 'use client'
 
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { RequireAuth } from '@/components/content/require-auth'
 import { PageHeader } from '@/components/content/page-header'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { AnswerValidationStatus, ContentAnswer, ContentQuestion, QuestionStatus } from '@/types/content'
 
 export default function PublishPage({ params }: { params: { projectId: string } }) {
+  const [questions, setQuestions] = useState<ContentQuestion[]>([])
+  const [answers, setAnswers] = useState<ContentAnswer[]>([])
+  const [loadingStats, setLoadingStats] = useState(true)
+  const [statsError, setStatsError] = useState('')
+  const questionStatusOrder: QuestionStatus[] = ['approved', 'pending', 'draft', 'rejected', 'published']
+  const answerStatusOrder: AnswerValidationStatus[] = [
+    'approved',
+    'pending',
+    'draft',
+    'valid',
+    'needs_review',
+    'invalid'
+  ]
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadStats = async () => {
+      setLoadingStats(true)
+      setStatsError('')
+
+      try {
+        const [questionsResponse, answersResponse] = await Promise.all([
+          fetch(`/api/content-tool/projects/${params.projectId}/questions`),
+          fetch(`/api/content-tool/projects/${params.projectId}/answers`)
+        ])
+
+        if (!questionsResponse.ok || !answersResponse.ok) {
+          throw new Error('Unable to load approval stats.')
+        }
+
+        const questionsData = await questionsResponse.json()
+        const answersData = await answersResponse.json()
+
+        if (isMounted) {
+          setQuestions(questionsData.questions || [])
+          setAnswers(answersData.answers || [])
+        }
+      } catch (error) {
+        if (isMounted) {
+          setStatsError('Unable to load approval stats.')
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingStats(false)
+        }
+      }
+    }
+
+    loadStats()
+    return () => {
+      isMounted = false
+    }
+  }, [params.projectId])
+
+  const questionCounts = useMemo(() => {
+    return questions.reduce<Record<QuestionStatus, number>>((acc, question) => {
+      acc[question.status] = (acc[question.status] || 0) + 1
+      return acc
+    }, {} as Record<QuestionStatus, number>)
+  }, [questions])
+
+  const answerCounts = useMemo(() => {
+    return answers.reduce<Record<AnswerValidationStatus, number>>((acc, answer) => {
+      acc[answer.validationStatus] = (acc[answer.validationStatus] || 0) + 1
+      return acc
+    }, {} as Record<AnswerValidationStatus, number>)
+  }, [answers])
+
+  const approvedQuestionCount = questionCounts.approved || 0
+  const approvedAnswerCount = answerCounts.approved || 0
   return (
     <RequireAuth>
       <main className="min-h-screen bg-background">
@@ -28,8 +101,13 @@ export default function PublishPage({ params }: { params: { projectId: string } 
                 <Badge variant="secondary">Ready</Badge>
               </div>
               <p className="text-sm text-muted-foreground mt-2">
-                250 questions approved, 250 preferred answers selected.
+                {loadingStats
+                  ? 'Loading approval stats...'
+                  : `${approvedQuestionCount} questions approved, ${approvedAnswerCount} answers approved.`}
               </p>
+              {statsError && (
+                <p className="text-xs text-red-500 mt-2">{statsError}</p>
+              )}
             </div>
             <div className="border border-border rounded-lg p-4">
               <div className="flex items-center justify-between">
@@ -63,6 +141,20 @@ export default function PublishPage({ params }: { params: { projectId: string } 
                     </a>
                   </Button>
                 </div>
+              </div>
+              <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+                <p>
+                  Questions:{' '}
+                  {questionStatusOrder
+                    .map((status) => `${status.replace('_', ' ')} ${questionCounts[status] || 0}`)
+                    .join(' · ')}
+                </p>
+                <p>
+                  Answers:{' '}
+                  {answerStatusOrder
+                    .map((status) => `${status.replace('_', ' ')} ${answerCounts[status] || 0}`)
+                    .join(' · ')}
+                </p>
               </div>
               <p className="text-sm text-muted-foreground mt-2">
                 Export the approved Q&A set for review or backup.
