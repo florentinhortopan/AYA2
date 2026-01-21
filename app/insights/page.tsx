@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -44,13 +44,13 @@ export default function InsightsPage() {
       fetchInsights()
       fetchHistory()
     }
-  }, [status, session, router])
+  }, [status, session, router, fetchInsights, fetchHistory])
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.id) {
       fetchHistory()
     }
-  }, [historyFilter, status, session])
+  }, [historyFilter, status, session, fetchHistory])
 
   // Refresh history when insights page is visible/refocused
   useEffect(() => {
@@ -61,9 +61,9 @@ export default function InsightsPage() {
 
       return () => clearInterval(interval)
     }
-  }, [status, session])
+  }, [status, session, fetchHistory])
 
-  const fetchInsights = async () => {
+  const fetchInsights = useCallback(async () => {
     try {
       const response = await fetch('/api/user/insights')
       
@@ -78,9 +78,9 @@ export default function InsightsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     setHistoryLoading(true)
     try {
       const response = await fetch(`/api/user/insights/history?filter=${historyFilter}&t=${Date.now()}`)
@@ -98,7 +98,7 @@ export default function InsightsPage() {
     } finally {
       setHistoryLoading(false)
     }
-  }
+  }, [historyFilter])
 
   if (status === 'loading' || loading) {
     return (
