@@ -26,6 +26,14 @@ const toCsv = (rows: string[][]) =>
     .map((row) => row.map((cell) => escapeCsvCell(cell)).join(','))
     .join('\n')
 
+const toFileSlug = (value: string) => {
+  const slug = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '')
+  return slug || 'project'
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { projectId: string } }
@@ -49,6 +57,10 @@ export async function GET(
     return NextResponse.json({ error: 'Project not found' }, { status: 404 })
   }
 
+  const dateStamp = new Date().toISOString().slice(0, 10)
+  const nameSlug = toFileSlug(project.name || '')
+  const buildFilename = (extension: string) => `${nameSlug}-${dateStamp}.${extension}`
+
   const questions = await prisma.qaQuestion.findMany({
     where: {
       projectId: params.projectId,
@@ -66,7 +78,7 @@ export async function GET(
   })
 
   if (format === 'json') {
-    return NextResponse.json({
+    const payload = {
       project: {
         id: project.id,
         name: project.name,
@@ -78,6 +90,14 @@ export async function GET(
         answerStatus: answerStatuses
       },
       questions
+    }
+    const json = JSON.stringify(payload, null, 2)
+    return new NextResponse(json, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${buildFilename('json')}"`
+      }
     })
   }
 
@@ -123,7 +143,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="project-${project.id}-export.csv"`
+        'Content-Disposition': `attachment; filename="${buildFilename('csv')}"`
       }
     })
   }
@@ -136,7 +156,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': 'text/markdown; charset=utf-8',
-        'Content-Disposition': `attachment; filename="project-${project.id}-export.md"`
+        'Content-Disposition': `attachment; filename="${buildFilename('md')}"`
       }
     })
   }
