@@ -28,6 +28,18 @@ const tokenize = (value: string) =>
     .split(' ')
     .filter((token) => token.length > 2 && !STOP_WORDS.has(token))
 
+const buildSearchableText = (
+  questionText: string,
+  topic?: string | null,
+  persona?: string | null,
+  tone?: string | null,
+  answers?: Array<{ answerText: string; sourceLink?: string | null; keywords: string[] }>
+) => {
+  const answerText = answers?.map((answer) => answer.answerText).join(' ') || ''
+  const answerKeywords = answers?.flatMap((answer) => answer.keywords).join(' ') || ''
+  return [questionText, topic, persona, tone, answerText, answerKeywords].filter(Boolean).join(' ')
+}
+
 const scoreMatch = (queryTokens: string[], text: string) => {
   const textTokens = new Set(tokenize(text))
   let score = 0
@@ -116,14 +128,44 @@ export async function POST(
   }
 
   const queryTokens = tokenize(message)
+  if (queryTokens.length === 0) {
+    return NextResponse.json({
+      response: 'Please rephrase with more specific keywords so I can match a question.',
+      variantLevel: 'direct'
+    })
+  }
+
   const scored = questions
     .map((question) => ({
       question,
-      score: scoreMatch(queryTokens, question.questionText)
+      score: scoreMatch(
+        queryTokens,
+        buildSearchableText(
+          question.questionText,
+          question.topic,
+          question.persona,
+          question.tone,
+          question.answers.map((answer) => ({
+            answerText: answer.answerText,
+            sourceLink: answer.sourceLink,
+            keywords: answer.keywords
+          }))
+        )
+      )
     }))
     .sort((a, b) => b.score - a.score)
 
-  const best = scored.find((item) => item.question.answers.length > 0) || scored[0]
+  if (scored.length === 0 || scored[0].score === 0) {
+    return NextResponse.json({
+      response: 'No close match found for that question. Try different keywords or add a related Q&A first.',
+      variantLevel: 'direct'
+    })
+  }
+
+  const best = scored.find((item) => item.score > 0 && item.question.answers.length > 0)
+    || scored.find((item) => item.score > 0)
+    || scored.find((item) => item.question.answers.length > 0)
+    || scored[0]
   const variantLevel = await resolveVariantLevel(message)
 
   const answerForVariant =
