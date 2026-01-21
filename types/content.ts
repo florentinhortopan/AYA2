@@ -1,8 +1,14 @@
 export type RatingValue = 1 | 2 | 3 | 4 | 5
 
 export type ProjectStatus = 'draft' | 'in_progress' | 'review' | 'published' | 'archived'
-export type QuestionStatus = 'draft' | 'approved' | 'rejected' | 'published'
-export type AnswerValidationStatus = 'pending' | 'valid' | 'needs_review' | 'invalid'
+export type QuestionStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'published'
+export type AnswerValidationStatus =
+  | 'draft'
+  | 'pending'
+  | 'approved'
+  | 'valid'
+  | 'needs_review'
+  | 'invalid'
 export type PromptType = 'question_generator' | 'answer_generator'
 
 export interface ContentProject {

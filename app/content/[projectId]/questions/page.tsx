@@ -5,8 +5,8 @@ import Link from 'next/link'
 import { RequireAuth } from '@/components/content/require-auth'
 import { PageHeader } from '@/components/content/page-header'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { ContentQuestion } from '@/types/content'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ContentQuestion, QuestionStatus } from '@/types/content'
 
 export default function QuestionsPage({ params }: { params: { projectId: string } }) {
   const [questions, setQuestions] = useState<ContentQuestion[]>([])
@@ -16,6 +16,7 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
   )
   const [generationOutput, setGenerationOutput] = useState('')
   const [generationError, setGenerationError] = useState('')
+  const [statusError, setStatusError] = useState('')
   const [generating, setGenerating] = useState(false)
   const [parsedRows, setParsedRows] = useState<Array<{
     topic: string
@@ -24,6 +25,7 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
     questionText: string
     sourceUrl?: string
   }>>([])
+  const questionStatusOptions: QuestionStatus[] = ['draft', 'pending', 'approved', 'rejected', 'published']
 
   const loadQuestions = useCallback(async () => {
     try {
@@ -40,6 +42,39 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
   useEffect(() => {
     loadQuestions()
   }, [loadQuestions])
+
+  const handleStatusChange = async (questionId: string, nextStatus: QuestionStatus) => {
+    setStatusError('')
+    const previous = questions.find((question) => question.id === questionId)
+    if (!previous || previous.status === nextStatus) {
+      return
+    }
+
+    setQuestions((current) =>
+      current.map((question) =>
+        question.id === questionId ? { ...question, status: nextStatus } : question
+      )
+    )
+
+    try {
+      const response = await fetch(`/api/content-tool/questions/${questionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus })
+      })
+
+      if (!response.ok) {
+        throw new Error('Unable to update status.')
+      }
+    } catch (error) {
+      setQuestions((current) =>
+        current.map((question) =>
+          question.id === questionId ? { ...question, status: previous.status } : question
+        )
+      )
+      setStatusError('Unable to update status. Please try again.')
+    }
+  }
 
   const handleGenerate = async () => {
     if (generating) {
@@ -150,6 +185,11 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
             <p className="text-muted-foreground">Loading questions...</p>
           ) : (
             <div className="overflow-x-auto border border-border rounded-lg">
+              {statusError && (
+                <p className="text-sm text-red-500 p-3 border-b border-border">
+                  {statusError}
+                </p>
+              )}
               <table className="w-full text-sm">
                 <thead className="bg-muted text-muted-foreground">
                   <tr>
@@ -170,7 +210,26 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
                       <td className="p-3">{question.tone || '—'}</td>
                       <td className="p-3">{question.questionText}</td>
                       <td className="p-3">
-                        <Badge variant="outline">{question.status}</Badge>
+                        <div className="min-w-[140px]">
+                          <Select
+                            value={question.status}
+                            onValueChange={(value) => handleStatusChange(question.id, value as QuestionStatus)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(questionStatusOptions.includes(question.status)
+                                ? questionStatusOptions
+                                : [...questionStatusOptions, question.status]
+                              ).map((status) => (
+                                <SelectItem key={status} value={status}>
+                                  {status}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </td>
                       <td className="p-3">{question.ratingValue ?? question.ratingDefault ?? '—'}</td>
                       <td className="p-3">

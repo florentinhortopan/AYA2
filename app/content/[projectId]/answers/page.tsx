@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/content/page-header'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ContentAnswer, ContentQuestion } from '@/types/content'
+import { AnswerValidationStatus, ContentAnswer, ContentQuestion } from '@/types/content'
 
 export default function AnswersPage({ params }: { params: { projectId: string } }) {
   const [answers, setAnswers] = useState<(ContentAnswer & { question?: { questionText: string } })[]>([])
@@ -18,6 +18,7 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
   )
   const [generationOutput, setGenerationOutput] = useState('')
   const [generationError, setGenerationError] = useState('')
+  const [statusError, setStatusError] = useState('')
   const [generating, setGenerating] = useState(false)
   const [selectedQuestionId, setSelectedQuestionId] = useState<string>('')
   const [parsedRows, setParsedRows] = useState<Array<{
@@ -26,6 +27,14 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
     answerText: string
     sourceLink?: string
   }>>([])
+  const answerStatusOptions: AnswerValidationStatus[] = [
+    'draft',
+    'pending',
+    'approved',
+    'valid',
+    'needs_review',
+    'invalid'
+  ]
 
   const selectedQuestion = useMemo(
     () => questions.find((question) => question.id === selectedQuestionId),
@@ -60,6 +69,39 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
     loadAnswers()
     loadQuestions()
   }, [loadAnswers, loadQuestions])
+
+  const handleStatusChange = async (answerId: string, nextStatus: AnswerValidationStatus) => {
+    setStatusError('')
+    const previous = answers.find((answer) => answer.id === answerId)
+    if (!previous || previous.validationStatus === nextStatus) {
+      return
+    }
+
+    setAnswers((current) =>
+      current.map((answer) =>
+        answer.id === answerId ? { ...answer, validationStatus: nextStatus } : answer
+      )
+    )
+
+    try {
+      const response = await fetch(`/api/content-tool/answers/${answerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ validationStatus: nextStatus })
+      })
+
+      if (!response.ok) {
+        throw new Error('Unable to update status.')
+      }
+    } catch (error) {
+      setAnswers((current) =>
+        current.map((answer) =>
+          answer.id === answerId ? { ...answer, validationStatus: previous.validationStatus } : answer
+        )
+      )
+      setStatusError('Unable to update status. Please try again.')
+    }
+  }
 
   const handleGenerate = async () => {
     if (generating) {
@@ -195,12 +237,36 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
             <p className="text-muted-foreground">Loading answers...</p>
           ) : (
             <div className="space-y-4">
+              {statusError && (
+                <p className="text-sm text-red-500">{statusError}</p>
+              )}
               {answers.map((answer) => (
                 <div key={answer.id} className="border border-border rounded-lg p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary">{answer.variantLevel.replace('_', ' ')}</Badge>
-                      <Badge variant="outline">{answer.validationStatus}</Badge>
+                      <div className="min-w-[140px]">
+                        <Select
+                          value={answer.validationStatus}
+                          onValueChange={(value) =>
+                            handleStatusChange(answer.id, value as AnswerValidationStatus)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(answerStatusOptions.includes(answer.validationStatus)
+                              ? answerStatusOptions
+                              : [...answerStatusOptions, answer.validationStatus]
+                            ).map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {status}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                     <div className="text-sm text-muted-foreground">
                       Rating: {answer.ratingValue ?? answer.ratingDefault ?? '—'}

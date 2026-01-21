@@ -35,9 +35,33 @@ export default function PublishPage({ params }: { params: { projectId: string } 
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold">Export</h3>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline">CSV</Button>
-                  <Button size="sm" variant="outline">JSON</Button>
-                  <Button size="sm" variant="outline">Markdown</Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    asChild
+                  >
+                    <a href={`/api/content-tool/projects/${params.projectId}/export?format=csv`}>
+                      CSV
+                    </a>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    asChild
+                  >
+                    <a href={`/api/content-tool/projects/${params.projectId}/export?format=json`}>
+                      JSON
+                    </a>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    asChild
+                  >
+                    <a href={`/api/content-tool/projects/${params.projectId}/export?format=markdown`}>
+                      Markdown
+                    </a>
+                  </Button>
                 </div>
               </div>
               <p className="text-sm text-muted-foreground mt-2">
