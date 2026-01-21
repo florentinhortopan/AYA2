@@ -17,6 +17,10 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
   const [generationOutput, setGenerationOutput] = useState('')
   const [generationError, setGenerationError] = useState('')
   const [statusError, setStatusError] = useState('')
+  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
+  const [editingQuestionText, setEditingQuestionText] = useState('')
+  const [editingError, setEditingError] = useState('')
+  const [savingQuestionId, setSavingQuestionId] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [parsedRows, setParsedRows] = useState<Array<{
     topic: string
@@ -73,6 +77,56 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
         )
       )
       setStatusError('Unable to update status. Please try again.')
+    }
+  }
+
+  const startEditing = (question: ContentQuestion) => {
+    setEditingError('')
+    setEditingQuestionId(question.id)
+    setEditingQuestionText(question.questionText)
+  }
+
+  const cancelEditing = () => {
+    setEditingError('')
+    setEditingQuestionId(null)
+    setEditingQuestionText('')
+  }
+
+  const saveQuestionText = async (questionId: string) => {
+    if (savingQuestionId) {
+      return
+    }
+
+    const nextText = editingQuestionText.trim()
+    if (!nextText) {
+      setEditingError('Question text is required.')
+      return
+    }
+
+    setSavingQuestionId(questionId)
+    setEditingError('')
+
+    try {
+      const response = await fetch(`/api/content-tool/questions/${questionId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionText: nextText })
+      })
+
+      if (!response.ok) {
+        throw new Error('Unable to update question.')
+      }
+
+      setQuestions((current) =>
+        current.map((question) =>
+          question.id === questionId ? { ...question, questionText: nextText } : question
+        )
+      )
+      cancelEditing()
+    } catch (error) {
+      setEditingError('Unable to save changes. Please try again.')
+    } finally {
+      setSavingQuestionId(null)
     }
   }
 
@@ -208,7 +262,22 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
                       <td className="p-3">{question.topic}</td>
                       <td className="p-3">{question.persona || '—'}</td>
                       <td className="p-3">{question.tone || '—'}</td>
-                      <td className="p-3">{question.questionText}</td>
+                      <td className="p-3">
+                        {editingQuestionId === question.id ? (
+                          <div className="space-y-2">
+                            <textarea
+                              className="min-h-[90px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                              value={editingQuestionText}
+                              onChange={(event) => setEditingQuestionText(event.target.value)}
+                            />
+                            {editingError && (
+                              <p className="text-xs text-red-500">{editingError}</p>
+                            )}
+                          </div>
+                        ) : (
+                          question.questionText
+                        )}
+                      </td>
                       <td className="p-3">
                         <div className="min-w-[140px]">
                           <Select
@@ -233,9 +302,34 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
                       </td>
                       <td className="p-3">{question.ratingValue ?? question.ratingDefault ?? '—'}</td>
                       <td className="p-3">
-                        <Link href={`/content/${params.projectId}/answers`}>
-                          <Button size="sm" variant="outline">View Answers</Button>
-                        </Link>
+                        <div className="flex flex-wrap gap-2">
+                          <Link href={`/content/${params.projectId}/answers`}>
+                            <Button size="sm" variant="outline">View Answers</Button>
+                          </Link>
+                          {editingQuestionId === question.id ? (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => saveQuestionText(question.id)}
+                                disabled={savingQuestionId === question.id}
+                              >
+                                {savingQuestionId === question.id ? 'Saving...' : 'Save'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={cancelEditing}
+                                disabled={savingQuestionId === question.id}
+                              >
+                                Cancel
+                              </Button>
+                            </>
+                          ) : (
+                            <Button size="sm" variant="outline" onClick={() => startEditing(question)}>
+                              Edit
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

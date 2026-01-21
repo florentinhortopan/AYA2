@@ -19,6 +19,10 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
   const [generationOutput, setGenerationOutput] = useState('')
   const [generationError, setGenerationError] = useState('')
   const [statusError, setStatusError] = useState('')
+  const [editingAnswerId, setEditingAnswerId] = useState<string | null>(null)
+  const [editingAnswerText, setEditingAnswerText] = useState('')
+  const [editingError, setEditingError] = useState('')
+  const [savingAnswerId, setSavingAnswerId] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [selectedQuestionId, setSelectedQuestionId] = useState<string>('')
   const [parsedRows, setParsedRows] = useState<Array<{
@@ -100,6 +104,56 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
         )
       )
       setStatusError('Unable to update status. Please try again.')
+    }
+  }
+
+  const startEditing = (answer: ContentAnswer) => {
+    setEditingError('')
+    setEditingAnswerId(answer.id)
+    setEditingAnswerText(answer.answerText)
+  }
+
+  const cancelEditing = () => {
+    setEditingError('')
+    setEditingAnswerId(null)
+    setEditingAnswerText('')
+  }
+
+  const saveAnswerText = async (answerId: string) => {
+    if (savingAnswerId) {
+      return
+    }
+
+    const nextText = editingAnswerText.trim()
+    if (!nextText) {
+      setEditingError('Answer text is required.')
+      return
+    }
+
+    setSavingAnswerId(answerId)
+    setEditingError('')
+
+    try {
+      const response = await fetch(`/api/content-tool/answers/${answerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answerText: nextText })
+      })
+
+      if (!response.ok) {
+        throw new Error('Unable to update answer.')
+      }
+
+      setAnswers((current) =>
+        current.map((answer) =>
+          answer.id === answerId ? { ...answer, answerText: nextText } : answer
+        )
+      )
+      cancelEditing()
+    } catch (error) {
+      setEditingError('Unable to save changes. Please try again.')
+    } finally {
+      setSavingAnswerId(null)
     }
   }
 
@@ -268,8 +322,31 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
                         </Select>
                       </div>
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      Rating: {answer.ratingValue ?? answer.ratingDefault ?? '—'}
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                      <span>Rating: {answer.ratingValue ?? answer.ratingDefault ?? '—'}</span>
+                      {editingAnswerId === answer.id ? (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => saveAnswerText(answer.id)}
+                            disabled={savingAnswerId === answer.id}
+                          >
+                            {savingAnswerId === answer.id ? 'Saving...' : 'Save'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={cancelEditing}
+                            disabled={savingAnswerId === answer.id}
+                          >
+                            Cancel
+                          </Button>
+                        </>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => startEditing(answer)}>
+                          Edit
+                        </Button>
+                      )}
                     </div>
                   </div>
                   {answer.question?.questionText && (
@@ -282,7 +359,20 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
                       Question: <Link className="underline" href={`/content/${params.projectId}/questions`}>View question list</Link>
                     </p>
                   )}
-                  <p className="mt-3 text-sm">{answer.answerText}</p>
+                  {editingAnswerId === answer.id ? (
+                    <div className="mt-3 space-y-2">
+                      <textarea
+                        className="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        value={editingAnswerText}
+                        onChange={(event) => setEditingAnswerText(event.target.value)}
+                      />
+                      {editingError && (
+                        <p className="text-xs text-red-500">{editingError}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-sm">{answer.answerText}</p>
+                  )}
                   {answer.sourceLink && (
                     <a className="text-sm text-blue-500 hover:underline mt-2 inline-block" href={answer.sourceLink}>
                       {answer.sourceLink}
