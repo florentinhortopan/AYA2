@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { aiService } from '@/lib/ai'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const DEFAULT_QUESTION_STATUSES = ['approved']
 const DEFAULT_ANSWER_STATUSES = ['approved']
 
@@ -15,6 +18,13 @@ const STOP_WORDS = new Set([
   'does', 'did', 'can', 'could', 'should', 'would', 'will', 'may', 'might', 'about', 'into', 'what', 'how',
   'why', 'when', 'where', 'which', 'who'
 ])
+
+const jsonNoStore = (payload: unknown, init?: Parameters<typeof NextResponse.json>[1]) => {
+  const response = NextResponse.json(payload, init)
+  response.headers.set('Cache-Control', 'no-store, no-cache, max-age=0, must-revalidate')
+  response.headers.set('Pragma', 'no-cache')
+  return response
+}
 
 const normalizeText = (value: string) =>
   value
@@ -87,7 +97,7 @@ export async function POST(
   const { message, questionStatuses, answerStatuses } = body || {}
 
   if (!message || typeof message !== 'string') {
-    return NextResponse.json({ error: 'message is required' }, { status: 400 })
+    return jsonNoStore({ error: 'message is required' }, { status: 400 })
   }
 
   const questionStatusList = Array.isArray(questionStatuses) && questionStatuses.length > 0
@@ -102,7 +112,7 @@ export async function POST(
   })
 
   if (!project) {
-    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    return jsonNoStore({ error: 'Project not found' }, { status: 404 })
   }
 
   const questions = await prisma.qaQuestion.findMany({
@@ -121,7 +131,7 @@ export async function POST(
   })
 
   if (questions.length === 0) {
-    return NextResponse.json({
+    return jsonNoStore({
       response: 'No questions match the current filters yet.',
       variantLevel: 'direct'
     })
@@ -129,7 +139,7 @@ export async function POST(
 
   const queryTokens = tokenize(message)
   if (queryTokens.length === 0) {
-    return NextResponse.json({
+    return jsonNoStore({
       response: 'Please rephrase with more specific keywords so I can match a question.',
       variantLevel: 'direct'
     })
@@ -156,7 +166,7 @@ export async function POST(
     .sort((a, b) => b.score - a.score)
 
   if (scored.length === 0 || scored[0].score === 0) {
-    return NextResponse.json({
+    return jsonNoStore({
       response: 'No close match found for that question. Try different keywords or add a related Q&A first.',
       variantLevel: 'direct'
     })
@@ -173,13 +183,13 @@ export async function POST(
     best.question.answers[0]
 
   if (!answerForVariant) {
-    return NextResponse.json({
+    return jsonNoStore({
       response: 'No answers match the current filters yet.',
       variantLevel
     })
   }
 
-  return NextResponse.json({
+  return jsonNoStore({
     response: answerForVariant.answerText,
     matchedQuestionId: best.question.id,
     matchedQuestionText: best.question.questionText,
