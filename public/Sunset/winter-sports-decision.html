@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoArmy Winter Sports - Page Sunset Decision Tree</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .page-context {
+            background: #fff3cd;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border-left: 4px solid #856404;
+        }
+        .page-context h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        .page-context a {
+            color: #667eea;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .page-context a:hover {
+            text-decoration: underline;
+        }
+        .pre-filled-note {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            border-left: 3px solid #155724;
+        }
+        .highlight-path {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+        }
+        .highlight-path strong {
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav-menu">
+        <div class="nav-container">
+            <a href="index.html" class="nav-title">Seasonal Page Sunset Decision Tree</a>
+            <div class="nav-links">
+                <a href="index.html">Interactive Tool</a>
+                <a href="winter-sports-decision.html" class="active">Winter Sports Analysis</a>
+                <a href="analyze.html">Page Analysis Report</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <header>
+            <h1>GoArmy Winter Sports Page</h1>
+            <p class="subtitle">Decision Tree Analysis for Seasonal Campaign Sunset Strategy</p>
+        </header>
+
+        <div class="page-context">
+            <h3>📄 Page Under Analysis</h3>
+            <p><strong>URL:</strong> <a href="https://www.goarmy.com/winter-sports" target="_blank">https://www.goarmy.com/winter-sports</a></p>
+            <p><strong>Campaign:</strong> 2026 Winter Sports / Winter Olympics</p>
+            <p><strong>Content Type:</strong> Historical narrative (10th Mountain Division) + Modern recruitment messaging + Campaign-specific content</p>
+            <p><strong>Key Insight:</strong> Approximately <strong>70-80% evergreen content</strong> (historical content, biographical profiles, World Class Athlete Program, general recruitment messaging)</p>
+        </div>
+
+        <div class="main-content">
+            <div class="decision-form">
+                <h2>Page Assessment for Winter Sports Campaign</h2>
+                <form id="decisionForm">
+                    <div class="pre-filled-note">
+                        ℹ️ This form is pre-configured based on the GoArmy winter-sports page analysis. You can modify values to explore different scenarios.
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Legal & Compliance</h3>
+                        <div class="form-group">
+                            <label>
+                                <input type="radio" name="legalRemoval" value="yes" required>
+                                Legal removal required
+                            </label>
+                            <label>
+                                <input type="radio" name="legalRemoval" value="no" required checked>
+                                No legal removal required
+                            </label>
+                        </div>
+                        <p style="color: #6c757d; font-size: 0.9em; margin-top: 10px;">✓ No legal or compliance issues requiring removal for historical/recruitment content.</p>
+                    </div>
+
+                    <div class="form-section" id="strategicSection">
+                        <h3>Strategic Factors</h3>
+                        <div class="form-group">
+                            <label>Frequency of Campaign Page Sunsets:</label>
+                            <select name="sunsetFrequency" id="sunsetFrequencySelect">
+                                <option value="rare">Rare (few times per year)</option>
+                                <option value="occasional" selected>Occasional - Every 4 years (Winter Olympics cycle)</option>
+                                <option value="frequent">Frequent (weekly or bi-weekly)</option>
+                                <option value="very-frequent">Very Frequent (multiple per week)</option>
+                            </select>
+                        </div>
+                        <p style="color: #6c757d; font-size: 0.9em; margin-top: 5px;">✓ Winter Olympics occur every 4 years, making this an <strong>occasional sunset scenario</strong>. This frequency supports investing in evergreen hub conversion rather than frequent redirects/archives.</p>
+                        
+                        <div class="form-group">
+                            <label>Content Relevancy After Campaign Ends:</label>
+                            <select name="contentRelevancy" id="contentRelevancySelect">
+                                <option value="high" selected>High - Historical content (10th Mountain Division, WWII impact, ski resort founding) + evergreen recruitment messaging</option>
+                                <option value="medium">Medium (some content still relevant)</option>
+                                <option value="low">Low (content becomes outdated quickly)</option>
+                            </select>
+                        </div>
+                        <p style="color: #6c757d; font-size: 0.9em; margin-top: 5px;">✓ <strong>~70-80% evergreen content:</strong> Historical narrative (40% - 10th Mountain Division, WWII, ski resort founding), Biographical content (20% - Friedl Pfeifer, Walter Prager, Pete Seibert), Modern program info (15% - World Class Athlete Program), Recruitment messaging (15% - general Army CTAs), Campaign-specific (10% - "2026 Winter Sports" and "Return to Italy" sections)</p>
+                    </div>
+
+                    <div class="form-section" id="recurringSection">
+                        <h3>Campaign Type</h3>
+                        <div class="form-group">
+                            <label>
+                                <input type="radio" name="recurring" value="yes" checked>
+                                Recurring theme - Winter Olympics (every 4 years)
+                            </label>
+                            <label>
+                                <input type="radio" name="recurring" value="no">
+                                Non-recurring campaign
+                            </label>
+                        </div>
+                        <p style="color: #6c757d; font-size: 0.9em; margin-top: 10px;">✓ Winter Olympics recur every 4 years, making this a recurring campaign theme.</p>
+                    </div>
+
+                    <div class="form-section" id="valueSection">
+                        <h3>Page Value Assessment</h3>
+                        <div class="form-group">
+                            <label>Traffic Level:</label>
+                            <select name="traffic" id="trafficSelect">
+                                <option value="high" selected>High - Olympic campaigns typically drive significant traffic</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Backlinks:</label>
+                            <select name="backlinks" id="backlinksSelect">
+                                <option value="high" selected>High - Historical content likely attracts educational/sports media links</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Conversions:</label>
+                            <select name="conversions" id="conversionsSelect">
+                                <option value="high">High</option>
+                                <option value="medium" selected>Medium-High - Recruitment-focused page with clear CTAs</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-section" id="hubSection">
+                        <h3>Hub Information</h3>
+                        <div class="form-group">
+                            <label>
+                                <input type="radio" name="existingHub" value="yes">
+                                Existing hub URL exists
+                            </label>
+                            <label>
+                                <input type="radio" name="existingHub" value="no" checked>
+                                No existing hub URL
+                            </label>
+                        </div>
+                        <p style="color: #6c757d; font-size: 0.9em; margin-top: 10px;">✓ No evidence of existing winter sports hub on GoArmy.com</p>
+                    </div>
+
+                    <div class="form-section" id="intentSection" style="display: none;">
+                        <h3>Page Intent</h3>
+                        <div class="form-group">
+                            <label>
+                                <input type="radio" name="intent" value="product">
+                                Product intent (main focus on products)
+                            </label>
+                            <label>
+                                <input type="radio" name="intent" value="content">
+                                Content intent (main focus on content/blog)
+                            </label>
+                            <label>
+                                <input type="radio" name="intent" value="brand" checked>
+                                Brand/Recruitment intent (mix of historical content and recruitment messaging)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-section" id="relevantHubSection" style="display: none;">
+                        <h3>Relevant Hub/Category</h3>
+                        <div class="form-group">
+                            <label>
+                                <input type="radio" name="relevantHub" value="yes">
+                                Loosely relevant hub/category exists
+                            </label>
+                            <label>
+                                <input type="radio" name="relevantHub" value="no">
+                                No relevant hub/category
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-btn">Determine Recommendation</button>
+                    <button type="button" class="reset-btn" onclick="resetForm()">Reset to Default Values</button>
+                </form>
+            </div>
+
+            <div class="result-section" id="resultSection" style="display: none;">
+                <h2>Decision Outcome</h2>
+                <div id="outcome" class="outcome"></div>
+                <div id="details" class="details"></div>
+                
+                <div class="highlight-path" id="expectedPath" style="display: none;">
+                    <h3>Expected Decision Path for Winter Sports Page:</h3>
+                    <ol style="line-height: 1.8;">
+                        <li>Legal removal required? → <strong>No</strong></li>
+                        <li>Sunset frequency? → <strong>Occasional</strong> (every 4 years - Winter Olympics)</li>
+                        <li>Content relevancy? → <strong>High</strong> (historical + evergreen recruitment - 70-80% evergreen)</li>
+                        <li>Recurring theme? → <strong>Yes</strong> (Winter Olympics)</li>
+                        <li>Page value? → <strong>High</strong> (high traffic, high backlinks, medium-high conversions)</li>
+                        <li>Existing hub? → <strong>No</strong></li>
+                        <li>High relevancy + Occasional sunsets? → <strong>Yes</strong></li>
+                        <li><strong>OUTCOME:</strong> <strong style="color: #004085;">Convert to Evergreen Hub</strong></li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <div class="flowchart-section">
+            <h2>Decision Flowchart - Winter Sports Path Highlighted</h2>
+            <div class="flowchart-container">
+                <div class="flowchart-node start">Seasonal page enters Cooling<br/><em style="font-size: 0.8em;">GoArmy Winter Sports 2026</em></div>
+                
+                <div class="flowchart-branch">
+                    <div class="flowchart-node decision">Legal removal required?</div>
+                    <div class="flowchart-options">
+                        <div class="flowchart-path yes">
+                            <div class="flowchart-node end">410/404 + custom 'campaign ended' 404<br/>Search + top links</div>
+                        </div>
+                        <div class="flowchart-path no" style="border: 3px solid #667eea;">
+                            <div class="flowchart-node data">Assess: Sunset Frequency<br/>& Content Relevancy<br/><em style="font-size: 0.8em;">✓ Occasional (4yr) + High</em></div>
+                            <div class="flowchart-node decision">Recurring theme?</div>
+                            <div class="flowchart-options">
+                                <div class="flowchart-path yes" style="border: 3px solid #667eea;">
+                                    <div class="flowchart-node decision">High value?<br/>(traffic/backlinks/conversions)<br/><em style="font-size: 0.8em;">✓ Yes</em></div>
+                                    <div class="flowchart-options">
+                                        <div class="flowchart-path yes" style="border: 3px solid #667eea;">
+                                            <div class="flowchart-node decision">Existing hub URL?<br/><em style="font-size: 0.8em;">✓ No</em></div>
+                                            <div class="flowchart-options">
+                                                <div class="flowchart-path yes">
+                                                    <div class="flowchart-node redirect">301 redirect campaign URL<br/>to existing hub</div>
+                                                </div>
+                                                <div class="flowchart-path no" style="border: 3px solid #004085;">
+                                                    <div class="flowchart-node keep" style="box-shadow: 0 0 15px rgba(0, 64, 133, 0.5);">✓ Convert this URL into hub<br/>Simplified evergreen layout<br/><strong style="font-size: 1.1em;">RECOMMENDED OUTCOME</strong></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flowchart-path no">
+                                            <div class="flowchart-node decision">Existing hub URL?</div>
+                                            <div class="flowchart-options">
+                                                <div class="flowchart-path yes">
+                                                    <div class="flowchart-node redirect">301 redirect campaign URL<br/>to existing hub</div>
+                                                </div>
+                                                <div class="flowchart-path no">
+                                                    <div class="flowchart-node decision">Has backlinks<br/>worth preserving?</div>
+                                                    <div class="flowchart-options">
+                                                        <div class="flowchart-path yes">
+                                                            <div class="flowchart-node decision">Content Relevancy?</div>
+                                                            <div class="flowchart-options">
+                                                                <div class="flowchart-path yes">
+                                                                    <div class="flowchart-node keep">Convert this URL into hub<br/>Simplified evergreen layout</div>
+                                                                </div>
+                                                                <div class="flowchart-path no">
+                                                                    <div class="flowchart-node decision">Medium?</div>
+                                                                    <div class="flowchart-options">
+                                                                        <div class="flowchart-path yes">
+                                                                            <div class="flowchart-node nested">Nested Page / De-link<br/>Remove from primary nav, keep indexed<br/>Move deeper in site structure</div>
+                                                                        </div>
+                                                                        <div class="flowchart-path no">
+                                                                            <div class="flowchart-node archive">Keep Live but Not Prominently Linked<br/>Archive: noindex, remove from nav<br/>Preserve link equity</div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="flowchart-path no">
+                                                            <div class="flowchart-node keep">Convert this URL into hub<br/>Simplified evergreen layout</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flowchart-path no">
+                                    <div class="flowchart-node decision">Page value?<br/>(traffic/conversions/links)</div>
+                                    <div class="flowchart-options">
+                                        <div class="flowchart-path high-med">
+                                            <div class="flowchart-node data">Determine dominant intent<br/>(product vs content vs brand)</div>
+                                            <div class="flowchart-node decision">Main intent = Product?</div>
+                                            <div class="flowchart-options">
+                                                <div class="flowchart-path yes">
+                                                    <div class="flowchart-node redirect">301 to best-fit category/PLP</div>
+                                                </div>
+                                                <div class="flowchart-path no">
+                                                    <div class="flowchart-node decision">Main intent = Content?</div>
+                                                    <div class="flowchart-options">
+                                                        <div class="flowchart-path yes">
+                                                            <div class="flowchart-node redirect">301 to best-fit content hub</div>
+                                                        </div>
+                                                        <div class="flowchart-path no">
+                                                            <div class="flowchart-node redirect">301 to best-fit brand/app/loyalty page</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flowchart-path low">
+                                            <div class="flowchart-node decision">Any loosely relevant hub/category?</div>
+                                            <div class="flowchart-options">
+                                                <div class="flowchart-path yes">
+                                                    <div class="flowchart-node redirect">301 to that hub/category</div>
+                                                </div>
+                                                <div class="flowchart-path no">
+                                                    <div class="flowchart-node decision">Has backlinks<br/>worth preserving?</div>
+                                                    <div class="flowchart-options">
+                                                        <div class="flowchart-path yes">
+                                                            <div class="flowchart-node decision">Content Relevancy?</div>
+                                                            <div class="flowchart-options">
+                                                                <div class="flowchart-path yes">
+                                                                    <div class="flowchart-node decision">Page Value?</div>
+                                                                    <div class="flowchart-options">
+                                                                        <div class="flowchart-path yes">
+                                                                            <div class="flowchart-node nested">Nested Page / De-link<br/>Remove from primary nav, keep indexed<br/>Move deeper in site structure</div>
+                                                                        </div>
+                                                                        <div class="flowchart-path no">
+                                                                            <div class="flowchart-node archive">Keep Live but Not Prominently Linked<br/>Archive: noindex, remove from nav<br/>Preserve link equity</div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flowchart-path no">
+                                                                    <div class="flowchart-node decision">Medium?</div>
+                                                                    <div class="flowchart-options">
+                                                                        <div class="flowchart-path yes">
+                                                                            <div class="flowchart-node nested">Nested Page / De-link<br/>Remove from primary nav, keep indexed<br/>Move deeper in site structure</div>
+                                                                        </div>
+                                                                        <div class="flowchart-path no">
+                                                                            <div class="flowchart-node archive">Keep Live but Not Prominently Linked<br/>Archive: noindex, remove from nav<br/>Preserve link equity</div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="flowchart-path no">
+                                                            <div class="flowchart-node end">410/404 + custom 'campaign ended' 404<br/>Search + top links</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Show expected path when form loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('decisionForm');
+            
+            // Override the form submission to show expected path
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Show the result section
+                document.getElementById('resultSection').style.display = 'block';
+                document.getElementById('expectedPath').style.display = 'block';
+                
+                // Evaluate decision
+                const formData = {
+                    legalRemoval: document.querySelector('input[name="legalRemoval"]:checked')?.value,
+                    sunsetFrequency: document.getElementById('sunsetFrequencySelect').value,
+                    contentRelevancy: document.getElementById('contentRelevancySelect').value,
+                    recurring: document.querySelector('input[name="recurring"]:checked')?.value,
+                    traffic: document.getElementById('trafficSelect').value,
+                    backlinks: document.getElementById('backlinksSelect').value,
+                    conversions: document.getElementById('conversionsSelect').value,
+                    existingHub: document.querySelector('input[name="existingHub"]:checked')?.value,
+                    intent: document.querySelector('input[name="intent"]:checked')?.value,
+                    relevantHub: document.querySelector('input[name="relevantHub"]:checked')?.value
+                };
+
+                const result = evaluateDecision(formData);
+                displayResult(result);
+                
+                // Scroll to result
+                document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Analysis: GoArmy Winter Sports</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            padding-top: 0;
+        }
+        .analysis-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .page-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border-left: 4px solid #667eea;
+        }
+        .page-info h2 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        .page-info a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .page-info a:hover {
+            text-decoration: underline;
+        }
+        .assessment-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .assessment-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .assessment-card h3 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        .assessment-item {
+            margin-bottom: 15px;
+        }
+        .assessment-item label {
+            font-weight: 600;
+            color: #6c757d;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .assessment-item .value {
+            color: #212529;
+            font-size: 1.1em;
+        }
+        .value.high { color: #155724; font-weight: 600; }
+        .value.medium { color: #856404; font-weight: 600; }
+        .value.low { color: #721c24; font-weight: 600; }
+        .value.yes { color: #155724; font-weight: 600; }
+        .value.no { color: #721c24; font-weight: 600; }
+        .recommendation {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .recommendation h2 {
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+        .recommendation .action {
+            font-size: 1.5em;
+            font-weight: 700;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 6px;
+        }
+        .recommendation ul {
+            list-style: none;
+            padding: 0;
+        }
+        .recommendation li {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        .recommendation li:last-child {
+            border-bottom: none;
+        }
+        .recommendation li:before {
+            content: "✓ ";
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .content-analysis {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 2px solid #e9ecef;
+        }
+        .content-analysis h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        .content-analysis p {
+            line-height: 1.8;
+            color: #495057;
+            margin-bottom: 15px;
+        }
+        .content-analysis .highlight {
+            background: #fff3cd;
+            padding: 15px;
+            border-left: 4px solid #856404;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .decision-path {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+            border-left: 4px solid #667eea;
+        }
+        .decision-path h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        .decision-step {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 4px;
+            border-left: 3px solid #667eea;
+        }
+        .before-after-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 30px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .before-after-table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .before-after-table th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+        .before-after-table td {
+            padding: 20px;
+            vertical-align: top;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .before-after-table tr:last-child td {
+            border-bottom: none;
+        }
+        .before-column {
+            width: 48%;
+            border-right: 2px solid #e9ecef;
+            background: #fff5f5;
+        }
+        .after-column {
+            width: 48%;
+            background: #f0fff4;
+        }
+        .before-column .highlight-change {
+            background: #ffebee;
+            padding: 2px 4px;
+            border-radius: 3px;
+            text-decoration: line-through;
+            color: #c62828;
+        }
+        .after-column .highlight-change {
+            background: #e8f5e9;
+            padding: 2px 4px;
+            border-radius: 3px;
+            color: #2e7d32;
+            font-weight: 600;
+        }
+        .section-label {
+            font-weight: 700;
+            color: #495057;
+            margin-bottom: 10px;
+            font-size: 1.05em;
+        }
+        .change-note {
+            font-size: 0.85em;
+            color: #6c757d;
+            font-style: italic;
+            margin-top: 8px;
+        }
+        .minimal-change {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border-left: 4px solid #856404;
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav-menu">
+        <div class="nav-container">
+            <a href="index.html" class="nav-title">Seasonal Page Sunset Decision Tree</a>
+            <div class="nav-links">
+                <a href="index.html">Interactive Tool</a>
+                <a href="winter-sports-decision.html">Winter Sports Analysis</a>
+                <a href="analyze.html" class="active">Page Analysis Report</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="analysis-container">
+        <header>
+            <h1>Page Analysis: GoArmy Winter Sports Campaign</h1>
+            <p class="subtitle">Decision Tree Analysis & Recommendation</p>
+        </header>
+
+        <div class="page-info">
+            <h2>Page Under Analysis</h2>
+            <p><strong>URL:</strong> <a href="https://www.goarmy.com/winter-sports" target="_blank">https://www.goarmy.com/winter-sports</a></p>
+            <p><strong>Analysis Date:</strong> <span id="analysisDate"></span></p>
+            <p><strong>Campaign:</strong> 2026 Winter Sports / Winter Olympics</p>
+        </div>
+
+        <div class="content-analysis">
+            <h3>Content Analysis</h3>
+            <p>The GoArmy winter-sports page presents a compelling narrative that combines historical content with contemporary recruitment messaging. Key observations:</p>
+            
+            <div class="highlight">
+                <strong>Content Structure:</strong>
+                <ul>
+                    <li><strong>Historical Content (Evergreen):</strong> Detailed history of the 10th Mountain Division, their role in WWII, and their impact on American ski culture</li>
+                    <li><strong>Historical Figures:</strong> Profiles of Friedl Pfeifer (Aspen), Walter Prager (U.S. Ski Team), Pete Seibert (Vail)</li>
+                    <li><strong>Modern Connection:</strong> World Class Athlete Program and current Soldier-athletes</li>
+                    <li><strong>Campaign-Specific:</strong> "2026 Winter Sports" and "The Return to Italy" sections tied to Winter Olympics</li>
+                    <li><strong>Recruitment CTAs:</strong> Army Career Match, Steps to Join, Talk to a Recruiter</li>
+                </ul>
+            </div>
+
+            <p><strong>Key Insight:</strong> Approximately 70-80% of the page content is <strong>historically evergreen</strong> and remains valuable long after the 2026 Winter Olympics conclude. The historical narrative, Army legacy, and general recruitment messaging have lasting relevance.</p>
+        </div>
+
+        <div class="assessment-grid">
+            <div class="assessment-card">
+                <h3>Legal & Compliance</h3>
+                <div class="assessment-item">
+                    <label>Legal Removal Required:</label>
+                    <span class="value no">No</span>
+                </div>
+                <p style="color: #6c757d; font-size: 0.9em; margin-top: 10px;">No legal or compliance issues requiring removal.</p>
+            </div>
+
+            <div class="assessment-card">
+                <h3>Strategic Factors</h3>
+                <div class="assessment-item">
+                    <label>Sunset Frequency:</label>
+                    <span class="value medium">Occasional</span>
+                    <p style="color: #6c757d; font-size: 0.9em; margin-top: 5px;">Winter Olympics occur every 4 years</p>
+                </div>
+                <div class="assessment-item">
+                    <label>Content Relevancy:</label>
+                    <span class="value high">High</span>
+                    <p style="color: #6c757d; font-size: 0.9em; margin-top: 5px;">Historical content remains valuable; recruitment messaging evergreen</p>
+                </div>
+            </div>
+
+            <div class="assessment-card">
+                <h3>Campaign Type</h3>
+                <div class="assessment-item">
+                    <label>Recurring Theme:</label>
+                    <span class="value yes">Yes</span>
+                    <p style="color: #6c757d; font-size: 0.9em; margin-top: 5px;">Winter Olympics recur every 4 years</p>
+                </div>
+            </div>
+
+            <div class="assessment-card">
+                <h3>Page Value (Estimated)</h3>
+                <div class="assessment-item">
+                    <label>Traffic:</label>
+                    <span class="value high">High</span>
+                    <p style="color: #6c757d; font-size: 0.9em; margin-top: 5px;">Olympic campaigns typically drive significant traffic</p>
+                </div>
+                <div class="assessment-item">
+                    <label>Backlinks:</label>
+                    <span class="value high">High</span>
+                    <p style="color: #6c757d; font-size: 0.9em; margin-top: 5px;">Historical content likely attracts educational/sports media links</p>
+                </div>
+                <div class="assessment-item">
+                    <label>Conversions:</label>
+                    <span class="value medium">Medium-High</span>
+                    <p style="color: #6c757d; font-size: 0.9em; margin-top: 5px;">Recruitment-focused page with clear CTAs</p>
+                </div>
+            </div>
+
+            <div class="assessment-card">
+                <h3>Hub Information</h3>
+                <div class="assessment-item">
+                    <label>Existing Hub URL:</label>
+                    <span class="value no">Unknown/No</span>
+                    <p style="color: #6c757d; font-size: 0.9em; margin-top: 5px;">No evidence of existing winter sports hub</p>
+                </div>
+            </div>
+
+            <div class="assessment-card">
+                <h3>Content Intent</h3>
+                <div class="assessment-item">
+                    <label>Primary Intent:</label>
+                    <span class="value">Brand/Recruitment</span>
+                    <p style="color: #6c757d; font-size: 0.9em; margin-top: 5px;">Mix of historical content and recruitment messaging</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="decision-path">
+            <h3>Decision Tree Path</h3>
+            <div class="decision-step">1. Legal removal required? → <strong>No</strong></div>
+            <div class="decision-step">2. Sunset frequency? → <strong>Occasional</strong> (every 4 years)</div>
+            <div class="decision-step">3. Content relevancy? → <strong>High</strong> (historical + evergreen recruitment)</div>
+            <div class="decision-step">4. Recurring theme? → <strong>Yes</strong> (Winter Olympics)</div>
+            <div class="decision-step">5. Page value? → <strong>High</strong> (high traffic, high backlinks, medium-high conversions)</div>
+            <div class="decision-step">6. Existing hub? → <strong>No</strong></div>
+            <div class="decision-step">7. High relevancy + Rare/Occasional sunsets? → <strong>Yes</strong></div>
+            <div class="decision-step">8. <strong>OUTCOME:</strong> Convert to Evergreen Hub</div>
+        </div>
+
+        <div class="recommendation">
+            <h2>Recommendation</h2>
+            <div class="action">Convert URL into Evergreen Hub</div>
+            
+            <h3 style="margin-top: 25px; margin-bottom: 15px;">Rationale</h3>
+            <p style="margin-bottom: 20px; font-size: 1.1em; line-height: 1.6;">
+                This page is an ideal candidate for conversion to an evergreen hub. The content demonstrates <strong>high relevancy</strong> beyond the campaign period, with substantial historical and educational value that remains valuable year-round. The combination of <strong>high page value</strong>, <strong>occasional sunset frequency</strong> (4-year cycle), and <strong>high content relevancy</strong> makes investing in a hub conversion the optimal strategy.
+            </p>
+
+            <h3 style="margin-top: 25px; margin-bottom: 15px;">Implementation Steps</h3>
+            <ul>
+                <li><strong>Keep the current URL</strong> (/winter-sports) - maintain SEO equity and backlinks</li>
+                <li><strong>Remove time-sensitive elements:</strong> Update "2026 Winter Sports" and "The Return to Italy" sections to be more evergreen or archive them</li>
+                <li><strong>Apply "Evergreen Hub Template":</strong> Restructure to emphasize historical content and ongoing Army World Class Athlete Program</li>
+                <li><strong>Update copy and CTAs:</strong> Make recruitment messaging more general (not Olympics-specific)</li>
+                <li><strong>Add evergreen content:</strong> Expand historical sections, add more about current WCAP athletes, include year-round Army sports programs</li>
+                <li><strong>Maintain in navigation:</strong> Keep accessible in main site navigation as "Army Winter Sports" or "Army Sports History"</li>
+                <li><strong>Future-proof:</strong> Create a template that can easily incorporate future Olympic campaigns without requiring full page rebuild</li>
+            </ul>
+
+            <h3 style="margin-top: 25px; margin-bottom: 15px;">Expected Benefits</h3>
+            <ul>
+                <li><strong>Preserve SEO value:</strong> Maintain high-value backlinks and organic traffic</li>
+                <li><strong>Reduce maintenance:</strong> Avoid rebuilding page every 4 years for Olympics</li>
+                <li><strong>Year-round value:</strong> Historical content attracts traffic throughout the year</li>
+                <li><strong>Recruitment continuity:</strong> Maintain recruitment messaging without campaign gaps</li>
+                <li><strong>Content scalability:</strong> Easy to add new Olympic campaigns as they occur</li>
+            </ul>
+
+            <h3 style="margin-top: 25px; margin-bottom: 15px;">Alternative Consideration</h3>
+            <p style="margin-bottom: 10px; font-size: 1em; line-height: 1.6;">
+                If resources are constrained, consider a <strong>hybrid approach:</strong> Keep the historical content evergreen while creating a separate, campaign-specific section that can be updated every 4 years. This maintains the hub value while allowing for fresh Olympic content.
+            </p>
+        </div>
+
+        <div class="minimal-change">
+            <h3 style="color: #856404; margin-bottom: 15px;">📝 Content Conversion: Before & After</h3>
+            <p style="color: #495057; line-height: 1.8; margin-bottom: 15px;">
+                The following table shows how <strong>minimal changes</strong> can convert the campaign-specific content to evergreen format. Only <strong>~10-15%</strong> of the page content needs modification, demonstrating why this page is ideal for hub conversion.
+            </p>
+        </div>
+
+        <table class="before-after-table">
+            <thead>
+                <tr>
+                    <th class="before-column">Before (Campaign-Specific)</th>
+                    <th class="after-column">After (Evergreen)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="before-column">
+                        <div class="section-label">Page Heading</div>
+                        <p>"<span class="highlight-change">2026 Winter Sports</span>"</p>
+                        <div class="change-note">Time-bound reference to specific Olympics</div>
+                    </td>
+                    <td class="after-column">
+                        <div class="section-label">Page Heading</div>
+                        <p>"<span class="highlight-change">Army Winter Sports</span>" or "<span class="highlight-change">Army Sports History</span>"</p>
+                        <div class="change-note">Evergreen, year-round relevant</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="before-column">
+                        <div class="section-label">Section Heading</div>
+                        <p>"<span class="highlight-change">The Return to Italy</span>"</p>
+                        <p>"<span class="highlight-change">2026 Winter Sports</span>"</p>
+                        <div class="change-note">References specific campaign and location</div>
+                    </td>
+                    <td class="after-column">
+                        <div class="section-label">Section Heading</div>
+                        <p>"<span class="highlight-change">Army Athletes in Winter Sports</span>" or "<span class="highlight-change">Current Army Winter Athletes</span>"</p>
+                        <div class="change-note">Focuses on ongoing program, not specific event</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="before-column">
+                        <div class="section-label">Introductory Text</div>
+                        <p>"<span class="highlight-change">This year</span>, that warrior spirit takes us <span class="highlight-change">back to Italy where it all began</span>."</p>
+                        <p>"Imagine what's possible when you find a path that pushes you to thrive where others can't."</p>
+                        <div class="change-note">Time-specific and location-specific language</div>
+                    </td>
+                    <td class="after-column">
+                        <div class="section-label">Introductory Text</div>
+                        <p>"<span class="highlight-change">Today</span>, that warrior spirit continues through Army athletes competing at the highest levels of winter sports."</p>
+                        <p>"Imagine what's possible when you find a path that pushes you to thrive where others can't."</p>
+                        <div class="change-note">Removes time/location specificity, keeps inspirational message</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="before-column">
+                        <div class="section-label">Athlete Profile Section</div>
+                        <p>"<span class="highlight-change">2026 Winter Sports</span>"</p>
+                        <p>Profile of Staff Sergeant Deedra Irwin with "<span class="highlight-change">This year</span>" context</p>
+                        <div class="change-note">Frames athlete in context of specific campaign</div>
+                    </td>
+                    <td class="after-column">
+                        <div class="section-label">Athlete Profile Section</div>
+                        <p>"<span class="highlight-change">Army World Class Athlete Program</span>"</p>
+                        <p>Profile of Staff Sergeant Deedra Irwin with ongoing program context</p>
+                        <div class="change-note">Frames athlete as part of ongoing program, add more current athletes</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="before-column">
+                        <div class="section-label">Call-to-Action</div>
+                        <p>"<span class="highlight-change">Start your climb.</span>"</p>
+                        <p>CTAs remain general but may reference campaign timing</p>
+                        <div class="change-note">Generally evergreen, but verify no campaign-specific timing</div>
+                    </td>
+                    <td class="after-column">
+                        <div class="section-label">Call-to-Action</div>
+                        <p>"<span class="highlight-change">Start your climb.</span>" or "<span class="highlight-change">Join the Legacy</span>"</p>
+                        <p>CTAs remain general and year-round relevant</p>
+                        <div class="change-note">No changes needed - already evergreen</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="before-column">
+                        <div class="section-label">Historical Content</div>
+                        <p>10th Mountain Division history, WWII impact, biographical profiles</p>
+                        <div class="change-note">✓ Already evergreen - no changes needed</div>
+                    </td>
+                    <td class="after-column">
+                        <div class="section-label">Historical Content</div>
+                        <p>10th Mountain Division history, WWII impact, biographical profiles</p>
+                        <div class="change-note">✓ Keep as-is - permanently valuable</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="before-column">
+                        <div class="section-label">Modern Program Info</div>
+                        <p>World Class Athlete Program description</p>
+                        <div class="change-note">✓ Already evergreen - no changes needed</div>
+                    </td>
+                    <td class="after-column">
+                        <div class="section-label">Modern Program Info</div>
+                        <p>World Class Athlete Program description (can expand with more athletes)</p>
+                        <div class="change-note">✓ Keep as-is, consider adding more current athletes</div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="background: #e7f3ff; padding: 20px; border-radius: 8px; margin-top: 30px; border-left: 4px solid #667eea;">
+            <h3 style="color: #667eea; margin-bottom: 15px;">Key Takeaways</h3>
+            <ul style="color: #495057; line-height: 1.8; margin-left: 20px;">
+                <li><strong>Minimal changes required:</strong> Only 2-3 headings and 1-2 sentences need modification</li>
+                <li><strong>~85-90% of content stays the same:</strong> Historical narrative, biographies, program info, and CTAs remain unchanged</li>
+                <li><strong>Simple word swaps:</strong> "2026" → "Army", "This year" → "Today", remove location-specific references</li>
+                <li><strong>Add value:</strong> Opportunity to expand with more current WCAP athletes and year-round sports programs</li>
+                <li><strong>Future-proof:</strong> Create a template section for future Olympic campaigns that can be easily updated</li>
+            </ul>
+        </div>
+
+        <div style="background: #e7d4f8; padding: 20px; border-radius: 8px; border: 2px solid #6f42c1; margin-top: 30px;">
+            <h3 style="color: #6f42c1; margin-bottom: 15px;">Content Relevancy Analysis</h3>
+            <p style="color: #495057; line-height: 1.8;">
+                <strong>Why High Relevancy?</strong> The page's content structure is approximately <strong>70-80% evergreen</strong>:
+            </p>
+            <ul style="color: #495057; line-height: 1.8; margin-top: 10px;">
+                <li><strong>Historical narrative (40%):</strong> 10th Mountain Division history, WWII impact, founding of ski resorts - permanently valuable</li>
+                <li><strong>Biographical content (20%):</strong> Profiles of historical figures remain relevant for educational and historical research</li>
+                <li><strong>Modern program info (15%):</strong> World Class Athlete Program is ongoing, not campaign-specific</li>
+                <li><strong>Recruitment messaging (15%):</strong> General Army recruitment CTAs remain relevant year-round</li>
+                <li><strong>Campaign-specific (10%):</strong> Only "2026 Winter Sports" and "Return to Italy" sections are time-bound</li>
+            </ul>
+            <p style="color: #495057; line-height: 1.8; margin-top: 15px;">
+                This high relevancy ratio, combined with the occasional sunset frequency (4-year cycle), strongly supports converting to an evergreen hub rather than archiving or redirecting.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('analysisDate').textContent = new Date().toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        });
+    </script>
+</body>
+</html>

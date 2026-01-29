@@ -19,6 +19,9 @@ export function Navbar() {
               <Link href="/explore" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
                 Explore
               </Link>
+              <Link href="/Sunset/analyze.html" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
+                Analyze
+              </Link>
               {session && (
                 <>
                   <Link href="/dashboard" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
