@@ -7,11 +7,11 @@ export default function Home() {
       <div className="container mx-auto px-4 py-24 relative z-10">
         <div className="text-center space-y-8">
           <h1 className="text-6xl md:text-7xl font-bold tracking-tight text-gold">
-            Be All You Can Be.
+            Welcome to Your Personalized Journey.
           </h1>
           <p className="text-xl md:text-2xl text-foreground max-w-3xl mx-auto font-medium">
-            Your personalized army recruitment journey starts here. Explore career paths, 
-            access training resources, and get AI-powered guidance.
+            Explore career paths, access resources, and get AI-powered guidance tailored to
+            your goals.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-12">
             <a
