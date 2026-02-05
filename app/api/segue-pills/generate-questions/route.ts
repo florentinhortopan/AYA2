@@ -53,8 +53,12 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error('Error in generate-questions API:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Failed to generate questions'
     return NextResponse.json(
-      { error: 'Failed to generate questions' },
+      { 
+        error: errorMessage,
+        details: error instanceof Error ? error.stack : String(error)
+      },
       { status: 500 }
     )
   }

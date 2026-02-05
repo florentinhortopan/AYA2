@@ -61,6 +61,10 @@ export async function generateSyntheticQuestions(
   params: QuestionGenerationParams
 ): Promise<SyntheticQuestion[]> {
   try {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY is not configured')
+    }
+
     const response = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: [{
@@ -80,19 +84,27 @@ export async function generateSyntheticQuestions(
     }
 
     const parsed = JSON.parse(content)
+    
+    if (!parsed.questions || !Array.isArray(parsed.questions)) {
+      throw new Error('Invalid response format: missing questions array')
+    }
+
     const questions: SyntheticQuestion[] = parsed.questions.map((q: any, index: number) => ({
       id: `q_${Date.now()}_${index}`,
       question: q.question,
       intent: q.intent,
       persona: q.persona,
       context: q.context,
-      confidence: q.confidence
+      confidence: q.confidence || 0.5
     }))
 
     return questions
   } catch (error) {
     console.error('Error generating synthetic questions:', error)
-    throw new Error('Failed to generate synthetic questions')
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error('Failed to generate synthetic questions: ' + String(error))
   }
 }
 

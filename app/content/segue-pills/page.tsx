@@ -102,14 +102,22 @@ export default function SeguePillsResearchLab() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to generate questions')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `Server error: ${response.status}`)
       }
 
       const data = await response.json()
+      
+      if (!data.questions || data.questions.length === 0) {
+        throw new Error('No questions were generated')
+      }
+      
       setQuestions(data.questions)
       setPhase('clustering')
     } catch (err) {
-      setError('Failed to generate questions. Please try again.')
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      console.error('Question generation error:', err)
+      setError(`Failed to generate questions: ${errorMessage}`)
       setPhase('setup')
     } finally {
       setIsLoading(false)
@@ -128,14 +136,22 @@ export default function SeguePillsResearchLab() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to cluster intents')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `Server error: ${response.status}`)
       }
 
       const data = await response.json()
+      
+      if (!data.clusters || data.clusters.length === 0) {
+        throw new Error('No intent clusters were generated')
+      }
+      
       setIntentClusters(data.clusters)
       setPhase('recommendations')
     } catch (err) {
-      setError('Failed to cluster intents. Please try again.')
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      console.error('Intent clustering error:', err)
+      setError(`Failed to cluster intents: ${errorMessage}`)
     } finally {
       setIsLoading(false)
     }
@@ -157,14 +173,22 @@ export default function SeguePillsResearchLab() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to generate recommendations')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `Server error: ${response.status}`)
       }
 
       const data = await response.json()
+      
+      if (!data.recommendations) {
+        throw new Error('No recommendations were generated')
+      }
+      
       setRecommendations(data.recommendations)
       setPhase('complete')
     } catch (err) {
-      setError('Failed to generate recommendations. Please try again.')
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      console.error('Recommendations generation error:', err)
+      setError(`Failed to generate recommendations: ${errorMessage}`)
     } finally {
       setIsLoading(false)
     }
