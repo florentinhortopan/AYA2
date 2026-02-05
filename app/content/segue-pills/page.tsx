@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -39,9 +39,14 @@ export default function SeguePillsResearchLab() {
   
   // Setup parameters
   const [projectName, setProjectName] = useState('')
+  const [sourceType, setSourceType] = useState<'synthetic' | 'import'>('synthetic')
   const [questionCount, setQuestionCount] = useState(100)
   const [selectedPersonas, setSelectedPersonas] = useState<string[]>(['high_school', 'career_changer'])
   const [selectedTopics, setSelectedTopics] = useState<string[]>(['eligibility', 'careers', 'benefits'])
+  const [availableProjects, setAvailableProjects] = useState<any[]>([])
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
+  const [campaignGoals, setCampaignGoals] = useState<any[]>([])
+  const [selectedGoalId, setSelectedGoalId] = useState<string>('')
   
   // Generated data
   const [questions, setQuestions] = useState<SyntheticQuestion[]>([])
@@ -80,9 +85,39 @@ export default function SeguePillsResearchLab() {
     )
   }
 
+  // Load available projects and campaign goals on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Load projects
+        const projectsRes = await fetch('/api/segue-pills/projects')
+        if (projectsRes.ok) {
+          const projectsData = await projectsRes.json()
+          setAvailableProjects(projectsData.projects || [])
+        }
+
+        // Load campaign goals
+        const goalsRes = await fetch('/api/segue-pills/campaign-goals')
+        if (goalsRes.ok) {
+          const goalsData = await goalsRes.json()
+          setCampaignGoals(goalsData.goals || [])
+        }
+      } catch (err) {
+        console.error('Error loading data:', err)
+      }
+    }
+    loadData()
+  }, [])
+
   const generateQuestions = async () => {
-    if (selectedPersonas.length === 0 || selectedTopics.length === 0) {
+    // Validation
+    if (sourceType === 'synthetic' && (selectedPersonas.length === 0 || selectedTopics.length === 0)) {
       setError('Please select at least one persona and one topic')
+      return
+    }
+
+    if (sourceType === 'import' && !selectedProjectId) {
+      setError('Please select a project to import questions from')
       return
     }
 
@@ -91,28 +126,47 @@ export default function SeguePillsResearchLab() {
     setPhase('generating')
 
     try {
-      const response = await fetch('/api/segue-pills/generate-questions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          personas: selectedPersonas,
-          topics: selectedTopics,
-          count: questionCount
+      let questionsData
+
+      if (sourceType === 'import') {
+        // Import questions from existing project
+        const response = await fetch('/api/segue-pills/import-questions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId: selectedProjectId })
         })
-      })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || `Server error: ${response.status}`)
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || `Server error: ${response.status}`)
+        }
+
+        questionsData = await response.json()
+      } else {
+        // Generate synthetic questions
+        const response = await fetch('/api/segue-pills/generate-questions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            personas: selectedPersonas,
+            topics: selectedTopics,
+            count: questionCount
+          })
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.error || `Server error: ${response.status}`)
+        }
+
+        questionsData = await response.json()
       }
-
-      const data = await response.json()
       
-      if (!data.questions || data.questions.length === 0) {
+      if (!questionsData.questions || questionsData.questions.length === 0) {
         throw new Error('No questions were generated')
       }
       
-      setQuestions(data.questions)
+      setQuestions(questionsData.questions)
       setPhase('clustering')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
@@ -162,12 +216,17 @@ export default function SeguePillsResearchLab() {
     setError(null)
 
     try {
+      // Get selected campaign goal if any
+      const selectedGoal = selectedGoalId 
+        ? campaignGoals.find(g => g.id === selectedGoalId)
+        : null
+
       const response = await fetch('/api/segue-pills/recommendations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           intentClusters,
-          campaignGoal: null, // TODO: Add campaign goal support
+          campaignGoal: selectedGoal,
           testSessions: []
         })
       })
@@ -218,13 +277,18 @@ export default function SeguePillsResearchLab() {
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">
-            🧪 Segue Pills Research Lab
-          </h1>
-          <p className="text-muted-foreground">
-            Generate, test, and optimize chatbot segue pills using AI-powered research
-          </p>
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-foreground mb-2">
+              🧪 Segue Pills Research Lab
+            </h1>
+            <p className="text-muted-foreground">
+              Generate, test, and optimize chatbot segue pills using AI-powered research
+            </p>
+          </div>
+          <a href="/content/segue-pills/goals" className="text-sm text-primary hover:underline">
+            Manage Campaign Goals →
+          </a>
         </div>
 
         {error && (
@@ -265,78 +329,176 @@ export default function SeguePillsResearchLab() {
               
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="projectName">Project Name</Label>
+                  <Label htmlFor="projectName">Research Project Name</Label>
                   <Input
                     id="projectName"
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
-                    placeholder="e.g., Q1 2026 Recruitment Campaign"
+                    placeholder="e.g., Q1 2026 Pill Research"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="questionCount">Number of Questions to Generate</Label>
-                  <Input
-                    id="questionCount"
-                    type="number"
-                    value={questionCount}
-                    onChange={(e) => setQuestionCount(parseInt(e.target.value))}
-                    min={10}
-                    max={500}
-                  />
+                  <Label>Question Source</Label>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <button
+                      onClick={() => setSourceType('synthetic')}
+                      className={`
+                        p-4 rounded-lg border-2 text-left transition
+                        ${sourceType === 'synthetic'
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border hover:border-primary/50'}
+                      `}
+                    >
+                      <div className="font-bold mb-1">🤖 Generate New</div>
+                      <div className="text-sm text-muted-foreground">
+                        AI generates {questionCount} synthetic questions
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setSourceType('import')}
+                      className={`
+                        p-4 rounded-lg border-2 text-left transition
+                        ${sourceType === 'import'
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border hover:border-primary/50'}
+                      `}
+                    >
+                      <div className="font-bold mb-1">📁 Import Existing</div>
+                      <div className="text-sm text-muted-foreground">
+                        Use questions from a Q&A project
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {sourceType === 'import' && (
+                  <div>
+                    <Label htmlFor="projectSelect">Select Q&A Project</Label>
+                    <select
+                      id="projectSelect"
+                      value={selectedProjectId}
+                      onChange={(e) => setSelectedProjectId(e.target.value)}
+                      className="w-full p-2 border rounded-lg"
+                    >
+                      <option value="">Choose a project...</option>
+                      {availableProjects.map(project => (
+                        <option key={project.id} value={project.id}>
+                          {project.name} ({project.questionCount} questions)
+                        </option>
+                      ))}
+                    </select>
+                    {selectedProjectId && availableProjects.find(p => p.id === selectedProjectId) && (
+                      <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded text-sm">
+                        <p className="font-semibold text-green-800">
+                          ✓ {availableProjects.find(p => p.id === selectedProjectId)?.questionCount} approved questions available
+                        </p>
+                        {availableProjects.find(p => p.id === selectedProjectId)?.corpus && (
+                          <p className="text-green-700 mt-1">
+                            Source: {availableProjects.find(p => p.id === selectedProjectId)?.corpus.name}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {sourceType === 'synthetic' && (
+                  <>
+                    <div>
+                      <Label htmlFor="questionCount">Number of Questions to Generate</Label>
+                      <Input
+                        id="questionCount"
+                        type="number"
+                        value={questionCount}
+                        onChange={(e) => setQuestionCount(parseInt(e.target.value))}
+                        min={10}
+                        max={500}
+                      />
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Recommended: 100-150 questions for balanced research
+                      </p>
+                    </div>
+                  </>
+                )}
+
+                {sourceType === 'synthetic' && (
+                  <>
+                    <div>
+                      <Label>Target Personas</Label>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        {personas.map(persona => (
+                          <button
+                            key={persona.id}
+                            onClick={() => togglePersona(persona.id)}
+                            className={`
+                              p-3 rounded-lg border-2 text-left transition
+                              ${selectedPersonas.includes(persona.id)
+                                ? 'border-primary bg-primary/10'
+                                : 'border-border hover:border-primary/50'}
+                            `}
+                          >
+                            {persona.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>Topics to Cover</Label>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        {topics.map(topic => (
+                          <button
+                            key={topic.id}
+                            onClick={() => toggleTopic(topic.id)}
+                            className={`
+                              p-3 rounded-lg border-2 text-left transition
+                              ${selectedTopics.includes(topic.id)
+                                ? 'border-primary bg-primary/10'
+                                : 'border-border hover:border-primary/50'}
+                            `}
+                          >
+                            {topic.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div>
+                  <Label htmlFor="campaignGoal">Campaign Goal (Optional)</Label>
+                  <select
+                    id="campaignGoal"
+                    value={selectedGoalId}
+                    onChange={(e) => setSelectedGoalId(e.target.value)}
+                    className="w-full p-2 border rounded-lg"
+                  >
+                    <option value="">No specific goal</option>
+                    {campaignGoals.map(goal => (
+                      <option key={goal.id} value={goal.id}>
+                        {goal.name} ({goal.goalType})
+                      </option>
+                    ))}
+                  </select>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Recommended: 100-150 questions for balanced research
+                    Campaign goals influence which pills are recommended (e.g., more recruiter CTAs)
                   </p>
-                </div>
-
-                <div>
-                  <Label>Target Personas</Label>
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    {personas.map(persona => (
-                      <button
-                        key={persona.id}
-                        onClick={() => togglePersona(persona.id)}
-                        className={`
-                          p-3 rounded-lg border-2 text-left transition
-                          ${selectedPersonas.includes(persona.id)
-                            ? 'border-primary bg-primary/10'
-                            : 'border-border hover:border-primary/50'}
-                        `}
-                      >
-                        {persona.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Topics to Cover</Label>
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    {topics.map(topic => (
-                      <button
-                        key={topic.id}
-                        onClick={() => toggleTopic(topic.id)}
-                        className={`
-                          p-3 rounded-lg border-2 text-left transition
-                          ${selectedTopics.includes(topic.id)
-                            ? 'border-primary bg-primary/10'
-                            : 'border-border hover:border-primary/50'}
-                        `}
-                      >
-                        {topic.label}
-                      </button>
-                    ))}
-                  </div>
                 </div>
               </div>
 
               <Button
                 onClick={generateQuestions}
-                disabled={isLoading || selectedPersonas.length === 0 || selectedTopics.length === 0}
+                disabled={isLoading || (sourceType === 'synthetic' && (selectedPersonas.length === 0 || selectedTopics.length === 0)) || (sourceType === 'import' && !selectedProjectId)}
                 className="mt-6 w-full"
                 size="lg"
               >
-                {isLoading ? '🔄 Generating Questions...' : '🚀 Generate Synthetic Questions'}
+                {isLoading 
+                  ? '🔄 Loading Questions...' 
+                  : sourceType === 'import' 
+                    ? '📥 Import & Analyze Questions'
+                    : '🚀 Generate Synthetic Questions'
+                }
               </Button>
             </div>
           </Card>
