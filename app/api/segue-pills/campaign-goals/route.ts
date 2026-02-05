@@ -59,6 +59,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Get user ID from session
+    let userId = (session.user as any).id
+    
+    // If no ID in session, look up user by email
+    if (!userId && session.user?.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true }
+      })
+      userId = user?.id
+    }
+
     const goal = await prisma.segueCampaignGoal.create({
       data: {
         name,
@@ -67,7 +79,7 @@ export async function POST(req: NextRequest) {
         businessPrompt,
         ctaRequirement: ctaRequirement || { minCount: 1, maxCount: 2 },
         isActive: true,
-        createdById: (session.user as any).id
+        createdById: userId || null
       }
     })
 

@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 export default function CampaignGoalsPage() {
   const [goals, setGoals] = useState<any[]>([])
   const [isCreating, setIsCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [newGoal, setNewGoal] = useState({
     name: '',
     goalType: 'recruiter_contact',
@@ -37,6 +38,18 @@ export default function CampaignGoalsPage() {
   }
 
   const createGoal = async () => {
+    setError(null)
+    
+    // Validation
+    if (!newGoal.name.trim()) {
+      setError('Campaign name is required')
+      return
+    }
+    if (!newGoal.businessPrompt.trim()) {
+      setError('Business prompt is required')
+      return
+    }
+
     try {
       const requiredPillsArray = newGoal.requiredPills
         .split(',')
@@ -59,22 +72,29 @@ export default function CampaignGoalsPage() {
         })
       })
 
-      if (response.ok) {
-        setIsCreating(false)
-        setNewGoal({
-          name: '',
-          goalType: 'recruiter_contact',
-          description: '',
-          businessPrompt: '',
-          minCount: 1,
-          maxCount: 2,
-          requiredPills: ''
-        })
-        loadGoals()
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `Server error: ${response.status}`)
       }
+
+      const data = await response.json()
+      
+      // Success
+      setIsCreating(false)
+      setNewGoal({
+        name: '',
+        goalType: 'recruiter_contact',
+        description: '',
+        businessPrompt: '',
+        minCount: 1,
+        maxCount: 2,
+        requiredPills: ''
+      })
+      loadGoals()
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create campaign goal'
       console.error('Error creating goal:', err)
-      alert('Failed to create campaign goal')
+      setError(errorMessage)
     }
   }
 
@@ -101,6 +121,13 @@ export default function CampaignGoalsPage() {
         {isCreating && (
           <Card className="p-6 mb-6">
             <h2 className="text-2xl font-bold mb-4">Create New Campaign Goal</h2>
+            
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-800">
+                {error}
+              </div>
+            )}
+            
             <div className="space-y-4">
               <div>
                 <Label htmlFor="name">Campaign Name</Label>
