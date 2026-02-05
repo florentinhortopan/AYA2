@@ -118,7 +118,7 @@ export default function CampaignGoalsPage() {
                   id="goalType"
                   value={newGoal.goalType}
                   onChange={(e) => setNewGoal({ ...newGoal, goalType: e.target.value })}
-                  className="w-full p-2 border rounded-lg"
+                  className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                 >
                   <option value="recruiter_contact">Recruiter Contact</option>
                   <option value="assessment">Assessment Completion</option>
@@ -143,7 +143,7 @@ export default function CampaignGoalsPage() {
                   id="businessPrompt"
                   value={newGoal.businessPrompt}
                   onChange={(e) => setNewGoal({ ...newGoal, businessPrompt: e.target.value })}
-                  className="w-full p-2 border rounded-lg min-h-24"
+                  className="w-full p-2 border border-border rounded-lg min-h-24 bg-background text-foreground"
                   placeholder="e.g., Prioritize pills that lead users to contact a recruiter. Include at least one CTA pill in every recommendation."
                 />
                 <p className="text-sm text-muted-foreground mt-1">

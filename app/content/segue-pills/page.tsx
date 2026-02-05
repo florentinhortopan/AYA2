@@ -387,7 +387,7 @@ export default function SeguePillsResearchLab() {
                       id="projectSelect"
                       value={selectedProjectId}
                       onChange={(e) => setSelectedProjectId(e.target.value)}
-                      className="w-full p-2 border rounded-lg"
+                      className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                     >
                       <option value="">Choose a project...</option>
                       {availableProjects.map(project => (
@@ -480,7 +480,7 @@ export default function SeguePillsResearchLab() {
                     id="campaignGoal"
                     value={selectedGoalId}
                     onChange={(e) => setSelectedGoalId(e.target.value)}
-                    className="w-full p-2 border rounded-lg"
+                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                   >
                     <option value="">No specific goal</option>
                     {campaignGoals.map(goal => (
