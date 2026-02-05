@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { questions } = body
+    const { questions, campaignGoal } = body
 
     if (!questions || !Array.isArray(questions) || questions.length === 0) {
       return NextResponse.json(
@@ -24,8 +24,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Cluster questions into intents
-    const clusters = await clusterQuestionsIntoIntents(questions as SyntheticQuestion[])
+    // Cluster questions into intents (with optional campaign goal context)
+    const clusters = await clusterQuestionsIntoIntents(
+      questions as SyntheticQuestion[],
+      campaignGoal
+    )
 
     return NextResponse.json({
       success: true,

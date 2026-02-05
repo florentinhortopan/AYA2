@@ -183,10 +183,18 @@ export default function SeguePillsResearchLab() {
     setError(null)
 
     try {
+      // Get selected campaign goal if any
+      const selectedGoal = selectedGoalId 
+        ? campaignGoals.find(g => g.id === selectedGoalId)
+        : null
+
       const response = await fetch('/api/segue-pills/cluster-intents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questions })
+        body: JSON.stringify({ 
+          questions,
+          campaignGoal: selectedGoal
+        })
       })
 
       if (!response.ok) {
@@ -482,8 +490,18 @@ export default function SeguePillsResearchLab() {
                     ))}
                   </select>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Campaign goals influence which pills are recommended (e.g., more recruiter CTAs)
+                    🎯 Campaign goals influence pill label generation and final recommendations
                   </p>
+                  {selectedGoalId && campaignGoals.find(g => g.id === selectedGoalId) && (
+                    <div className="mt-2 p-3 bg-primary/10 border border-primary/20 rounded text-sm">
+                      <p className="font-semibold text-primary mb-1">
+                        ✓ Active Goal: {campaignGoals.find(g => g.id === selectedGoalId)?.name}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {campaignGoals.find(g => g.id === selectedGoalId)?.businessPrompt}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -559,6 +577,11 @@ export default function SeguePillsResearchLab() {
                   <p className="text-green-800 font-semibold">
                     ✅ Identified {intentClusters.length} intent categories
                   </p>
+                  {selectedGoalId && campaignGoals.find(g => g.id === selectedGoalId) && (
+                    <p className="text-green-700 mt-2 text-sm">
+                      🎯 Pill labels were generated with "{campaignGoals.find(g => g.id === selectedGoalId)?.name}" campaign goal in mind
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

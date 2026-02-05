@@ -15,7 +15,13 @@ export interface IntentCluster {
 }
 
 export async function clusterQuestionsIntoIntents(
-  questions: SyntheticQuestion[]
+  questions: SyntheticQuestion[],
+  campaignGoal?: {
+    name: string
+    goalType: string
+    businessPrompt: string
+    ctaRequirement: any
+  }
 ): Promise<IntentCluster[]> {
   try {
     const questionsList = questions.map(q => ({
@@ -24,7 +30,19 @@ export async function clusterQuestionsIntoIntents(
       suggestedIntent: q.intent
     }))
 
+    const campaignContext = campaignGoal ? `
+CAMPAIGN GOAL CONTEXT:
+Campaign: ${campaignGoal.name}
+Goal Type: ${campaignGoal.goalType}
+Business Objective: ${campaignGoal.businessPrompt}
+
+When generating pill labels, prioritize labels that align with this campaign goal.
+For example, if the goal is "${campaignGoal.goalType}", ensure you suggest CTA-oriented pill labels.
+` : ''
+
     const prompt = `Analyze these ${questions.length} user questions and cluster them into 8-12 core intent categories.
+
+${campaignContext}
 
 Questions:
 ${JSON.stringify(questionsList, null, 2)}
@@ -62,7 +80,8 @@ Pill labels should be:
 - 2-5 words max
 - Action-oriented or question-based
 - Clear and direct
-- Natural language (how users would say it)`
+- Natural language (how users would say it)
+${campaignGoal ? `- IMPORTANT: Include labels that support the "${campaignGoal.goalType}" goal (e.g., "Talk to a recruiter", "Schedule a chat")` : ''}`
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
