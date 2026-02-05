@@ -12,34 +12,37 @@ datasource db {
 }
 
 model User {
-  id            String            @id @default(cuid())
-  email         String?           @unique
-  name          String?
-  image         String?
-  password      String?           @db.Text // Hashed password for credentials auth
-  emailVerified DateTime?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  accounts      Account[]
-  sessions      Session[]
-  profile       Profile?
-  agentSessions AgentSession[]
-  achievements  UserAchievement[]
-  content       Content[]
-  progress      UserProgress[]
-  trainingLogs  TrainingLog[]
-  financialData FinancialData[]
-  activities    UserActivity[]
-  insightsHistory InsightsHistory[]
+  id                  String              @id @default(cuid())
+  email               String?             @unique
+  name                String?
+  image               String?
+  password            String?             @db.Text // Hashed password for credentials auth
+  emailVerified       DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  accounts            Account[]
+  sessions            Session[]
+  profile             Profile?
+  agentSessions       AgentSession[]
+  achievements        UserAchievement[]
+  content             Content[]
+  progress            UserProgress[]
+  trainingLogs        TrainingLog[]
+  financialData       FinancialData[]
+  activities          UserActivity[]
+  insightsHistory     InsightsHistory[]
   qaProjects          QaProject[]
-  qaQuestionsEdited   QaQuestion[] @relation("QaQuestionEditor")
-  qaQuestionsRated    QaQuestion[] @relation("QaQuestionRater")
-  qaAnswersEdited     QaAnswer[]   @relation("QaAnswerEditor")
-  qaAnswersRated      QaAnswer[]   @relation("QaAnswerRater")
+  qaQuestionsEdited   QaQuestion[]        @relation("QaQuestionEditor")
+  qaQuestionsRated    QaQuestion[]        @relation("QaQuestionRater")
+  qaAnswersEdited     QaAnswer[]          @relation("QaAnswerEditor")
+  qaAnswersRated      QaAnswer[]          @relation("QaAnswerRater")
   contentPrompts      ContentPrompt[]
   contentGuidelines   ContentGuideline[]
   corpusFiles         CorpusFile[]
   contentAuditLogs    ContentAuditLog[]
+  seguePillResearches SeguePillResearch[]
+  segueCampaignGoals  SegueCampaignGoal[]
+  segueTestSessions   SegueTestSession[]
 }
 
 model Account {
@@ -200,18 +203,18 @@ model UserActivity {
 
 // Insights History - track insights changes over time
 model InsightsHistory {
-  id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  engagementLevel String? // low, medium, high, very_high
-  engagementScore Int?    // 0-100
-  experienceTotal Int?    // Total experience points
-  sentimentLabel  String? // very_negative, negative, neutral, positive, very_positive
-  sentimentScore  Float?  // -1 to 1
-  preferences     Json?   // Array of preferences
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  engagementLevel   String? // low, medium, high, very_high
+  engagementScore   Int? // 0-100
+  experienceTotal   Int? // Total experience points
+  sentimentLabel    String? // very_negative, negative, neutral, positive, very_positive
+  sentimentScore    Float? // -1 to 1
+  preferences       Json? // Array of preferences
   personalityTraits Json? // Array of personality traits
-  insightsSnapshot Json   // Full insights snapshot at this point in time
-  createdAt    DateTime @default(now())
+  insightsSnapshot  Json // Full insights snapshot at this point in time
+  createdAt         DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([createdAt])
@@ -219,61 +222,61 @@ model InsightsHistory {
 
 // Content Tool - Projects
 model QaProject {
-  id                 String   @id @default(cuid())
-  name               String
-  description        String?
-  status             String   @default("draft") // draft, in_progress, review, published, archived
-  targetQuestionCount Int     @default(250)
-  publishedCount     Int      @default(0)
-  corpusFileId       String?
-  questionPromptId   String?
-  answerPromptId     String?
-  guidelineId        String?
-  createdById        String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  archivedAt         DateTime?
+  id                  String    @id @default(cuid())
+  name                String
+  description         String?
+  status              String    @default("draft") // draft, in_progress, review, published, archived
+  targetQuestionCount Int       @default(250)
+  publishedCount      Int       @default(0)
+  corpusFileId        String?
+  questionPromptId    String?
+  answerPromptId      String?
+  guidelineId         String?
+  createdById         String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  archivedAt          DateTime?
 
-  corpusFile         CorpusFile?      @relation(fields: [corpusFileId], references: [id])
-  questionPrompt     ContentPrompt?   @relation("QuestionPrompt", fields: [questionPromptId], references: [id])
-  answerPrompt       ContentPrompt?   @relation("AnswerPrompt", fields: [answerPromptId], references: [id])
-  guideline          ContentGuideline? @relation(fields: [guidelineId], references: [id])
-  createdBy          User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  questions          QaQuestion[]
-  batchJobs          ContentBatchJob[]
-  auditLogs          ContentAuditLog[]
+  corpusFile     CorpusFile?       @relation(fields: [corpusFileId], references: [id])
+  questionPrompt ContentPrompt?    @relation("QuestionPrompt", fields: [questionPromptId], references: [id])
+  answerPrompt   ContentPrompt?    @relation("AnswerPrompt", fields: [answerPromptId], references: [id])
+  guideline      ContentGuideline? @relation(fields: [guidelineId], references: [id])
+  createdBy      User?             @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  questions      QaQuestion[]
+  batchJobs      ContentBatchJob[]
+  auditLogs      ContentAuditLog[]
 
   @@index([status])
   @@index([createdAt])
 }
 
 model QaQuestion {
-  id                 String   @id @default(cuid())
-  projectId          String
-  topic              String
-  persona            String?
-  tone               String?
-  questionText       String   @db.Text
-  sourceUrls         String[]
-  status             String   @default("draft") // draft, approved, rejected, published
-  batchNumber        Int?
-  createdFromGenerator Boolean @default(true)
-  editedById         String?
-  editedAt           DateTime?
-  corpusValidated    Boolean  @default(false)
-  validationNotes    String?
-  ratingDefault      Int      @default(3)
-  ratingValue        Int      @default(3)
-  ratingUpdatedById  String?
-  ratingUpdatedAt    DateTime?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                   String    @id @default(cuid())
+  projectId            String
+  topic                String
+  persona              String?
+  tone                 String?
+  questionText         String    @db.Text
+  sourceUrls           String[]
+  status               String    @default("draft") // draft, approved, rejected, published
+  batchNumber          Int?
+  createdFromGenerator Boolean   @default(true)
+  editedById           String?
+  editedAt             DateTime?
+  corpusValidated      Boolean   @default(false)
+  validationNotes      String?
+  ratingDefault        Int       @default(3)
+  ratingValue          Int       @default(3)
+  ratingUpdatedById    String?
+  ratingUpdatedAt      DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  project            QaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  answers            QaAnswer[]
-  editedBy           User?     @relation("QaQuestionEditor", fields: [editedById], references: [id], onDelete: SetNull)
-  ratingUpdatedBy    User?     @relation("QaQuestionRater", fields: [ratingUpdatedById], references: [id], onDelete: SetNull)
-  auditLogs          ContentAuditLog[]
+  project         QaProject         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  answers         QaAnswer[]
+  editedBy        User?             @relation("QaQuestionEditor", fields: [editedById], references: [id], onDelete: SetNull)
+  ratingUpdatedBy User?             @relation("QaQuestionRater", fields: [ratingUpdatedById], references: [id], onDelete: SetNull)
+  auditLogs       ContentAuditLog[]
 
   @@index([projectId])
   @@index([status])
@@ -281,28 +284,28 @@ model QaQuestion {
 }
 
 model QaAnswer {
-  id                 String   @id @default(cuid())
-  questionId         String
-  variantLevel       String   // very_direct, direct, somewhat_direct, indirect
-  answerText         String   @db.Text
-  characterCount     Int?
-  keywords           String[]
-  sourceLink         String?
-  validationStatus   String   @default("pending") // pending, valid, needs_review, invalid
-  validationNotes    String?
-  editedById         String?
-  editedAt           DateTime?
-  ratingDefault      Int      @default(3)
-  ratingValue        Int      @default(3)
-  ratingUpdatedById  String?
-  ratingUpdatedAt    DateTime?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                String    @id @default(cuid())
+  questionId        String
+  variantLevel      String // very_direct, direct, somewhat_direct, indirect
+  answerText        String    @db.Text
+  characterCount    Int?
+  keywords          String[]
+  sourceLink        String?
+  validationStatus  String    @default("pending") // pending, valid, needs_review, invalid
+  validationNotes   String?
+  editedById        String?
+  editedAt          DateTime?
+  ratingDefault     Int       @default(3)
+  ratingValue       Int       @default(3)
+  ratingUpdatedById String?
+  ratingUpdatedAt   DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  question           QaQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  editedBy           User?      @relation("QaAnswerEditor", fields: [editedById], references: [id], onDelete: SetNull)
-  ratingUpdatedBy    User?      @relation("QaAnswerRater", fields: [ratingUpdatedById], references: [id], onDelete: SetNull)
-  auditLogs          ContentAuditLog[]
+  question        QaQuestion        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  editedBy        User?             @relation("QaAnswerEditor", fields: [editedById], references: [id], onDelete: SetNull)
+  ratingUpdatedBy User?             @relation("QaAnswerRater", fields: [ratingUpdatedById], references: [id], onDelete: SetNull)
+  auditLogs       ContentAuditLog[]
 
   @@index([questionId])
   @@index([validationStatus])
@@ -319,8 +322,8 @@ model CorpusFile {
   updatedAt   DateTime @updatedAt
   isActive    Boolean  @default(true)
 
-  createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  projects    QaProject[]
+  createdBy User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  projects  QaProject[]
 
   @@index([isActive])
 }
@@ -328,7 +331,7 @@ model CorpusFile {
 model ContentPrompt {
   id          String   @id @default(cuid())
   name        String
-  type        String   // question_generator, answer_generator
+  type        String // question_generator, answer_generator
   content     String   @db.Text
   version     String
   isActive    Boolean  @default(false)
@@ -336,7 +339,7 @@ model ContentPrompt {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  createdBy   User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy              User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
   questionPromptProjects QaProject[] @relation("QuestionPrompt")
   answerPromptProjects   QaProject[] @relation("AnswerPrompt")
 
@@ -354,30 +357,30 @@ model ContentGuideline {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  createdBy   User?      @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  projects    QaProject[]
+  createdBy User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  projects  QaProject[]
 
   @@index([isActive])
 }
 
 model ContentBatchJob {
-  id              String   @id @default(cuid())
-  projectId       String
-  batchNumber     Int
+  id               String    @id @default(cuid())
+  projectId        String
+  batchNumber      Int
   questionsInBatch Int?
-  status          String   @default("pending") // pending, processing, completed, failed
-  promptType      String   // question_generator, answer_generator
-  apiResponse     Json?
-  errorMessage    String?
-  startedAt       DateTime?
-  completedAt     DateTime?
-  createdAt       DateTime @default(now())
+  status           String    @default("pending") // pending, processing, completed, failed
+  promptType       String // question_generator, answer_generator
+  apiResponse      Json?
+  errorMessage     String?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
 
-  project         QaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project QaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
+  @@unique([projectId, batchNumber, promptType])
   @@index([projectId])
   @@index([status])
-  @@unique([projectId, batchNumber, promptType])
 }
 
 model ContentAuditLog {
@@ -391,11 +394,111 @@ model ContentAuditLog {
   changedById String?
   changedAt   DateTime @default(now())
 
-  project     QaProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  question    QaQuestion? @relation(fields: [questionId], references: [id], onDelete: SetNull)
-  answer      QaAnswer?  @relation(fields: [answerId], references: [id], onDelete: SetNull)
-  changedBy   User?      @relation(fields: [changedById], references: [id], onDelete: SetNull)
+  project   QaProject?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  question  QaQuestion? @relation(fields: [questionId], references: [id], onDelete: SetNull)
+  answer    QaAnswer?   @relation(fields: [answerId], references: [id], onDelete: SetNull)
+  changedBy User?       @relation(fields: [changedById], references: [id], onDelete: SetNull)
 
   @@index([projectId])
   @@index([changedAt])
+}
+
+// Segue Pills Research Lab - Campaign Goals
+model SegueCampaignGoal {
+  id             String   @id @default(cuid())
+  name           String
+  goalType       String // recruiter_contact, assessment, event_registration, custom
+  description    String?
+  businessPrompt String   @db.Text // Appended to pill generation prompts
+  ctaRequirement Json // { minCount, maxCount, requiredPills: [] }
+  isActive       Boolean  @default(true)
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  createdBy  User?               @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  researches SeguePillResearch[]
+
+  @@index([isActive])
+  @@index([goalType])
+}
+
+// Segue Pills Research Lab - Research Projects
+model SeguePillResearch {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  status      String  @default("draft") // draft, generating, testing, completed, archived
+
+  // Generation parameters
+  personas      String[] // high_school, career_changer, veteran_family, college_student
+  topics        String[] // eligibility, careers, benefits, training, join_process
+  questionCount Int      @default(100)
+
+  // Generated data
+  syntheticQuestions Json? // Array of { id, question, intent, persona, context }
+  scrapedQuestions   Json? // Array of scraped questions (optional)
+  scrapedUrls        String[] // URLs that were scraped
+  intentClusters     Json? // Array of { intent, questions: [], pillCandidates: [] }
+  pillLibrary        Json? // Array of { id, label, intent, type, confidence, useCase }
+
+  // Campaign goal
+  campaignGoalId String?
+  campaignGoal   SegueCampaignGoal? @relation(fields: [campaignGoalId], references: [id], onDelete: SetNull)
+
+  // Test results
+  testSessions SegueTestSession[]
+
+  // Final output
+  recommendations Json? // { case1: [], case2: [], case3: [] } with scores
+
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  archivedAt  DateTime?
+
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Segue Pills Research Lab - Test Sessions
+model SegueTestSession {
+  id         String            @id @default(cuid())
+  researchId String
+  research   SeguePillResearch @relation(fields: [researchId], references: [id], onDelete: Cascade)
+
+  // Test scenario
+  testCase        Int // 1, 2, or 3
+  scenarioContext Json? // { page, topic, sentiment, engagement } for Cases 2 & 3
+
+  // Pills shown
+  pillsShown Json // Array of { id, label, type }
+
+  // User interaction
+  clickedPillId    String?
+  clickedPillLabel String?
+  clickOrder       Int? // Which pill they clicked (1-4)
+  timeToClick      Int? // Seconds until click
+
+  // Feedback
+  rating         Int? // 1-5 stars
+  relevanceScore Int? // 1-5 for relevance
+  clarityScore   Int? // 1-5 for clarity
+  feedback       String? @db.Text
+
+  // Chat outcome (if they continued)
+  chatCompleted Boolean @default(false)
+  reachedCta    Boolean @default(false)
+  ctaType       String? // recruiter_contact, assessment, etc.
+
+  testerId String?
+  tester   User?   @relation(fields: [testerId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([researchId])
+  @@index([testCase])
+  @@index([createdAt])
 }
