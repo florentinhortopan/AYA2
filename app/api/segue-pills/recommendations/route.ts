@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { generatePillRecommendations } from '@/lib/segue-pills/pill-recommender'
 import type { IntentCluster } from '@/lib/segue-pills/intent-clusterer'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession()

@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth'
 import { clusterQuestionsIntoIntents } from '@/lib/segue-pills/intent-clusterer'
 import type { SyntheticQuestion } from '@/lib/segue-pills/question-generator'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession()
