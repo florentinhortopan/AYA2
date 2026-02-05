@@ -579,7 +579,7 @@ export default function SeguePillsResearchLab() {
                   </p>
                   {selectedGoalId && campaignGoals.find(g => g.id === selectedGoalId) && (
                     <p className="text-green-700 mt-2 text-sm">
-                      🎯 Pill labels were generated with "{campaignGoals.find(g => g.id === selectedGoalId)?.name}" campaign goal in mind
+                      🎯 Pill labels were generated with &quot;{campaignGoals.find(g => g.id === selectedGoalId)?.name}&quot; campaign goal in mind
                     </p>
                   )}
                 </div>
