@@ -1,5 +1,9 @@
-import { openai } from '@/lib/ai'
+import OpenAI from 'openai'
 import type { SyntheticQuestion } from './question-generator'
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
+})
 
 export interface IntentCluster {
   intent: string

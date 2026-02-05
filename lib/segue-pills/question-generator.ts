@@ -1,4 +1,8 @@
-import { openai } from '@/lib/ai'
+import OpenAI from 'openai'
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
+})
 
 export interface SyntheticQuestion {
   id: string
