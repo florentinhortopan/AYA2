@@ -65,7 +65,7 @@ Pill labels should be:
 - Natural language (how users would say it)`
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: 'gpt-4o-mini',
       messages: [{
         role: 'system',
         content: 'You are an expert at intent classification and user experience design for conversational interfaces.'

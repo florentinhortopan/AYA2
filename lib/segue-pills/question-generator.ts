@@ -66,7 +66,7 @@ export async function generateSyntheticQuestions(
     }
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: 'gpt-4o-mini',
       messages: [{
         role: 'system',
         content: 'You are an expert at understanding user intent and generating realistic questions for user research.'
