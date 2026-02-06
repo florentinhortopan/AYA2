@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -34,7 +34,7 @@ interface PillRecommendations {
   pillLibrary: any[]
 }
 
-export default function SeguePillsResearchLab() {
+function SeguePillsResearchLabContent() {
   const searchParams = useSearchParams()
   const researchIdParam = searchParams.get('researchId')
   
@@ -899,5 +899,19 @@ export default function SeguePillsResearchLab() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function SeguePillsResearchLab() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading research lab...</p>
+        </div>
+      </div>
+    }>
+      <SeguePillsResearchLabContent />
+    </Suspense>
   )
 }
