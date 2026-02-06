@@ -1,3 +1,5 @@
+'use client'
+
 import { ReactNode, useEffect } from 'react'
 import { ProjectChatbot } from '@/components/content/project-chatbot'
 
