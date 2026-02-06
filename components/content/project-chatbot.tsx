@@ -33,6 +33,17 @@ interface SegueCampaignGoal {
 }
 
 export function ProjectChatbot({ projectId = '', showPillsFeature = false }: ProjectChatbotProps) {
+  // Initial log to verify component is loaded - use multiple methods to ensure visibility
+  try {
+    console.log('[Pills] ===== PROJECT CHATBOT COMPONENT LOADED =====')
+    console.log('[Pills] showPillsFeature:', showPillsFeature)
+    console.log('[Pills] Component props:', { projectId, showPillsFeature })
+    // Also log without prefix to catch if filter is the issue
+    console.log('PILLS DEBUG: Component loaded, showPillsFeature =', showPillsFeature)
+  } catch (error) {
+    console.error('Error in initial Pills log:', error)
+  }
+  
   const [open, setOpen] = useState(false)
   const [projects, setProjects] = useState<ContentProject[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState(projectId)
@@ -120,14 +131,19 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
 
   // Load available researches and campaign goals (only if pills feature is enabled)
   useEffect(() => {
+    console.log('[Pills] ===== LOAD PILLS DATA EFFECT =====')
+    console.log('[Pills] Conditions:', { open, showPillsFeature })
+    
     const loadPillsData = async () => {
       if (!open || !showPillsFeature) {
+        console.log('[Pills] Skipping load - chatbot not open or pills feature disabled')
         setAvailableResearches([])
         setAvailableCampaignGoals([])
         setLoadingResearches(false)
         return
       }
 
+      console.log('[Pills] ✅ Loading researches and campaign goals...')
       setLoadingResearches(true)
       try {
         // Load only researches with pills generated (intentClusters)
@@ -866,13 +882,38 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                     )}
                   </div>
                   
-                  {/* Debug Panel (Development only) */}
-                  {process.env.NODE_ENV === 'development' && pillsEnabled && (
-                    <details className="text-xs border border-border rounded p-2 bg-muted/50">
-                      <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground">
-                        🔍 Debug Info
+                  {/* Debug Panel - Always visible when showPillsFeature is true */}
+                  {showPillsFeature && (
+                    <details className="text-xs border-2 border-blue-500/50 rounded p-2 bg-blue-500/10" open>
+                      <summary className="cursor-pointer font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
+                        🔍 Debug Info (Click to expand/collapse) | Console: Filter by "[Pills]"
                       </summary>
                       <div className="mt-2 space-y-1 font-mono text-[10px]">
+                        <div className="text-xs text-muted-foreground mb-2 font-sans">
+                          💡 Tip: Open browser console (F12 or Cmd+Option+J) and filter by "[Pills]" to see detailed logs
+                        </div>
+                        <div className="mb-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs h-6"
+                            onClick={() => {
+                              console.log('[Pills] ===== MANUAL TEST LOG =====')
+                              console.log('[Pills] This is a test log to verify console is working')
+                              console.log('[Pills] Current state:', {
+                                pillsEnabled,
+                                selectedResearchId,
+                                availableResearches: availableResearches.length,
+                                currentPills: currentPills.length,
+                                showPillsFeature
+                              })
+                              console.log('[Pills] ===== TEST LOG COMPLETE =====')
+                              alert('Test log sent! Check console and filter by "[Pills]"')
+                            }}
+                          >
+                            🧪 Test Console Log
+                          </Button>
+                        </div>
                         <div>Enabled: {pillsEnabled ? '✅' : '❌'}</div>
                         <div>Research ID: {selectedResearchId || 'none'}</div>
                         <div>Campaign Goal: {selectedCampaignGoalId || 'none'}</div>
