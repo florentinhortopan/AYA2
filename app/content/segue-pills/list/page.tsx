@@ -178,7 +178,9 @@ export default function PillResearchListPage() {
                     </div>
                     <div className="flex items-center md:justify-end gap-2">
                       <Link href={`/content/segue-pills?researchId=${research.id}`}>
-                        <Button variant="outline" size="sm">View</Button>
+                        <Button variant="outline" size="sm">
+                          {research.hasRecommendations ? 'View Results' : research.hasIntentClusters ? 'Continue' : 'Edit'}
+                        </Button>
                       </Link>
                     </div>
                   </div>
