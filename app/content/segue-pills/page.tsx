@@ -117,6 +117,10 @@ export default function SeguePillsResearchLab() {
       return
     }
 
+    if (!selectedProjectId) {
+      setError('Please select a Q&A project to link this research to')
+      return
+    }
     if (sourceType === 'import' && !selectedProjectId) {
       setError('Please select a project to import questions from')
       return
