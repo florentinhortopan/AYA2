@@ -886,11 +886,11 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                   {showPillsFeature && (
                     <details className="text-xs border-2 border-blue-500/50 rounded p-2 bg-blue-500/10" open>
                       <summary className="cursor-pointer font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
-                        🔍 Debug Info (Click to expand/collapse) | Console: Filter by "[Pills]"
+                        🔍 Debug Info (Click to expand/collapse) | Console: Filter by &quot;[Pills]&quot;
                       </summary>
                       <div className="mt-2 space-y-1 font-mono text-[10px]">
                         <div className="text-xs text-muted-foreground mb-2 font-sans">
-                          💡 Tip: Open browser console (F12 or Cmd+Option+J) and filter by "[Pills]" to see detailed logs
+                          💡 Tip: Open browser console (F12 or Cmd+Option+J) and filter by &quot;[Pills]&quot; to see detailed logs
                         </div>
                         <div className="mb-2">
                           <Button
