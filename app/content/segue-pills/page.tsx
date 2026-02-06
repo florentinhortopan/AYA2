@@ -94,17 +94,27 @@ export default function SeguePillsResearchLab() {
         const projectsRes = await fetch('/api/segue-pills/projects')
         if (projectsRes.ok) {
           const projectsData = await projectsRes.json()
-          setAvailableProjects(projectsData.projects || [])
+          const projects = projectsData.projects || projectsData.data?.projects || []
+          setAvailableProjects(projects)
+          console.log('Loaded Q&A projects:', projects.length)
+        } else {
+          const errorData = await projectsRes.json().catch(() => ({}))
+          console.error('Failed to load projects:', errorData)
+          setAvailableProjects([])
         }
 
         // Load campaign goals
         const goalsRes = await fetch('/api/segue-pills/campaign-goals')
         if (goalsRes.ok) {
           const goalsData = await goalsRes.json()
-          setCampaignGoals(goalsData.goals || [])
+          setCampaignGoals(goalsData.goals || goalsData.data?.goals || [])
+        } else {
+          setCampaignGoals([])
         }
       } catch (err) {
         console.error('Error loading data:', err)
+        setAvailableProjects([])
+        setCampaignGoals([])
       }
     }
     loadData()
@@ -400,29 +410,48 @@ export default function SeguePillsResearchLab() {
 
                 <div>
                   <Label htmlFor="qaProjectSelect">Link to Q&A Project *</Label>
-                  <select
-                    id="qaProjectSelect"
-                    value={selectedProjectId}
-                    onChange={(e) => setSelectedProjectId(e.target.value)}
-                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
-                    required
-                  >
-                    <option value="">Choose a Q&A project...</option>
-                    {availableProjects.map(project => (
-                      <option key={project.id} value={project.id}>
-                        {project.name} ({project.questionCount || 0} questions)
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    This pill research will be linked to the selected Q&A project. The chatbot will use this project&apos;s Q&A content when testing pills.
-                  </p>
-                  {selectedProjectId && availableProjects.find(p => p.id === selectedProjectId) && (
-                    <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-sm">
-                      <p className="font-semibold text-green-800 dark:text-green-200">
-                        ✓ Linked to: {availableProjects.find(p => p.id === selectedProjectId)?.name}
+                  {availableProjects.length === 0 ? (
+                    <div className="mt-2 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded">
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200 font-semibold mb-2">
+                        No Q&A projects available
                       </p>
+                      <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-2">
+                        You need to create a Q&A project first before generating pills.
+                      </p>
+                      <a
+                        href="/content/new"
+                        className="text-sm text-yellow-800 dark:text-yellow-200 underline font-semibold"
+                      >
+                        Create Q&A Project →
+                      </a>
                     </div>
+                  ) : (
+                    <>
+                      <select
+                        id="qaProjectSelect"
+                        value={selectedProjectId}
+                        onChange={(e) => setSelectedProjectId(e.target.value)}
+                        className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                        required
+                      >
+                        <option value="">Choose a Q&A project...</option>
+                        {availableProjects.map(project => (
+                          <option key={project.id} value={project.id}>
+                            {project.name} ({project.questionCount || 0} questions) - {project.status}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        This pill research will be linked to the selected Q&A project. The chatbot will use this project&apos;s Q&A content when testing pills.
+                      </p>
+                      {selectedProjectId && availableProjects.find(p => p.id === selectedProjectId) && (
+                        <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-sm">
+                          <p className="font-semibold text-green-800 dark:text-green-200">
+                            ✓ Linked to: {availableProjects.find(p => p.id === selectedProjectId)?.name}
+                          </p>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 

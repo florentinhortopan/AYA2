@@ -15,12 +15,11 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Fetch all QA projects with question counts
+    // Fetch all QA projects with question counts (include all statuses)
     const projects = await prisma.qaProject.findMany({
       where: {
-        status: {
-          in: ['in_progress', 'review', 'published']
-        }
+        // Include all statuses - user can link to any project
+        archivedAt: null // Only exclude archived projects
       },
       select: {
         id: true,
