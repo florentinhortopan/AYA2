@@ -726,10 +726,10 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Research Project</p>
                     <Select 
-                      value={selectedResearchId || ''} 
+                      value={selectedResearchId || undefined} 
                       onValueChange={(value) => {
                         try {
-                          if (!value) {
+                          if (!value || value === '__none__') {
                             setSelectedResearchId('')
                             setCurrentPills([])
                             return
