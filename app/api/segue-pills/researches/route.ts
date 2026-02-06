@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch all researches (optionally filter by status)
     const statusParam = request.nextUrl.searchParams.get('status')
+    const withPillsOnly = request.nextUrl.searchParams.get('withPillsOnly') === 'true'
     const where: any = {}
     
     if (statusParam) {
@@ -53,10 +54,11 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Filter to only researches with intentClusters (pills generated) if status filter includes testing/completed
+    // Filter to only researches with intentClusters (pills generated)
+    // Either if withPillsOnly=true OR if status filter includes testing/completed
     let filteredResearches = researches
-    if (statusParam && (statusParam.includes('testing') || statusParam.includes('completed'))) {
-      filteredResearches = researches.filter(r => r.intentClusters !== null)
+    if (withPillsOnly || (statusParam && (statusParam.includes('testing') || statusParam.includes('completed')))) {
+      filteredResearches = researches.filter(r => r.intentClusters !== null && r.intentClusters !== undefined)
     }
 
     return jsonNoStore({ researches: filteredResearches })

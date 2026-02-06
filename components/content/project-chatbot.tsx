@@ -130,21 +130,25 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
 
       setLoadingResearches(true)
       try {
-        // Load all researches - filter client-side to only those with intentClusters (pills generated)
-        const researchesResponse = await fetch('/api/segue-pills/researches')
+        // Load only researches with pills generated (intentClusters)
+        const researchesResponse = await fetch('/api/segue-pills/researches?withPillsOnly=true')
         if (researchesResponse.ok) {
           const researchesData = await researchesResponse.json()
-          console.log('Loaded researches:', researchesData)
-          // Filter to only researches that have intentClusters (pills generated)
+          console.log('[Pills] Loaded researches:', researchesData)
           const allResearches = researchesData.researches || researchesData.data?.researches || []
-          const researchesWithPills = allResearches.filter((r: any) => 
-            r && r.intentClusters !== null && r.intentClusters !== undefined
-          )
-          console.log('Researches with pills:', researchesWithPills.length)
+          // Double-check filtering on client side as well
+          const researchesWithPills = allResearches.filter((r: any) => {
+            const hasPills = r && r.intentClusters !== null && r.intentClusters !== undefined
+            if (!hasPills) {
+              console.warn('[Pills] Research missing intentClusters:', r.id, r.name)
+            }
+            return hasPills
+          })
+          console.log('[Pills] Researches with pills:', researchesWithPills.length, researchesWithPills.map((r: any) => ({ id: r.id, name: r.name, hasQaProject: !!r.qaProject })))
           setAvailableResearches(researchesWithPills || [])
         } else {
           const errorData = await researchesResponse.json().catch(() => ({}))
-          console.error('Failed to load researches:', errorData)
+          console.error('[Pills] Failed to load researches:', errorData)
           setAvailableResearches([])
         }
 
@@ -152,12 +156,14 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         const goalsResponse = await fetch('/api/segue-pills/campaign-goals')
         if (goalsResponse.ok) {
           const goalsData = await goalsResponse.json()
+          console.log('[Pills] Loaded campaign goals:', goalsData.goals?.length || 0)
           setAvailableCampaignGoals(goalsData.goals || [])
         } else {
+          console.warn('[Pills] Failed to load campaign goals')
           setAvailableCampaignGoals([])
         }
       } catch (error) {
-        console.error('Failed to load pills data:', error)
+        console.error('[Pills] Failed to load pills data:', error)
         setAvailableResearches([])
         setAvailableCampaignGoals([])
       } finally {
@@ -198,34 +204,39 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
   useEffect(() => {
     const loadPills = async () => {
       if (!pillsEnabled) {
+        console.log('[Pills] Pills disabled, clearing pills')
         setCurrentPills([])
         return
       }
       
       if (!selectedResearchId) {
-        // Don't load pills if no research is selected
+        console.log('[Pills] No research selected, clearing pills')
         setCurrentPills([])
         return
       }
 
+      console.log('[Pills] Loading pills for research:', selectedResearchId, 'useCase:', selectedUseCase, 'campaignGoal:', selectedCampaignGoalId)
       setLoadingPills(true)
       try {
         const url = `/api/segue-pills/researches/${selectedResearchId}/recommendations?` +
                     `campaignGoalId=${selectedCampaignGoalId || ''}&useCase=${selectedUseCase}`
         
+        console.log('[Pills] Fetching from:', url)
         const response = await fetch(url)
         const data = await response.json()
         
         if (!response.ok) {
-          console.error('API error:', data.error || 'Failed to load pills')
+          console.error('[Pills] API error:', data.error || 'Failed to load pills', { status: response.status })
           setCurrentPills([])
           return
         }
         
+        console.log('[Pills] Received recommendations:', { hasRecommendations: !!data.recommendations, hasPillLibrary: !!data.pillLibrary })
+        
         // Select pills based on use case
         const recommendations = data.recommendations
         if (!recommendations) {
-          console.warn('No recommendations found in response. Make sure pills have been generated in the Research Lab.')
+          console.warn('[Pills] No recommendations found in response. Make sure pills have been generated in the Research Lab.')
           setCurrentPills([])
           return
         }
@@ -235,22 +246,32 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                         recommendations.case3
         
         if (!caseRec) {
-          console.warn(`No case ${selectedUseCase} recommendation found`)
+          console.warn(`[Pills] No case ${selectedUseCase} recommendation found`, { recommendations })
           setCurrentPills([])
           return
         }
         
+        console.log('[Pills] Case recommendation:', { useCase: selectedUseCase, pillsCount: caseRec.pills?.length, pills: caseRec.pills })
+        
         if (!Array.isArray(caseRec.pills)) {
-          console.warn('Invalid case recommendation structure - pills is not an array:', caseRec)
+          console.warn('[Pills] Invalid case recommendation structure - pills is not an array:', caseRec)
           setCurrentPills([])
           return
         }
         
         // Validate pill structure
-        const validPills = caseRec.pills.filter((p: any) => p && p.id && p.label)
+        const validPills = caseRec.pills.filter((p: any) => {
+          const isValid = p && p.id && p.label
+          if (!isValid) {
+            console.warn('[Pills] Invalid pill structure:', p)
+          }
+          return isValid
+        })
+        
+        console.log('[Pills] Valid pills loaded:', validPills.length, validPills.map((p: any) => ({ id: p.id, label: p.label, type: p.type })))
         setCurrentPills(validPills)
       } catch (error) {
-        console.error('Failed to load pills:', error)
+        console.error('[Pills] Failed to load pills:', error)
         setCurrentPills([])
       } finally {
         setLoadingPills(false)
@@ -325,10 +346,20 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
       }
 
       // Determine if we should show pills
+      const availablePills = currentPills.filter(p => p && p.id && !usedPillIds.has(p.id) && p.id !== pill.id)
       const shouldShowPills = pillsEnabled && 
                               pillsShownCount < 3 && 
                               Array.isArray(currentPills) && 
-                              currentPills.length > 0
+                              currentPills.length > 0 &&
+                              availablePills.length > 0
+
+      console.log('[Pills] handlePillClick - shouldShowPills:', shouldShowPills, {
+        pillsEnabled,
+        pillsShownCount,
+        currentPillsCount: currentPills.length,
+        availablePillsCount: availablePills.length,
+        usedPillIds: Array.from(usedPillIds)
+      })
 
       const assistantMessage: ChatMessage = {
         role: 'assistant',
@@ -341,7 +372,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
           .filter(Boolean)
           .join('\n'),
         timestamp: new Date().toISOString(),
-        pills: shouldShowPills ? currentPills.filter(p => p && p.id && !usedPillIds.has(p.id) && p.id !== pill.id) : undefined
+        pills: shouldShowPills ? availablePills : undefined
       }
       
       setMessages((current) => [...current, assistantMessage])
@@ -408,10 +439,20 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
       }
 
       // Determine if we should show pills (first 3 assistant messages, pills enabled)
+      const availablePills = currentPills.filter(p => p && p.id && !usedPillIds.has(p.id))
       const shouldShowPills = pillsEnabled && 
                               pillsShownCount < 3 && 
                               Array.isArray(currentPills) && 
-                              currentPills.length > 0
+                              currentPills.length > 0 &&
+                              availablePills.length > 0
+
+      console.log('[Pills] sendMessage - shouldShowPills:', shouldShowPills, {
+        pillsEnabled,
+        pillsShownCount,
+        currentPillsCount: currentPills.length,
+        availablePillsCount: availablePills.length,
+        usedPillIds: Array.from(usedPillIds)
+      })
 
       const assistantMessage: ChatMessage = {
         role: 'assistant',
@@ -424,7 +465,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
           .filter(Boolean)
           .join('\n'),
         timestamp: new Date().toISOString(),
-        pills: shouldShowPills ? currentPills.filter(p => p && p.id && !usedPillIds.has(p.id)) : undefined
+        pills: shouldShowPills ? availablePills : undefined
       }
       
       setMessages((current) => [...current, assistantMessage])
@@ -515,37 +556,48 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                       type="checkbox"
                       id="enable-pills"
                       checked={pillsEnabled}
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const newValue = e.target.checked
+                        console.log('[Pills] Checkbox changed:', { newValue, loadingResearches, availableResearchesCount: availableResearches.length })
                         
                         // Prevent enabling if researches aren't ready
                         if (newValue) {
                           if (loadingResearches) {
-                            e.preventDefault()
-                            e.stopPropagation()
+                            console.warn('[Pills] Cannot enable: still loading researches')
+                            e.target.checked = false
                             alert('Please wait for research projects to load...')
-                            return false
+                            return
                           }
                           
-                          if (!availableResearches || !Array.isArray(availableResearches) || availableResearches.length === 0) {
-                            e.preventDefault()
-                            e.stopPropagation()
+                          if (!Array.isArray(availableResearches) || availableResearches.length === 0) {
+                            console.warn('[Pills] Cannot enable: no researches available', { availableResearches })
+                            e.target.checked = false
                             alert('No research projects with generated pills available. Please generate pills in the Research Lab first.')
-                            return false
+                            return
                           }
                         }
                         
                         // Safe state update
                         try {
+                          console.log('[Pills] Setting pillsEnabled to:', newValue)
                           setPillsEnabled(newValue)
+                          
+                          // If disabling, clear pills state
+                          if (!newValue) {
+                            setSelectedResearchId('')
+                            setSelectedCampaignGoalId('')
+                            setCurrentPills([])
+                            setUsedPillIds(new Set())
+                            setPillsShownCount(0)
+                          }
                         } catch (error) {
-                          console.error('Error setting pillsEnabled:', error)
+                          console.error('[Pills] Error setting pillsEnabled:', error)
                           e.target.checked = !newValue
                           alert('An error occurred. Please try again.')
                         }
                       }}
                       className="h-4 w-4"
-                      disabled={loadingResearches || !availableResearches || !Array.isArray(availableResearches) || availableResearches.length === 0}
+                      disabled={loadingResearches || !Array.isArray(availableResearches) || availableResearches.length === 0}
                     />
                     <label htmlFor="enable-pills" className="text-xs text-foreground cursor-pointer">
                       Enable Segue Pills
@@ -623,9 +675,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                               </SelectItem>
                             )
                           })
-                        ) : (
-                          <SelectItem value="" disabled>No researches available</SelectItem>
-                        )}
+                        ) : null}
                       </SelectContent>
                     </Select>
                     {selectedResearchId && (() => {
@@ -645,10 +695,14 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Campaign Goal (optional)</p>
                     <Select 
-                      value={selectedCampaignGoalId || ''} 
+                      value={selectedCampaignGoalId || '__none__'} 
                       onValueChange={(value) => {
                         try {
-                          setSelectedCampaignGoalId(value)
+                          if (value === '__none__') {
+                            setSelectedCampaignGoalId('')
+                          } else {
+                            setSelectedCampaignGoalId(value)
+                          }
                         } catch (error) {
                           console.error('Error selecting campaign goal:', error)
                         }
@@ -659,16 +713,14 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                         <SelectValue placeholder="None" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="__none__">None</SelectItem>
                         {availableCampaignGoals && availableCampaignGoals.length > 0 ? (
                           availableCampaignGoals.map((goal) => (
                             <SelectItem key={goal.id} value={goal.id}>
                               {goal.name}
                             </SelectItem>
                           ))
-                        ) : (
-                          <SelectItem value="" disabled>No goals available</SelectItem>
-                        )}
+                        ) : null}
                       </SelectContent>
                     </Select>
                   </div>
@@ -723,6 +775,16 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                   
                   {loadingPills && (
                     <p className="text-xs text-muted-foreground">Loading pills...</p>
+                  )}
+                  {!loadingPills && pillsEnabled && selectedResearchId && currentPills.length === 0 && (
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                      ⚠ No pills loaded. Check console for errors.
+                    </p>
+                  )}
+                  {!loadingPills && pillsEnabled && selectedResearchId && currentPills.length > 0 && (
+                    <p className="text-xs text-green-600 dark:text-green-400">
+                      ✓ {currentPills.length} pill{currentPills.length !== 1 ? 's' : ''} ready
+                    </p>
                   )}
                 </>
               )}
