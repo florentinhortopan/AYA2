@@ -58,3 +58,103 @@ export async function GET(request: NextRequest) {
     return jsonNoStore({ error: 'Failed to fetch researches' }, { status: 500 })
   }
 }
+
+// POST: Create or update a research project
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession()
+    if (!session?.user) {
+      return jsonNoStore({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const {
+      id, // Optional: if provided, update existing
+      name,
+      description,
+      personas,
+      topics,
+      questionCount,
+      syntheticQuestions,
+      scrapedQuestions,
+      scrapedUrls,
+      intentClusters,
+      pillLibrary,
+      recommendations,
+      campaignGoalId,
+      status
+    } = body
+
+    if (!name) {
+      return jsonNoStore({ error: 'Name is required' }, { status: 400 })
+    }
+
+    // Get user ID
+    let userId: string | null = null
+    if (session.user?.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true }
+      })
+      userId = user?.id || null
+    }
+
+    // Determine status - if intentClusters exist, set to 'testing', if recommendations exist, set to 'completed'
+    let finalStatus = status || 'draft'
+    if (recommendations) {
+      finalStatus = 'completed'
+    } else if (intentClusters) {
+      finalStatus = 'testing'
+    }
+
+    if (id) {
+      // Update existing research
+      const research = await prisma.seguePillResearch.update({
+        where: { id },
+        data: {
+          name,
+          description,
+          personas: personas || [],
+          topics: topics || [],
+          questionCount: questionCount || 100,
+          syntheticQuestions: syntheticQuestions || null,
+          scrapedQuestions: scrapedQuestions || null,
+          scrapedUrls: scrapedUrls || [],
+          intentClusters: intentClusters || null,
+          pillLibrary: pillLibrary || null,
+          recommendations: recommendations || null,
+          campaignGoalId: campaignGoalId || null,
+          status: finalStatus
+        }
+      })
+
+      return jsonNoStore({ research })
+    } else {
+      // Create new research
+      const research = await prisma.seguePillResearch.create({
+        data: {
+          name,
+          description,
+          personas: personas || [],
+          topics: topics || [],
+          questionCount: questionCount || 100,
+          syntheticQuestions: syntheticQuestions || null,
+          scrapedQuestions: scrapedQuestions || null,
+          scrapedUrls: scrapedUrls || [],
+          intentClusters: intentClusters || null,
+          pillLibrary: pillLibrary || null,
+          recommendations: recommendations || null,
+          campaignGoalId: campaignGoalId || null,
+          status: finalStatus,
+          createdById: userId
+        }
+      })
+
+      return jsonNoStore({ research })
+    }
+  } catch (error) {
+    console.error('Error saving research:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Failed to save research'
+    return jsonNoStore({ error: errorMessage }, { status: 500 })
+  }
+}

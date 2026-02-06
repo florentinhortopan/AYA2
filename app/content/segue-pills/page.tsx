@@ -53,6 +53,7 @@ export default function SeguePillsResearchLab() {
   const [intentClusters, setIntentClusters] = useState<IntentCluster[]>([])
   const [recommendations, setRecommendations] = useState<PillRecommendations | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [savedResearchId, setSavedResearchId] = useState<string | null>(null)
 
   const personas = [
     { id: 'high_school', label: 'High School Student' },
@@ -210,6 +211,9 @@ export default function SeguePillsResearchLab() {
       
       setIntentClusters(data.clusters)
       setPhase('recommendations')
+      
+      // Save research with intent clusters (status: testing)
+      await saveResearchToDatabase()
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
       console.error('Intent clustering error:', err)
@@ -252,6 +256,9 @@ export default function SeguePillsResearchLab() {
       
       setRecommendations(data.recommendations)
       setPhase('complete')
+      
+      // Save research to database
+      await saveResearchToDatabase(data.recommendations)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
       console.error('Recommendations generation error:', err)
@@ -261,12 +268,52 @@ export default function SeguePillsResearchLab() {
     }
   }
 
+  const saveResearchToDatabase = async (finalRecommendations?: PillRecommendations) => {
+    try {
+      const researchData = {
+        id: savedResearchId || undefined,
+        name: projectName || `Research ${new Date().toLocaleDateString()}`,
+        description: `Generated ${questions.length} questions, ${intentClusters.length} intent clusters`,
+        personas: selectedPersonas,
+        topics: selectedTopics,
+        questionCount: questions.length,
+        syntheticQuestions: questions.length > 0 ? questions : null,
+        scrapedQuestions: null,
+        scrapedUrls: [],
+        intentClusters: intentClusters.length > 0 ? intentClusters : null,
+        pillLibrary: finalRecommendations?.pillLibrary || null,
+        recommendations: finalRecommendations || null,
+        campaignGoalId: selectedGoalId || null,
+        status: finalRecommendations ? 'completed' : (intentClusters.length > 0 ? 'testing' : 'draft')
+      }
+
+      const response = await fetch('/api/segue-pills/researches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(researchData)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to save research')
+      }
+
+      const data = await response.json()
+      setSavedResearchId(data.research.id)
+      console.log('Research saved:', data.research.id)
+    } catch (error) {
+      console.error('Failed to save research:', error)
+      // Don't throw - allow user to continue even if save fails
+    }
+  }
+
   const resetResearch = () => {
     setPhase('setup')
     setQuestions([])
     setIntentClusters([])
     setRecommendations(null)
     setError(null)
+    setSavedResearchId(null)
   }
 
   const exportRecommendations = () => {
