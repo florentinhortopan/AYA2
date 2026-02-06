@@ -515,38 +515,37 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                       type="checkbox"
                       id="enable-pills"
                       checked={pillsEnabled}
-                    onChange={async (e) => {
-                      try {
+                      onChange={(e) => {
                         const newValue = e.target.checked
                         
-                        // Prevent enabling if no researches available
+                        // Prevent enabling if researches aren't ready
                         if (newValue) {
-                          // Double-check researches are loaded
                           if (loadingResearches) {
-                            e.target.checked = false
+                            e.preventDefault()
+                            e.stopPropagation()
                             alert('Please wait for research projects to load...')
-                            return
+                            return false
                           }
                           
-                          if (!Array.isArray(availableResearches) || availableResearches.length === 0) {
-                            e.target.checked = false
+                          if (!availableResearches || !Array.isArray(availableResearches) || availableResearches.length === 0) {
+                            e.preventDefault()
+                            e.stopPropagation()
                             alert('No research projects with generated pills available. Please generate pills in the Research Lab first.')
-                            return
+                            return false
                           }
                         }
                         
-                        // Use React's state update
-                        setPillsEnabled(newValue)
-                      } catch (error) {
-                        console.error('Error enabling pills:', error)
-                        // Reset checkbox on error
-                        e.target.checked = false
-                        setPillsEnabled(false)
-                        alert('An error occurred. Please try again.')
-                      }
-                    }}
+                        // Safe state update
+                        try {
+                          setPillsEnabled(newValue)
+                        } catch (error) {
+                          console.error('Error setting pillsEnabled:', error)
+                          e.target.checked = !newValue
+                          alert('An error occurred. Please try again.')
+                        }
+                      }}
                       className="h-4 w-4"
-                      disabled={loadingResearches || !Array.isArray(availableResearches) || availableResearches.length === 0}
+                      disabled={loadingResearches || !availableResearches || !Array.isArray(availableResearches) || availableResearches.length === 0}
                     />
                     <label htmlFor="enable-pills" className="text-xs text-foreground cursor-pointer">
                       Enable Segue Pills
