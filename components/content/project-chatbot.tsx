@@ -55,6 +55,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
   const [usedPillIds, setUsedPillIds] = useState<Set<string>>(new Set())
   const [pillsShownCount, setPillsShownCount] = useState(0)
   const [loadingPills, setLoadingPills] = useState(false)
+  const [loadingResearches, setLoadingResearches] = useState(false)
   const questionStatusOptions: QuestionStatus[] = ['approved', 'pending', 'draft', 'rejected', 'published']
   const answerStatusOptions: AnswerValidationStatus[] = [
     'approved',
@@ -123,9 +124,11 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
       if (!open || !showPillsFeature) {
         setAvailableResearches([])
         setAvailableCampaignGoals([])
+        setLoadingResearches(false)
         return
       }
 
+      setLoadingResearches(true)
       try {
         // Load all researches - filter client-side to only those with intentClusters (pills generated)
         const researchesResponse = await fetch('/api/segue-pills/researches')
@@ -152,6 +155,8 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         console.error('Failed to load pills data:', error)
         setAvailableResearches([])
         setAvailableCampaignGoals([])
+      } finally {
+        setLoadingResearches(false)
       }
     }
 
@@ -473,33 +478,58 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
             {/* Segue Pills Configuration - Only show if showPillsFeature is true */}
             {showPillsFeature && (
               <div className="space-y-2 pt-2 border-t border-border">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="enable-pills"
-                    checked={pillsEnabled}
-                    onChange={(e) => {
-                      try {
-                        const newValue = e.target.checked
-                        if (newValue && (!Array.isArray(availableResearches) || availableResearches.length === 0)) {
-                          alert('No research projects with generated pills available. Please generate pills in the Research Lab first.')
-                          return
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="enable-pills"
+                      checked={pillsEnabled}
+                      onChange={(e) => {
+                        try {
+                          const newValue = e.target.checked
+                          if (newValue && (!Array.isArray(availableResearches) || availableResearches.length === 0)) {
+                            alert('No research projects with generated pills available. Please generate pills in the Research Lab first.')
+                            return
+                          }
+                          setPillsEnabled(newValue)
+                        } catch (error) {
+                          console.error('Error enabling pills:', error)
+                          setPillsEnabled(false)
                         }
-                        setPillsEnabled(newValue)
-                      } catch (error) {
-                        console.error('Error enabling pills:', error)
-                        setPillsEnabled(false)
-                      }
-                    }}
-                    className="h-4 w-4"
-                    disabled={availableResearches.length === 0}
-                  />
-                  <label htmlFor="enable-pills" className="text-xs text-muted-foreground cursor-pointer">
-                    Enable Segue Pills
-                    {availableResearches.length === 0 && (
-                      <span className="text-xs text-muted-foreground ml-1">(No pills available)</span>
-                    )}
-                  </label>
+                      }}
+                      className="h-4 w-4"
+                      disabled={loadingResearches || !Array.isArray(availableResearches) || availableResearches.length === 0}
+                    />
+                    <label htmlFor="enable-pills" className="text-xs text-foreground cursor-pointer">
+                      Enable Segue Pills
+                    </label>
+                  </div>
+                  
+                  {/* Status message */}
+                  {loadingResearches && (
+                    <p className="text-xs text-muted-foreground ml-6">Loading research projects...</p>
+                  )}
+                  {!loadingResearches && (!Array.isArray(availableResearches) || availableResearches.length === 0) && (
+                    <div className="ml-6 space-y-1">
+                      <p className="text-xs text-muted-foreground">
+                        No research projects with pills available.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        To enable pills:
+                      </p>
+                      <ol className="text-xs text-muted-foreground ml-4 list-decimal">
+                        <li>Go to the Research Lab</li>
+                        <li>Generate questions and cluster intents</li>
+                        <li>Generate pill recommendations</li>
+                        <li>Return here to test them</li>
+                      </ol>
+                    </div>
+                  )}
+                  {!loadingResearches && Array.isArray(availableResearches) && availableResearches.length > 0 && (
+                    <p className="text-xs text-green-600 dark:text-green-400 ml-6">
+                      ✓ {availableResearches.length} research project{availableResearches.length !== 1 ? 's' : ''} with pills available
+                    </p>
+                  )}
                 </div>
               
               {pillsEnabled && Array.isArray(availableResearches) && (
