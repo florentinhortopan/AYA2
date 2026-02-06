@@ -134,12 +134,17 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         const researchesResponse = await fetch('/api/segue-pills/researches')
         if (researchesResponse.ok) {
           const researchesData = await researchesResponse.json()
+          console.log('Loaded researches:', researchesData)
           // Filter to only researches that have intentClusters (pills generated)
-          const researchesWithPills = (researchesData.researches || []).filter((r: any) => 
+          const allResearches = researchesData.researches || researchesData.data?.researches || []
+          const researchesWithPills = allResearches.filter((r: any) => 
             r && r.intentClusters !== null && r.intentClusters !== undefined
           )
+          console.log('Researches with pills:', researchesWithPills.length)
           setAvailableResearches(researchesWithPills || [])
         } else {
+          const errorData = await researchesResponse.json().catch(() => ({}))
+          console.error('Failed to load researches:', errorData)
           setAvailableResearches([])
         }
 
