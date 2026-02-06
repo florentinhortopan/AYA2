@@ -19,11 +19,17 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all researches (optionally filter by status)
-    const status = request.nextUrl.searchParams.get('status')
+    const statusParam = request.nextUrl.searchParams.get('status')
     const where: any = {}
     
-    if (status) {
-      where.status = status
+    if (statusParam) {
+      // Support comma-separated statuses
+      const statuses = statusParam.split(',').map(s => s.trim())
+      if (statuses.length === 1) {
+        where.status = statuses[0]
+      } else {
+        where.status = { in: statuses }
+      }
     }
 
     const researches = await prisma.seguePillResearch.findMany({
