@@ -481,15 +481,11 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                     onChange={(e) => {
                       try {
                         const newValue = e.target.checked
-                        if (newValue && (!availableResearches || availableResearches.length === 0)) {
+                        if (newValue && (!Array.isArray(availableResearches) || availableResearches.length === 0)) {
                           alert('No research projects with generated pills available. Please generate pills in the Research Lab first.')
-                          e.target.checked = false
                           return
                         }
-                        // Use setTimeout to avoid state update issues
-                        setTimeout(() => {
-                          setPillsEnabled(newValue)
-                        }, 0)
+                        setPillsEnabled(newValue)
                       } catch (error) {
                         console.error('Error enabling pills:', error)
                         setPillsEnabled(false)
@@ -506,7 +502,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                   </label>
                 </div>
               
-              {pillsEnabled && availableResearches && (
+              {pillsEnabled && Array.isArray(availableResearches) && (
                 <>
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Research Project</p>
