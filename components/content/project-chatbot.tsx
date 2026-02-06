@@ -633,35 +633,37 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                             pillsEnabled,
                             loadingResearches,
                             availableResearchesCount: availableResearches.length,
+                            availableResearches: availableResearches,
                             selectedResearchId,
                             currentPillsCount: currentPills.length
                           })
                           
-                          // Validation before enabling
+                          // Validation before enabling - if validation fails, revert checkbox
                           if (newValue) {
                             if (loadingResearches) {
                               console.warn('[Pills] ❌ Cannot enable: still loading researches')
-                              e.preventDefault()
+                              e.target.checked = false // Revert checkbox
+                              alert('Please wait for research projects to load...')
                               return
                             }
                             
                             if (!Array.isArray(availableResearches) || availableResearches.length === 0) {
                               console.warn('[Pills] ❌ Cannot enable: no researches available')
                               console.warn('[Pills] Available researches:', availableResearches)
-                              e.preventDefault()
+                              e.target.checked = false // Revert checkbox
+                              alert('No research projects with generated pills available. Please generate pills in the Research Lab first.')
                               return
                             }
                             
                             console.log('[Pills] ✅ Validation passed, enabling pills')
+                            // Only update state if validation passes
+                            setPillsEnabled(true)
                           } else {
                             console.log('[Pills] Disabling pills, clearing state')
-                          }
-                          
-                          // Update state
-                          setPillsEnabled(newValue)
-                          
-                          // Clear state when disabling
-                          if (!newValue) {
+                            // Always allow disabling
+                            setPillsEnabled(false)
+                            
+                            // Clear state when disabling
                             setSelectedResearchId('')
                             setSelectedCampaignGoalId('')
                             setCurrentPills([])

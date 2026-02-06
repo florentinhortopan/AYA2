@@ -30,9 +30,10 @@ export function Navbar() {
                   <Link href="/content" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
                     Content
                   </Link>
-                  <Link href="/community" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
+                  {/* TODO: Uncomment when /community route is created */}
+                  {/* <Link href="/community" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
                     Community
-                  </Link>
+                  </Link> */}
                   <Link href="/insights" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
                     Recruiter View
                   </Link>
