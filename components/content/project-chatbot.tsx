@@ -480,11 +480,16 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                     checked={pillsEnabled}
                     onChange={(e) => {
                       try {
-                        if (e.target.checked && availableResearches.length === 0) {
+                        const newValue = e.target.checked
+                        if (newValue && (!availableResearches || availableResearches.length === 0)) {
                           alert('No research projects with generated pills available. Please generate pills in the Research Lab first.')
+                          e.target.checked = false
                           return
                         }
-                        setPillsEnabled(e.target.checked)
+                        // Use setTimeout to avoid state update issues
+                        setTimeout(() => {
+                          setPillsEnabled(newValue)
+                        }, 0)
                       } catch (error) {
                         console.error('Error enabling pills:', error)
                         setPillsEnabled(false)
