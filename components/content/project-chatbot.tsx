@@ -515,19 +515,36 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                       type="checkbox"
                       id="enable-pills"
                       checked={pillsEnabled}
-                      onChange={(e) => {
-                        try {
-                          const newValue = e.target.checked
-                          if (newValue && (!Array.isArray(availableResearches) || availableResearches.length === 0)) {
+                    onChange={async (e) => {
+                      try {
+                        const newValue = e.target.checked
+                        
+                        // Prevent enabling if no researches available
+                        if (newValue) {
+                          // Double-check researches are loaded
+                          if (loadingResearches) {
+                            e.target.checked = false
+                            alert('Please wait for research projects to load...')
+                            return
+                          }
+                          
+                          if (!Array.isArray(availableResearches) || availableResearches.length === 0) {
+                            e.target.checked = false
                             alert('No research projects with generated pills available. Please generate pills in the Research Lab first.')
                             return
                           }
-                          setPillsEnabled(newValue)
-                        } catch (error) {
-                          console.error('Error enabling pills:', error)
-                          setPillsEnabled(false)
                         }
-                      }}
+                        
+                        // Use React's state update
+                        setPillsEnabled(newValue)
+                      } catch (error) {
+                        console.error('Error enabling pills:', error)
+                        // Reset checkbox on error
+                        e.target.checked = false
+                        setPillsEnabled(false)
+                        alert('An error occurred. Please try again.')
+                      }
+                    }}
                       className="h-4 w-4"
                       disabled={loadingResearches || !Array.isArray(availableResearches) || availableResearches.length === 0}
                     />

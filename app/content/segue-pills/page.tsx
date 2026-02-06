@@ -356,9 +356,14 @@ export default function SeguePillsResearchLab() {
               Generate, test, and optimize chatbot segue pills using AI-powered research
             </p>
           </div>
-          <a href="/content/segue-pills/goals" className="text-sm text-primary hover:underline">
-            Manage Campaign Goals →
-          </a>
+          <div className="flex items-center gap-4">
+            <a href="/content/segue-pills/list" className="text-sm text-primary hover:underline">
+              View All Research Projects →
+            </a>
+            <a href="/content/segue-pills/goals" className="text-sm text-primary hover:underline">
+              Manage Campaign Goals →
+            </a>
+          </div>
         </div>
 
         {error && (
