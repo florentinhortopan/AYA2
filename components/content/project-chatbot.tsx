@@ -166,6 +166,7 @@ export function ProjectChatbot({ projectId = '' }: ProjectChatbotProps) {
         // Select pills based on use case
         const recommendations = data.recommendations
         if (!recommendations) {
+          console.warn('No recommendations found in response')
           setCurrentPills([])
           return
         }
@@ -174,7 +175,13 @@ export function ProjectChatbot({ projectId = '' }: ProjectChatbotProps) {
                         selectedUseCase === 2 ? recommendations.case2 :
                         recommendations.case3
         
-        setCurrentPills(caseRec?.pills || [])
+        if (!caseRec || !Array.isArray(caseRec.pills)) {
+          console.warn('Invalid case recommendation structure:', caseRec)
+          setCurrentPills([])
+          return
+        }
+        
+        setCurrentPills(caseRec.pills || [])
       } catch (error) {
         console.error('Failed to load pills:', error)
         setCurrentPills([])
@@ -253,6 +260,7 @@ export function ProjectChatbot({ projectId = '' }: ProjectChatbotProps) {
       // Determine if we should show pills
       const shouldShowPills = pillsEnabled && 
                               pillsShownCount < 3 && 
+                              Array.isArray(currentPills) && 
                               currentPills.length > 0
 
       const assistantMessage: ChatMessage = {
@@ -266,7 +274,7 @@ export function ProjectChatbot({ projectId = '' }: ProjectChatbotProps) {
           .filter(Boolean)
           .join('\n'),
         timestamp: new Date().toISOString(),
-        pills: shouldShowPills ? currentPills.filter(p => !usedPillIds.has(p.id) && p.id !== pill.id) : undefined
+        pills: shouldShowPills ? currentPills.filter(p => p && p.id && !usedPillIds.has(p.id) && p.id !== pill.id) : undefined
       }
       
       setMessages((current) => [...current, assistantMessage])
@@ -335,6 +343,7 @@ export function ProjectChatbot({ projectId = '' }: ProjectChatbotProps) {
       // Determine if we should show pills (first 3 assistant messages, pills enabled)
       const shouldShowPills = pillsEnabled && 
                               pillsShownCount < 3 && 
+                              Array.isArray(currentPills) && 
                               currentPills.length > 0
 
       const assistantMessage: ChatMessage = {
@@ -348,7 +357,7 @@ export function ProjectChatbot({ projectId = '' }: ProjectChatbotProps) {
           .filter(Boolean)
           .join('\n'),
         timestamp: new Date().toISOString(),
-        pills: shouldShowPills ? currentPills.filter(p => !usedPillIds.has(p.id)) : undefined
+        pills: shouldShowPills ? currentPills.filter(p => p && p.id && !usedPillIds.has(p.id)) : undefined
       }
       
       setMessages((current) => [...current, assistantMessage])
@@ -548,9 +557,13 @@ export function ProjectChatbot({ projectId = '' }: ProjectChatbotProps) {
                 </div>
                 
                 {/* Show pills below assistant messages */}
-                {message.role === 'assistant' && message.pills && message.pills.length > 0 && (
+                {message.role === 'assistant' && message.pills && Array.isArray(message.pills) && message.pills.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2 max-w-[85%]">
                     {message.pills.map((pill) => {
+                      if (!pill || !pill.id || !pill.label) {
+                        return null
+                      }
+                      
                       const pillVariants = {
                         anticipate: 'outline',
                         entice: 'secondary',
@@ -561,7 +574,7 @@ export function ProjectChatbot({ projectId = '' }: ProjectChatbotProps) {
                         <Button
                           key={pill.id}
                           size="sm"
-                          variant={pillVariants[pill.type] || 'outline'}
+                          variant={pillVariants[pill.type as keyof typeof pillVariants] || 'outline'}
                           className="text-xs h-7"
                           onClick={() => handlePillClick(pill)}
                           disabled={loading}
