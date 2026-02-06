@@ -9,8 +9,8 @@ export default function SeguePillsLayout({
   return (
     <>
       {children}
-      {/* Chatbot widget for testing pills - uses first available project or empty string */}
-      <ProjectChatbot projectId="" />
+      {/* Chatbot widget for testing pills - enable pills feature in segue pills lab */}
+      <ProjectChatbot projectId="" showPillsFeature={true} />
     </>
   )
 }

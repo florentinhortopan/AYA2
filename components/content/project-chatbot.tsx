@@ -17,6 +17,7 @@ interface ChatMessage {
 
 interface ProjectChatbotProps {
   projectId?: string
+  showPillsFeature?: boolean // Only show pills feature in segue pills lab
 }
 
 interface SeguePillResearch {
@@ -31,7 +32,7 @@ interface SegueCampaignGoal {
   goalType: string
 }
 
-export function ProjectChatbot({ projectId = '' }: ProjectChatbotProps) {
+export function ProjectChatbot({ projectId = '', showPillsFeature = false }: ProjectChatbotProps) {
   const [open, setOpen] = useState(false)
   const [projects, setProjects] = useState<ContentProject[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState(projectId)
@@ -116,17 +117,21 @@ export function ProjectChatbot({ projectId = '' }: ProjectChatbotProps) {
     loadProjects()
   }, [])
 
-  // Load available researches and campaign goals
+  // Load available researches and campaign goals (only if pills feature is enabled)
   useEffect(() => {
     const loadPillsData = async () => {
-      if (!open) return
+      if (!open || !showPillsFeature) return
 
       try {
-        // Load researches
-        const researchesResponse = await fetch('/api/segue-pills/researches')
+        // Load researches - only those with intentClusters (pills generated)
+        const researchesResponse = await fetch('/api/segue-pills/researches?status=testing,completed')
         if (researchesResponse.ok) {
           const researchesData = await researchesResponse.json()
-          setAvailableResearches(researchesData.researches || [])
+          // Filter to only researches that have intentClusters (pills generated)
+          const researchesWithPills = (researchesData.researches || []).filter((r: any) => 
+            r.intentClusters || r.status === 'testing' || r.status === 'completed'
+          )
+          setAvailableResearches(researchesWithPills)
         }
 
         // Load campaign goals
@@ -141,7 +146,7 @@ export function ProjectChatbot({ projectId = '' }: ProjectChatbotProps) {
     }
 
     loadPillsData()
-  }, [open])
+  }, [open, showPillsFeature])
 
   // Load pills when configuration changes
   useEffect(() => {
@@ -449,20 +454,31 @@ export function ProjectChatbot({ projectId = '' }: ProjectChatbotProps) {
               </div>
             </div>
             
-            {/* Segue Pills Configuration */}
-            <div className="space-y-2 pt-2 border-t border-border">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="enable-pills"
-                  checked={pillsEnabled}
-                  onChange={(e) => setPillsEnabled(e.target.checked)}
-                  className="h-4 w-4"
-                />
-                <label htmlFor="enable-pills" className="text-xs text-muted-foreground cursor-pointer">
-                  Enable Segue Pills
-                </label>
-              </div>
+            {/* Segue Pills Configuration - Only show if showPillsFeature is true */}
+            {showPillsFeature && (
+              <div className="space-y-2 pt-2 border-t border-border">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="enable-pills"
+                    checked={pillsEnabled}
+                    onChange={(e) => {
+                      if (e.target.checked && availableResearches.length === 0) {
+                        alert('No research projects with generated pills available. Please generate pills in the Research Lab first.')
+                        return
+                      }
+                      setPillsEnabled(e.target.checked)
+                    }}
+                    className="h-4 w-4"
+                    disabled={availableResearches.length === 0}
+                  />
+                  <label htmlFor="enable-pills" className="text-xs text-muted-foreground cursor-pointer">
+                    Enable Segue Pills
+                    {availableResearches.length === 0 && (
+                      <span className="text-xs text-muted-foreground ml-1">(No pills available)</span>
+                    )}
+                  </label>
+                </div>
               
               {pillsEnabled && (
                 <>
@@ -542,7 +558,8 @@ export function ProjectChatbot({ projectId = '' }: ProjectChatbotProps) {
                   )}
                 </>
               )}
-            </div>
+              </div>
+            )}
           </div>
           <div className="max-h-[360px] overflow-y-auto px-4 py-3 space-y-3">
             {messages.map((message, index) => (
