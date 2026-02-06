@@ -157,16 +157,18 @@ export function ProjectChatbot({ projectId = '' }: ProjectChatbotProps) {
                     `campaignGoalId=${selectedCampaignGoalId || ''}&useCase=${selectedUseCase}`
         
         const response = await fetch(url)
-        if (!response.ok) {
-          throw new Error('Failed to load pills')
-        }
-        
         const data = await response.json()
+        
+        if (!response.ok) {
+          console.error('API error:', data.error || 'Failed to load pills')
+          setCurrentPills([])
+          return
+        }
         
         // Select pills based on use case
         const recommendations = data.recommendations
         if (!recommendations) {
-          console.warn('No recommendations found in response')
+          console.warn('No recommendations found in response. Make sure pills have been generated in the Research Lab.')
           setCurrentPills([])
           return
         }
@@ -175,13 +177,21 @@ export function ProjectChatbot({ projectId = '' }: ProjectChatbotProps) {
                         selectedUseCase === 2 ? recommendations.case2 :
                         recommendations.case3
         
-        if (!caseRec || !Array.isArray(caseRec.pills)) {
-          console.warn('Invalid case recommendation structure:', caseRec)
+        if (!caseRec) {
+          console.warn(`No case ${selectedUseCase} recommendation found`)
           setCurrentPills([])
           return
         }
         
-        setCurrentPills(caseRec.pills || [])
+        if (!Array.isArray(caseRec.pills)) {
+          console.warn('Invalid case recommendation structure - pills is not an array:', caseRec)
+          setCurrentPills([])
+          return
+        }
+        
+        // Validate pill structure
+        const validPills = caseRec.pills.filter((p: any) => p && p.id && p.label)
+        setCurrentPills(validPills)
       } catch (error) {
         console.error('Failed to load pills:', error)
         setCurrentPills([])
