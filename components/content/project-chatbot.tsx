@@ -200,9 +200,28 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
     }
   }, [selectedResearchId, availableResearches, pillsEnabled, selectedProjectId])
 
-  // Load pills when configuration changes
+  /**
+   * PILLS LOADING LOGIC
+   * 
+   * Flow:
+   * 1. When pillsEnabled=true AND selectedResearchId is set, fetch recommendations
+   * 2. API: GET /api/segue-pills/researches/{researchId}/recommendations
+   * 3. Extract pills from recommendations.case{1|2|3} based on selectedUseCase
+   * 4. Store valid pills in currentPills state
+   * 5. Pills are then attached to assistant messages in sendMessage/handlePillClick
+   * 
+   * Dependencies: pillsEnabled, selectedResearchId, selectedCampaignGoalId, selectedUseCase
+   */
   useEffect(() => {
     const loadPills = async () => {
+      console.log('[Pills] ===== LOAD PILLS EFFECT =====')
+      console.log('[Pills] Dependencies:', {
+        pillsEnabled,
+        selectedResearchId,
+        selectedCampaignGoalId,
+        selectedUseCase
+      })
+      
       if (!pillsEnabled) {
         console.log('[Pills] Pills disabled, clearing pills')
         setCurrentPills([])
@@ -215,7 +234,11 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         return
       }
 
-      console.log('[Pills] Loading pills for research:', selectedResearchId, 'useCase:', selectedUseCase, 'campaignGoal:', selectedCampaignGoalId)
+      console.log('[Pills] ✅ Conditions met, loading pills...')
+      console.log('[Pills] Research ID:', selectedResearchId)
+      console.log('[Pills] Use Case:', selectedUseCase)
+      console.log('[Pills] Campaign Goal:', selectedCampaignGoalId || 'none')
+      
       setLoadingPills(true)
       try {
         const url = `/api/segue-pills/researches/${selectedResearchId}/recommendations?` +
@@ -226,17 +249,22 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         const data = await response.json()
         
         if (!response.ok) {
-          console.error('[Pills] API error:', data.error || 'Failed to load pills', { status: response.status })
+          console.error('[Pills] ❌ API error:', data.error || 'Failed to load pills', { status: response.status })
           setCurrentPills([])
           return
         }
         
-        console.log('[Pills] Received recommendations:', { hasRecommendations: !!data.recommendations, hasPillLibrary: !!data.pillLibrary })
+        console.log('[Pills] ✅ API response received:', {
+          hasRecommendations: !!data.recommendations,
+          hasPillLibrary: !!data.pillLibrary,
+          responseKeys: Object.keys(data)
+        })
         
         // Select pills based on use case
         const recommendations = data.recommendations
         if (!recommendations) {
-          console.warn('[Pills] No recommendations found in response. Make sure pills have been generated in the Research Lab.')
+          console.warn('[Pills] ❌ No recommendations found in response')
+          console.warn('[Pills] Make sure pills have been generated in the Research Lab')
           setCurrentPills([])
           return
         }
@@ -246,15 +274,25 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                         recommendations.case3
         
         if (!caseRec) {
-          console.warn(`[Pills] No case ${selectedUseCase} recommendation found`, { recommendations })
+          console.warn(`[Pills] ❌ No case ${selectedUseCase} recommendation found`)
+          console.warn('[Pills] Available cases:', {
+            hasCase1: !!recommendations.case1,
+            hasCase2: !!recommendations.case2,
+            hasCase3: !!recommendations.case3
+          })
           setCurrentPills([])
           return
         }
         
-        console.log('[Pills] Case recommendation:', { useCase: selectedUseCase, pillsCount: caseRec.pills?.length, pills: caseRec.pills })
+        console.log('[Pills] ✅ Case recommendation found:', {
+          useCase: selectedUseCase,
+          pillsCount: caseRec.pills?.length,
+          pills: caseRec.pills?.map((p: any) => ({ id: p.id, label: p.label, type: p.type }))
+        })
         
         if (!Array.isArray(caseRec.pills)) {
-          console.warn('[Pills] Invalid case recommendation structure - pills is not an array:', caseRec)
+          console.warn('[Pills] ❌ Invalid case recommendation structure - pills is not an array')
+          console.warn('[Pills] CaseRec structure:', caseRec)
           setCurrentPills([])
           return
         }
@@ -263,15 +301,17 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         const validPills = caseRec.pills.filter((p: any) => {
           const isValid = p && p.id && p.label
           if (!isValid) {
-            console.warn('[Pills] Invalid pill structure:', p)
+            console.warn('[Pills] ⚠️ Invalid pill structure:', p)
           }
           return isValid
         })
         
-        console.log('[Pills] Valid pills loaded:', validPills.length, validPills.map((p: any) => ({ id: p.id, label: p.label, type: p.type })))
+        console.log('[Pills] ✅ Valid pills loaded:', validPills.length)
+        console.log('[Pills] Pills:', validPills.map((p: any) => ({ id: p.id, label: p.label, type: p.type })))
         setCurrentPills(validPills)
+        console.log('[Pills] ===== LOAD PILLS COMPLETE =====')
       } catch (error) {
-        console.error('[Pills] Failed to load pills:', error)
+        console.error('[Pills] ❌ Failed to load pills:', error)
         setCurrentPills([])
       } finally {
         setLoadingPills(false)
@@ -446,12 +486,14 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                               currentPills.length > 0 &&
                               availablePills.length > 0
 
-      console.log('[Pills] sendMessage - shouldShowPills:', shouldShowPills, {
+      console.log('[Pills] ===== SEND MESSAGE =====')
+      console.log('[Pills] Pills check:', {
         pillsEnabled,
-        pillsShownCount,
+        pillsShownCount: `${pillsShownCount}/3`,
         currentPillsCount: currentPills.length,
         availablePillsCount: availablePills.length,
-        usedPillIds: Array.from(usedPillIds)
+        usedPillIds: Array.from(usedPillIds),
+        shouldShowPills
       })
 
       const assistantMessage: ChatMessage = {
@@ -468,11 +510,20 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         pills: shouldShowPills ? availablePills : undefined
       }
       
-      setMessages((current) => [...current, assistantMessage])
-      
       if (shouldShowPills) {
+        console.log('[Pills] ✅ Attaching pills to message:', availablePills.map(p => p.label))
         setPillsShownCount(prev => prev + 1)
+      } else {
+        console.log('[Pills] ❌ Not showing pills:', {
+          reason: !pillsEnabled ? 'pills disabled' :
+                  pillsShownCount >= 3 ? 'already shown 3 times' :
+                  currentPills.length === 0 ? 'no pills loaded' :
+                  availablePills.length === 0 ? 'all pills used' : 'unknown'
+        })
       }
+      
+      setMessages((current) => [...current, assistantMessage])
+      console.log('[Pills] ===== SEND MESSAGE COMPLETE =====')
     } catch (error) {
       setMessages((current) => [
         ...current,
@@ -550,85 +601,108 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
             {/* Segue Pills Configuration - Only show if showPillsFeature is true */}
             {showPillsFeature && (
               <div className="space-y-2 pt-2 border-t border-border">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="enable-pills"
-                      checked={pillsEnabled}
-                      onChange={async (e) => {
-                        const newValue = e.target.checked
-                        console.log('[Pills] Checkbox changed:', { newValue, loadingResearches, availableResearchesCount: availableResearches.length })
-                        
-                        // Prevent enabling if researches aren't ready
-                        if (newValue) {
-                          if (loadingResearches) {
-                            console.warn('[Pills] Cannot enable: still loading researches')
-                            e.target.checked = false
-                            alert('Please wait for research projects to load...')
-                            return
+                {/* Enable Pills Toggle */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="enable-pills"
+                        checked={pillsEnabled}
+                        onChange={(e) => {
+                          const newValue = e.target.checked
+                          console.log('[Pills] ===== CHECKBOX TOGGLE =====')
+                          console.log('[Pills] New value:', newValue)
+                          console.log('[Pills] Current state:', {
+                            pillsEnabled,
+                            loadingResearches,
+                            availableResearchesCount: availableResearches.length,
+                            selectedResearchId,
+                            currentPillsCount: currentPills.length
+                          })
+                          
+                          // Validation before enabling
+                          if (newValue) {
+                            if (loadingResearches) {
+                              console.warn('[Pills] ❌ Cannot enable: still loading researches')
+                              e.preventDefault()
+                              return
+                            }
+                            
+                            if (!Array.isArray(availableResearches) || availableResearches.length === 0) {
+                              console.warn('[Pills] ❌ Cannot enable: no researches available')
+                              console.warn('[Pills] Available researches:', availableResearches)
+                              e.preventDefault()
+                              return
+                            }
+                            
+                            console.log('[Pills] ✅ Validation passed, enabling pills')
+                          } else {
+                            console.log('[Pills] Disabling pills, clearing state')
                           }
                           
-                          if (!Array.isArray(availableResearches) || availableResearches.length === 0) {
-                            console.warn('[Pills] Cannot enable: no researches available', { availableResearches })
-                            e.target.checked = false
-                            alert('No research projects with generated pills available. Please generate pills in the Research Lab first.')
-                            return
-                          }
-                        }
-                        
-                        // Safe state update
-                        try {
-                          console.log('[Pills] Setting pillsEnabled to:', newValue)
+                          // Update state
                           setPillsEnabled(newValue)
                           
-                          // If disabling, clear pills state
+                          // Clear state when disabling
                           if (!newValue) {
                             setSelectedResearchId('')
                             setSelectedCampaignGoalId('')
                             setCurrentPills([])
                             setUsedPillIds(new Set())
                             setPillsShownCount(0)
+                            console.log('[Pills] State cleared')
                           }
-                        } catch (error) {
-                          console.error('[Pills] Error setting pillsEnabled:', error)
-                          e.target.checked = !newValue
-                          alert('An error occurred. Please try again.')
-                        }
-                      }}
-                      className="h-4 w-4"
-                      disabled={loadingResearches || !Array.isArray(availableResearches) || availableResearches.length === 0}
-                    />
-                    <label htmlFor="enable-pills" className="text-xs text-foreground cursor-pointer">
-                      Enable Segue Pills
-                    </label>
+                          
+                          console.log('[Pills] ===== CHECKBOX TOGGLE COMPLETE =====')
+                        }}
+                        className="h-4 w-4 cursor-pointer"
+                        disabled={loadingResearches}
+                      />
+                      <label htmlFor="enable-pills" className="text-xs font-medium text-foreground cursor-pointer">
+                        Enable Segue Pills
+                      </label>
+                    </div>
+                    
+                    {/* Debug indicator */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <div className="text-xs text-muted-foreground">
+                        {pillsEnabled ? '🟢 ON' : '⚪ OFF'}
+                      </div>
+                    )}
                   </div>
                   
-                  {/* Status message */}
-                  {loadingResearches && (
-                    <p className="text-xs text-muted-foreground ml-6">Loading research projects...</p>
-                  )}
-                  {!loadingResearches && (!Array.isArray(availableResearches) || availableResearches.length === 0) && (
-                    <div className="ml-6 space-y-1">
-                      <p className="text-xs text-muted-foreground">
-                        No research projects with pills available.
+                  {/* Status messages */}
+                  <div className="ml-6 space-y-1">
+                    {loadingResearches && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400">
+                        ⏳ Loading research projects...
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        To enable pills:
+                    )}
+                    
+                    {!loadingResearches && (!Array.isArray(availableResearches) || availableResearches.length === 0) && (
+                      <div className="space-y-1">
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          ⚠️ No research projects with pills available
+                        </p>
+                        <details className="text-xs text-muted-foreground">
+                          <summary className="cursor-pointer hover:text-foreground">How to enable pills</summary>
+                          <ol className="ml-4 mt-1 list-decimal space-y-0.5">
+                            <li>Go to the Research Lab</li>
+                            <li>Generate questions and cluster intents</li>
+                            <li>Generate pill recommendations</li>
+                            <li>Return here to test them</li>
+                          </ol>
+                        </details>
+                      </div>
+                    )}
+                    
+                    {!loadingResearches && Array.isArray(availableResearches) && availableResearches.length > 0 && (
+                      <p className="text-xs text-green-600 dark:text-green-400">
+                        ✅ {availableResearches.length} research project{availableResearches.length !== 1 ? 's' : ''} available
                       </p>
-                      <ol className="text-xs text-muted-foreground ml-4 list-decimal">
-                        <li>Go to the Research Lab</li>
-                        <li>Generate questions and cluster intents</li>
-                        <li>Generate pill recommendations</li>
-                        <li>Return here to test them</li>
-                      </ol>
-                    </div>
-                  )}
-                  {!loadingResearches && Array.isArray(availableResearches) && availableResearches.length > 0 && (
-                    <p className="text-xs text-green-600 dark:text-green-400 ml-6">
-                      ✓ {availableResearches.length} research project{availableResearches.length !== 1 ? 's' : ''} with pills available
-                    </p>
-                  )}
+                    )}
+                  </div>
                 </div>
               
               {pillsEnabled && Array.isArray(availableResearches) && (
@@ -773,18 +847,65 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                     </div>
                   </div>
                   
-                  {loadingPills && (
-                    <p className="text-xs text-muted-foreground">Loading pills...</p>
-                  )}
-                  {!loadingPills && pillsEnabled && selectedResearchId && currentPills.length === 0 && (
-                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                      ⚠ No pills loaded. Check console for errors.
-                    </p>
-                  )}
-                  {!loadingPills && pillsEnabled && selectedResearchId && currentPills.length > 0 && (
-                    <p className="text-xs text-green-600 dark:text-green-400">
-                      ✓ {currentPills.length} pill{currentPills.length !== 1 ? 's' : ''} ready
-                    </p>
+                  {/* Pills Status */}
+                  <div className="space-y-1">
+                    {loadingPills && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400">
+                        ⏳ Loading pills...
+                      </p>
+                    )}
+                    {!loadingPills && pillsEnabled && selectedResearchId && currentPills.length === 0 && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        ⚠️ No pills loaded. Check console for errors.
+                      </p>
+                    )}
+                    {!loadingPills && pillsEnabled && selectedResearchId && currentPills.length > 0 && (
+                      <p className="text-xs text-green-600 dark:text-green-400">
+                        ✅ {currentPills.length} pill{currentPills.length !== 1 ? 's' : ''} ready
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Debug Panel (Development only) */}
+                  {process.env.NODE_ENV === 'development' && pillsEnabled && (
+                    <details className="text-xs border border-border rounded p-2 bg-muted/50">
+                      <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground">
+                        🔍 Debug Info
+                      </summary>
+                      <div className="mt-2 space-y-1 font-mono text-[10px]">
+                        <div>Enabled: {pillsEnabled ? '✅' : '❌'}</div>
+                        <div>Research ID: {selectedResearchId || 'none'}</div>
+                        <div>Campaign Goal: {selectedCampaignGoalId || 'none'}</div>
+                        <div>Use Case: {selectedUseCase}</div>
+                        <div>Available Researches: {availableResearches.length}</div>
+                        <div>Current Pills: {currentPills.length}</div>
+                        <div>Pills Shown: {pillsShownCount}/3</div>
+                        <div>Used Pills: {usedPillIds.size}</div>
+                        <div>Loading Pills: {loadingPills ? '⏳' : '✅'}</div>
+                        <div>Loading Researches: {loadingResearches ? '⏳' : '✅'}</div>
+                        {selectedResearchId && (
+                          <div className="mt-2 pt-2 border-t border-border">
+                            <div className="font-semibold">Selected Research:</div>
+                            {(() => {
+                              const research = availableResearches.find(r => r.id === selectedResearchId)
+                              if (research) {
+                                const researchData = research as any
+                                return (
+                                  <>
+                                    <div>Name: {research.name}</div>
+                                    <div>Status: {research.status}</div>
+                                    <div>Q&A Project: {researchData.qaProject?.name || 'none'}</div>
+                                    <div>Has Intent Clusters: {researchData.intentClusters ? '✅' : '❌'}</div>
+                                    <div>Has Recommendations: {researchData.recommendations ? '✅' : '❌'}</div>
+                                  </>
+                                )
+                              }
+                              return <div>Research not found</div>
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    </details>
                   )}
                 </>
               )}
