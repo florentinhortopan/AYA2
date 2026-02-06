@@ -55,9 +55,9 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
   const endRef = useRef<HTMLDivElement>(null)
   const projectName = projects.find((project) => project.id === selectedProjectId)?.name || 'Project'
   
-  // Pills state
-  const [pillsEnabled, setPillsEnabled] = useState(false)
+  // Pills state - pills are enabled when a research is selected
   const [selectedResearchId, setSelectedResearchId] = useState<string>('')
+  const pillsEnabled = !!selectedResearchId // Derived state: enabled when research is selected
   const [selectedCampaignGoalId, setSelectedCampaignGoalId] = useState<string>('')
   const [selectedUseCase, setSelectedUseCase] = useState<1 | 2 | 3>(1)
   const [availableResearches, setAvailableResearches] = useState<SeguePillResearch[]>([])
@@ -190,9 +190,20 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
     loadPillsData()
   }, [open, showPillsFeature])
 
+  // Reset pills state when research is cleared
+  useEffect(() => {
+    if (!selectedResearchId) {
+      setSelectedCampaignGoalId('')
+      setCurrentPills([])
+      setUsedPillIds(new Set())
+      setPillsShownCount(0)
+      console.log('[Pills] Research cleared, pills state reset')
+    }
+  }, [selectedResearchId])
+
   // Auto-select linked Q&A project when research is selected
   useEffect(() => {
-    if (!pillsEnabled || !selectedResearchId || availableResearches.length === 0) {
+    if (!selectedResearchId || availableResearches.length === 0) {
       return
     }
 
@@ -214,35 +225,28 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
     } catch (error) {
       console.error('Error auto-selecting Q&A project:', error)
     }
-  }, [selectedResearchId, availableResearches, pillsEnabled, selectedProjectId])
+  }, [selectedResearchId, availableResearches, selectedProjectId])
 
   /**
    * PILLS LOADING LOGIC
    * 
    * Flow:
-   * 1. When pillsEnabled=true AND selectedResearchId is set, fetch recommendations
+   * 1. When selectedResearchId is set, fetch recommendations (pills are auto-enabled)
    * 2. API: GET /api/segue-pills/researches/{researchId}/recommendations
    * 3. Extract pills from recommendations.case{1|2|3} based on selectedUseCase
    * 4. Store valid pills in currentPills state
    * 5. Pills are then attached to assistant messages in sendMessage/handlePillClick
    * 
-   * Dependencies: pillsEnabled, selectedResearchId, selectedCampaignGoalId, selectedUseCase
+   * Dependencies: selectedResearchId, selectedCampaignGoalId, selectedUseCase
    */
   useEffect(() => {
     const loadPills = async () => {
       console.log('[Pills] ===== LOAD PILLS EFFECT =====')
       console.log('[Pills] Dependencies:', {
-        pillsEnabled,
         selectedResearchId,
         selectedCampaignGoalId,
         selectedUseCase
       })
-      
-      if (!pillsEnabled) {
-        console.log('[Pills] Pills disabled, clearing pills')
-        setCurrentPills([])
-        return
-      }
       
       if (!selectedResearchId) {
         console.log('[Pills] No research selected, clearing pills')
@@ -335,7 +339,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
     }
 
     loadPills()
-  }, [pillsEnabled, selectedResearchId, selectedCampaignGoalId, selectedUseCase])
+  }, [selectedResearchId, selectedCampaignGoalId, selectedUseCase])
 
   const toggleQuestionStatus = (status: QuestionStatus) => {
     setQuestionStatuses((current) => {
@@ -403,14 +407,14 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
 
       // Determine if we should show pills
       const availablePills = currentPills.filter(p => p && p.id && !usedPillIds.has(p.id) && p.id !== pill.id)
-      const shouldShowPills = pillsEnabled && 
+      const shouldShowPills = !!selectedResearchId && 
                               pillsShownCount < 3 && 
                               Array.isArray(currentPills) && 
                               currentPills.length > 0 &&
                               availablePills.length > 0
 
       console.log('[Pills] handlePillClick - shouldShowPills:', shouldShowPills, {
-        pillsEnabled,
+        selectedResearchId,
         pillsShownCount,
         currentPillsCount: currentPills.length,
         availablePillsCount: availablePills.length,
@@ -494,9 +498,9 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         metaParts.push(`Answer: ${String(data.matchedAnswerStatus).replace('_', ' ')}`)
       }
 
-      // Determine if we should show pills (first 3 assistant messages, pills enabled)
+      // Determine if we should show pills (first 3 assistant messages, research selected)
       const availablePills = currentPills.filter(p => p && p.id && !usedPillIds.has(p.id))
-      const shouldShowPills = pillsEnabled && 
+      const shouldShowPills = !!selectedResearchId && 
                               pillsShownCount < 3 && 
                               Array.isArray(currentPills) && 
                               currentPills.length > 0 &&
@@ -504,7 +508,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
 
       console.log('[Pills] ===== SEND MESSAGE =====')
       console.log('[Pills] Pills check:', {
-        pillsEnabled,
+        selectedResearchId,
         pillsShownCount: `${pillsShownCount}/3`,
         currentPillsCount: currentPills.length,
         availablePillsCount: availablePills.length,
@@ -531,7 +535,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         setPillsShownCount(prev => prev + 1)
       } else {
         console.log('[Pills] ❌ Not showing pills:', {
-          reason: !pillsEnabled ? 'pills disabled' :
+          reason: !selectedResearchId ? 'no research selected' :
                   pillsShownCount >= 3 ? 'already shown 3 times' :
                   currentPills.length === 0 ? 'no pills loaded' :
                   availablePills.length === 0 ? 'all pills used' : 'unknown'
@@ -617,81 +621,61 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
             {/* Segue Pills Configuration - Only show if showPillsFeature is true */}
             {showPillsFeature && (
               <div className="space-y-2 pt-2 border-t border-border">
-                {/* Enable Pills Toggle */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="enable-pills"
-                        checked={pillsEnabled}
-                        onChange={(e) => {
-                          const newValue = e.target.checked
-                          console.log('[Pills] ===== CHECKBOX TOGGLE =====')
-                          console.log('[Pills] New value:', newValue)
-                          console.log('[Pills] Current state:', {
-                            pillsEnabled,
-                            loadingResearches,
-                            availableResearchesCount: availableResearches.length,
-                            availableResearches: availableResearches,
-                            selectedResearchId,
-                            currentPillsCount: currentPills.length
-                          })
-                          
-                          // Validation before enabling - if validation fails, revert checkbox
-                          if (newValue) {
-                            if (loadingResearches) {
-                              console.warn('[Pills] ❌ Cannot enable: still loading researches')
-                              e.target.checked = false // Revert checkbox
-                              alert('Please wait for research projects to load...')
-                              return
-                            }
-                            
-                            if (!Array.isArray(availableResearches) || availableResearches.length === 0) {
-                              console.warn('[Pills] ❌ Cannot enable: no researches available')
-                              console.warn('[Pills] Available researches:', availableResearches)
-                              e.target.checked = false // Revert checkbox
-                              alert('No research projects with generated pills available. Please generate pills in the Research Lab first.')
-                              return
-                            }
-                            
-                            console.log('[Pills] ✅ Validation passed, enabling pills')
-                            // Only update state if validation passes
-                            setPillsEnabled(true)
-                          } else {
-                            console.log('[Pills] Disabling pills, clearing state')
-                            // Always allow disabling
-                            setPillsEnabled(false)
-                            
-                            // Clear state when disabling
-                            setSelectedResearchId('')
-                            setSelectedCampaignGoalId('')
-                            setCurrentPills([])
-                            setUsedPillIds(new Set())
-                            setPillsShownCount(0)
-                            console.log('[Pills] State cleared')
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-foreground">Segue Pills Research Project</p>
+                  <Select 
+                    value={selectedResearchId || undefined} 
+                    onValueChange={(value) => {
+                      try {
+                        console.log('[Pills] ===== RESEARCH SELECTED =====')
+                        console.log('[Pills] Selected value:', value)
+                        
+                        if (!value || value === '__none__') {
+                          console.log('[Pills] Clearing research selection')
+                          setSelectedResearchId('')
+                          setCurrentPills([])
+                          return
+                        }
+                        
+                        setSelectedResearchId(value)
+                        console.log('[Pills] ✅ Research selected:', value)
+                        
+                        // Show which Q&A project is linked
+                        const selectedResearch = availableResearches.find(r => r.id === value)
+                        if (selectedResearch) {
+                          const researchData = selectedResearch as any
+                          if (researchData.qaProject) {
+                            console.log('[Pills] Research linked to Q&A project:', researchData.qaProject.name)
                           }
-                          
-                          console.log('[Pills] ===== CHECKBOX TOGGLE COMPLETE =====')
-                        }}
-                        className="h-4 w-4 cursor-pointer"
-                        disabled={loadingResearches}
-                      />
-                      <label htmlFor="enable-pills" className="text-xs font-medium text-foreground cursor-pointer">
-                        Enable Segue Pills
-                      </label>
-                    </div>
-                    
-                    {/* Debug indicator */}
-                    {process.env.NODE_ENV === 'development' && (
-                      <div className="text-xs text-muted-foreground">
-                        {pillsEnabled ? '🟢 ON' : '⚪ OFF'}
-                      </div>
-                    )}
-                  </div>
+                        }
+                      } catch (error) {
+                        console.error('[Pills] ❌ Error selecting research:', error)
+                        setSelectedResearchId('')
+                      }
+                    }}
+                    disabled={loadingPills || loadingResearches || !Array.isArray(availableResearches) || availableResearches.length === 0}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder={loadingResearches ? "Loading..." : "Select research project..."} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">None (disable pills)</SelectItem>
+                      {availableResearches && availableResearches.length > 0 ? (
+                        availableResearches.map((research) => {
+                          const researchData = research as any
+                          const linkedProject = researchData.qaProject?.name || 'No Q&A project'
+                          return (
+                            <SelectItem key={research.id} value={research.id}>
+                              {research.name} ({linkedProject})
+                            </SelectItem>
+                          )
+                        })
+                      ) : null}
+                    </SelectContent>
+                  </Select>
                   
                   {/* Status messages */}
-                  <div className="ml-6 space-y-1">
+                  <div className="space-y-1">
                     {loadingResearches && (
                       <p className="text-xs text-blue-600 dark:text-blue-400">
                         ⏳ Loading research projects...
@@ -704,7 +688,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                           ⚠️ No research projects with pills available
                         </p>
                         <details className="text-xs text-muted-foreground">
-                          <summary className="cursor-pointer hover:text-foreground">How to enable pills</summary>
+                          <summary className="cursor-pointer hover:text-foreground">How to create pills</summary>
                           <ol className="ml-4 mt-1 list-decimal space-y-0.5">
                             <li>Go to the Research Lab</li>
                             <li>Generate questions and cluster intents</li>
@@ -720,56 +704,24 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                         ✅ {availableResearches.length} research project{availableResearches.length !== 1 ? 's' : ''} available
                       </p>
                     )}
+                    
+                    {selectedResearchId && (() => {
+                      const selectedResearch = availableResearches.find(r => r.id === selectedResearchId)
+                      const researchData = selectedResearch as any
+                      if (researchData?.qaProject) {
+                        return (
+                          <p className="text-xs text-muted-foreground">
+                            Linked to Q&A project: <span className="font-semibold">{researchData.qaProject.name}</span>
+                          </p>
+                        )
+                      }
+                      return null
+                    })()}
                   </div>
                 </div>
               
-              {pillsEnabled && Array.isArray(availableResearches) && (
+              {selectedResearchId && Array.isArray(availableResearches) && (
                 <>
-                  <div className="space-y-1">
-                    <p className="text-xs text-muted-foreground">Research Project</p>
-                    <Select 
-                      value={selectedResearchId || undefined} 
-                      onValueChange={(value) => {
-                        try {
-                          if (!value || value === '__none__') {
-                            setSelectedResearchId('')
-                            setCurrentPills([])
-                            return
-                          }
-                          setSelectedResearchId(value)
-                          
-                          // Show which Q&A project is linked
-                          const selectedResearch = availableResearches.find(r => r.id === value)
-                          if (selectedResearch) {
-                            const researchData = selectedResearch as any
-                            if (researchData.qaProject) {
-                              console.log('Research linked to Q&A project:', researchData.qaProject.name)
-                            }
-                          }
-                        } catch (error) {
-                          console.error('Error selecting research:', error)
-                          setSelectedResearchId('')
-                        }
-                      }}
-                      disabled={loadingPills || !Array.isArray(availableResearches) || availableResearches.length === 0}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select research..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableResearches && availableResearches.length > 0 ? (
-                          availableResearches.map((research) => {
-                            const researchData = research as any
-                            const linkedProject = researchData.qaProject?.name || 'No Q&A project'
-                            return (
-                              <SelectItem key={research.id} value={research.id}>
-                                {research.name} ({linkedProject})
-                              </SelectItem>
-                            )
-                          })
-                        ) : null}
-                      </SelectContent>
-                    </Select>
                     {selectedResearchId && (() => {
                       const selectedResearch = availableResearches.find(r => r.id === selectedResearchId)
                       const researchData = selectedResearch as any
@@ -872,12 +824,12 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                         ⏳ Loading pills...
                       </p>
                     )}
-                    {!loadingPills && pillsEnabled && selectedResearchId && currentPills.length === 0 && (
+                    {!loadingPills && selectedResearchId && currentPills.length === 0 && (
                       <p className="text-xs text-amber-600 dark:text-amber-400">
                         ⚠️ No pills loaded. Check console for errors.
                       </p>
                     )}
-                    {!loadingPills && pillsEnabled && selectedResearchId && currentPills.length > 0 && (
+                    {!loadingPills && selectedResearchId && currentPills.length > 0 && (
                       <p className="text-xs text-green-600 dark:text-green-400">
                         ✅ {currentPills.length} pill{currentPills.length !== 1 ? 's' : ''} ready
                       </p>
@@ -903,8 +855,8 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                               console.log('[Pills] ===== MANUAL TEST LOG =====')
                               console.log('[Pills] This is a test log to verify console is working')
                               console.log('[Pills] Current state:', {
-                                pillsEnabled,
                                 selectedResearchId,
+                                pillsEnabled: !!selectedResearchId,
                                 availableResearches: availableResearches.length,
                                 currentPills: currentPills.length,
                                 showPillsFeature
@@ -916,7 +868,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                             🧪 Test Console Log
                           </Button>
                         </div>
-                        <div>Enabled: {pillsEnabled ? '✅' : '❌'}</div>
+                        <div>Enabled: {!!selectedResearchId ? '✅' : '❌'}</div>
                         <div>Research ID: {selectedResearchId || 'none'}</div>
                         <div>Campaign Goal: {selectedCampaignGoalId || 'none'}</div>
                         <div>Use Case: {selectedUseCase}</div>
