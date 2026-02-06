@@ -16,7 +16,7 @@ interface ChatMessage {
 }
 
 interface ProjectChatbotProps {
-  projectId: string
+  projectId?: string
 }
 
 interface SeguePillResearch {
@@ -31,7 +31,7 @@ interface SegueCampaignGoal {
   goalType: string
 }
 
-export function ProjectChatbot({ projectId }: ProjectChatbotProps) {
+export function ProjectChatbot({ projectId = '' }: ProjectChatbotProps) {
   const [open, setOpen] = useState(false)
   const [projects, setProjects] = useState<ContentProject[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState(projectId)
@@ -65,8 +65,13 @@ export function ProjectChatbot({ projectId }: ProjectChatbotProps) {
   ]
 
   useEffect(() => {
-    setSelectedProjectId(projectId)
-  }, [projectId])
+    if (projectId) {
+      setSelectedProjectId(projectId)
+    } else if (projects.length > 0 && !selectedProjectId) {
+      // Auto-select first project if no projectId provided
+      setSelectedProjectId(projects[0].id)
+    }
+  }, [projectId, projects])
 
   useEffect(() => {
     if (open) {
