@@ -395,6 +395,34 @@ export default function SeguePillsResearchLab() {
                 </div>
 
                 <div>
+                  <Label htmlFor="qaProjectSelect">Link to Q&A Project *</Label>
+                  <select
+                    id="qaProjectSelect"
+                    value={selectedProjectId}
+                    onChange={(e) => setSelectedProjectId(e.target.value)}
+                    className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
+                    required
+                  >
+                    <option value="">Choose a Q&A project...</option>
+                    {availableProjects.map(project => (
+                      <option key={project.id} value={project.id}>
+                        {project.name} ({project.questionCount || 0} questions)
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    This pill research will be linked to the selected Q&A project. The chatbot will use this project&apos;s Q&A content when testing pills.
+                  </p>
+                  {selectedProjectId && availableProjects.find(p => p.id === selectedProjectId) && (
+                    <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-sm">
+                      <p className="font-semibold text-green-800 dark:text-green-200">
+                        ✓ Linked to: {availableProjects.find(p => p.id === selectedProjectId)?.name}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
                   <Label>Question Source</Label>
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     <button
