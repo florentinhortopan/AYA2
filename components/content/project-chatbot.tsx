@@ -722,20 +722,6 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
               
               {selectedResearchId && Array.isArray(availableResearches) && (
                 <>
-                    {selectedResearchId && (() => {
-                      const selectedResearch = availableResearches.find(r => r.id === selectedResearchId)
-                      const researchData = selectedResearch as any
-                      if (researchData?.qaProject) {
-                        return (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Linked to Q&A project: <span className="font-semibold">{researchData.qaProject.name}</span>
-                          </p>
-                        )
-                      }
-                      return null
-                    })()}
-                  </div>
-                  
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Campaign Goal (optional)</p>
                     <Select 
