@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -34,6 +35,9 @@ interface PillRecommendations {
 }
 
 export default function SeguePillsResearchLab() {
+  const searchParams = useSearchParams()
+  const researchIdParam = searchParams.get('researchId')
+  
   const [phase, setPhase] = useState<ResearchPhase>('setup')
   const [isLoading, setIsLoading] = useState(false)
   
@@ -54,6 +58,7 @@ export default function SeguePillsResearchLab() {
   const [recommendations, setRecommendations] = useState<PillRecommendations | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [savedResearchId, setSavedResearchId] = useState<string | null>(null)
+  const [loadingExistingResearch, setLoadingExistingResearch] = useState(false)
 
   const personas = [
     { id: 'high_school', label: 'High School Student' },
@@ -85,6 +90,55 @@ export default function SeguePillsResearchLab() {
         : [...prev, topicId]
     )
   }
+
+  // Load existing research if researchId is provided
+  useEffect(() => {
+    const loadExistingResearch = async () => {
+      if (!researchIdParam) return
+
+      setLoadingExistingResearch(true)
+      try {
+        const response = await fetch(`/api/segue-pills/researches/${researchIdParam}`)
+        if (response.ok) {
+          const data = await response.json()
+          const research = data.research || data
+          
+          // Load research data
+          setProjectName(research.name || '')
+          setSelectedProjectId(research.qaProjectId || '')
+          setSelectedGoalId(research.campaignGoalId || '')
+          setSelectedPersonas(research.personas || [])
+          setSelectedTopics(research.topics || [])
+          setQuestionCount(research.questionCount || 100)
+          setSavedResearchId(research.id)
+          
+          // Load generated data
+          if (research.syntheticQuestions) {
+            setQuestions(Array.isArray(research.syntheticQuestions) ? research.syntheticQuestions : [])
+          }
+          if (research.intentClusters) {
+            setIntentClusters(Array.isArray(research.intentClusters) ? research.intentClusters : [])
+            setPhase('recommendations')
+          }
+          if (research.recommendations) {
+            setRecommendations(research.recommendations)
+            setPhase('complete')
+          } else if (research.intentClusters) {
+            setPhase('recommendations')
+          } else if (research.syntheticQuestions) {
+            setPhase('clustering')
+          }
+        }
+      } catch (err) {
+        console.error('Error loading existing research:', err)
+        setError('Failed to load research project')
+      } finally {
+        setLoadingExistingResearch(false)
+      }
+    }
+
+    loadExistingResearch()
+  }, [researchIdParam])
 
   // Load available projects and campaign goals on mount
   useEffect(() => {
@@ -365,6 +419,12 @@ export default function SeguePillsResearchLab() {
             </a>
           </div>
         </div>
+
+        {loadingExistingResearch && (
+          <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 p-4 mb-6">
+            <p className="text-blue-800 dark:text-blue-200">Loading existing research project...</p>
+          </Card>
+        )}
 
         {error && (
           <Card className="bg-red-50 border-red-200 p-4 mb-6">
