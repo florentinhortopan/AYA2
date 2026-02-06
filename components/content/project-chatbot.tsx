@@ -163,7 +163,33 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
     loadPillsData()
   }, [open, showPillsFeature])
 
-  // Load pills when configuration changes and auto-select linked Q&A project
+  // Auto-select linked Q&A project when research is selected
+  useEffect(() => {
+    if (!pillsEnabled || !selectedResearchId || availableResearches.length === 0) {
+      return
+    }
+
+    try {
+      const selectedResearch = availableResearches.find(r => r.id === selectedResearchId)
+      if (selectedResearch) {
+        const researchData = selectedResearch as any
+        if (researchData.qaProject && researchData.qaProject.id) {
+          const linkedProjectId = researchData.qaProject.id
+          // Only update if different from current selection
+          if (linkedProjectId && linkedProjectId !== selectedProjectId) {
+            console.log('Auto-selecting linked Q&A project:', linkedProjectId)
+            setSelectedProjectId(linkedProjectId)
+          }
+        } else {
+          console.warn('Selected research has no linked Q&A project:', selectedResearchId)
+        }
+      }
+    } catch (error) {
+      console.error('Error auto-selecting Q&A project:', error)
+    }
+  }, [selectedResearchId, availableResearches, pillsEnabled, selectedProjectId])
+
+  // Load pills when configuration changes
   useEffect(() => {
     const loadPills = async () => {
       if (!pillsEnabled) {
@@ -175,16 +201,6 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         // Don't load pills if no research is selected
         setCurrentPills([])
         return
-      }
-
-      // Find the selected research and auto-select its linked Q&A project
-      const selectedResearch = availableResearches.find(r => r.id === selectedResearchId)
-      if (selectedResearch && (selectedResearch as any).qaProject?.id) {
-        const linkedProjectId = (selectedResearch as any).qaProject.id
-        if (linkedProjectId && linkedProjectId !== selectedProjectId) {
-          // Auto-select the linked Q&A project
-          setSelectedProjectId(linkedProjectId)
-        }
       }
 
       setLoadingPills(true)
@@ -550,28 +566,59 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                       value={selectedResearchId || ''} 
                       onValueChange={(value) => {
                         try {
+                          if (!value) {
+                            setSelectedResearchId('')
+                            setCurrentPills([])
+                            return
+                          }
                           setSelectedResearchId(value)
+                          
+                          // Show which Q&A project is linked
+                          const selectedResearch = availableResearches.find(r => r.id === value)
+                          if (selectedResearch) {
+                            const researchData = selectedResearch as any
+                            if (researchData.qaProject) {
+                              console.log('Research linked to Q&A project:', researchData.qaProject.name)
+                            }
+                          }
                         } catch (error) {
                           console.error('Error selecting research:', error)
+                          setSelectedResearchId('')
                         }
                       }}
-                      disabled={loadingPills || !availableResearches || availableResearches.length === 0}
+                      disabled={loadingPills || !Array.isArray(availableResearches) || availableResearches.length === 0}
                     >
                       <SelectTrigger className="h-8 text-xs">
                         <SelectValue placeholder="Select research..." />
                       </SelectTrigger>
                       <SelectContent>
                         {availableResearches && availableResearches.length > 0 ? (
-                          availableResearches.map((research) => (
-                            <SelectItem key={research.id} value={research.id}>
-                              {research.name}
-                            </SelectItem>
-                          ))
+                          availableResearches.map((research) => {
+                            const researchData = research as any
+                            const linkedProject = researchData.qaProject?.name || 'No Q&A project'
+                            return (
+                              <SelectItem key={research.id} value={research.id}>
+                                {research.name} ({linkedProject})
+                              </SelectItem>
+                            )
+                          })
                         ) : (
                           <SelectItem value="" disabled>No researches available</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
+                    {selectedResearchId && (() => {
+                      const selectedResearch = availableResearches.find(r => r.id === selectedResearchId)
+                      const researchData = selectedResearch as any
+                      if (researchData?.qaProject) {
+                        return (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Linked to Q&A project: <span className="font-semibold">{researchData.qaProject.name}</span>
+                          </p>
+                        )
+                      }
+                      return null
+                    })()}
                   </div>
                   
                   <div className="space-y-1">
