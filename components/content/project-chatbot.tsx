@@ -79,7 +79,7 @@ export function ProjectChatbot({ projectId }: ProjectChatbotProps) {
       setMessages([
         {
           role: 'assistant',
-          content: 'Ask me about this project's Q&A set and I'll respond using the latest answers.',
+          content: 'Ask me about this project&apos;s Q&A set and I&apos;ll respond using the latest answers.',
           timestamp: new Date().toISOString()
         }
       ])
