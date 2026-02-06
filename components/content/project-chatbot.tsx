@@ -127,13 +127,13 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
       }
 
       try {
-        // Load researches - only those with intentClusters (pills generated)
-        const researchesResponse = await fetch('/api/segue-pills/researches?status=testing,completed')
+        // Load all researches - filter client-side to only those with intentClusters (pills generated)
+        const researchesResponse = await fetch('/api/segue-pills/researches')
         if (researchesResponse.ok) {
           const researchesData = await researchesResponse.json()
           // Filter to only researches that have intentClusters (pills generated)
           const researchesWithPills = (researchesData.researches || []).filter((r: any) => 
-            r && r.intentClusters && (r.status === 'testing' || r.status === 'completed')
+            r && r.intentClusters !== null && r.intentClusters !== undefined
           )
           setAvailableResearches(researchesWithPills || [])
         } else {
