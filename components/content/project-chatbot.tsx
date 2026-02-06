@@ -541,8 +541,14 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Campaign Goal (optional)</p>
                     <Select 
-                      value={selectedCampaignGoalId} 
-                      onValueChange={setSelectedCampaignGoalId}
+                      value={selectedCampaignGoalId || ''} 
+                      onValueChange={(value) => {
+                        try {
+                          setSelectedCampaignGoalId(value)
+                        } catch (error) {
+                          console.error('Error selecting campaign goal:', error)
+                        }
+                      }}
                       disabled={loadingPills}
                     >
                       <SelectTrigger className="h-8 text-xs">
@@ -550,11 +556,15 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="">None</SelectItem>
-                        {availableCampaignGoals.map((goal) => (
-                          <SelectItem key={goal.id} value={goal.id}>
-                            {goal.name}
-                          </SelectItem>
-                        ))}
+                        {availableCampaignGoals && availableCampaignGoals.length > 0 ? (
+                          availableCampaignGoals.map((goal) => (
+                            <SelectItem key={goal.id} value={goal.id}>
+                              {goal.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="" disabled>No goals available</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
