@@ -73,7 +73,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
       // Auto-select first project if no projectId provided
       setSelectedProjectId(projects[0].id)
     }
-  }, [projectId, projects])
+  }, [projectId, projects, selectedProjectId])
 
   useEffect(() => {
     if (open) {
