@@ -46,7 +46,13 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return jsonNoStore({ researches })
+    // Filter to only researches with intentClusters (pills generated) if status filter includes testing/completed
+    let filteredResearches = researches
+    if (statusParam && (statusParam.includes('testing') || statusParam.includes('completed'))) {
+      filteredResearches = researches.filter(r => r.intentClusters !== null)
+    }
+
+    return jsonNoStore({ researches: filteredResearches })
   } catch (error) {
     console.error('Error fetching researches:', error)
     return jsonNoStore({ error: 'Failed to fetch researches' }, { status: 500 })
