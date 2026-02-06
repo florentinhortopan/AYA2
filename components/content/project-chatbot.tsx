@@ -120,7 +120,11 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
   // Load available researches and campaign goals (only if pills feature is enabled)
   useEffect(() => {
     const loadPillsData = async () => {
-      if (!open || !showPillsFeature) return
+      if (!open || !showPillsFeature) {
+        setAvailableResearches([])
+        setAvailableCampaignGoals([])
+        return
+      }
 
       try {
         // Load researches - only those with intentClusters (pills generated)
@@ -129,9 +133,11 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
           const researchesData = await researchesResponse.json()
           // Filter to only researches that have intentClusters (pills generated)
           const researchesWithPills = (researchesData.researches || []).filter((r: any) => 
-            r.intentClusters || r.status === 'testing' || r.status === 'completed'
+            r && r.intentClusters && (r.status === 'testing' || r.status === 'completed')
           )
-          setAvailableResearches(researchesWithPills)
+          setAvailableResearches(researchesWithPills || [])
+        } else {
+          setAvailableResearches([])
         }
 
         // Load campaign goals
@@ -139,9 +145,13 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         if (goalsResponse.ok) {
           const goalsData = await goalsResponse.json()
           setAvailableCampaignGoals(goalsData.goals || [])
+        } else {
+          setAvailableCampaignGoals([])
         }
       } catch (error) {
         console.error('Failed to load pills data:', error)
+        setAvailableResearches([])
+        setAvailableCampaignGoals([])
       }
     }
 
@@ -151,7 +161,13 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
   // Load pills when configuration changes
   useEffect(() => {
     const loadPills = async () => {
-      if (!pillsEnabled || !selectedResearchId) {
+      if (!pillsEnabled) {
+        setCurrentPills([])
+        return
+      }
+      
+      if (!selectedResearchId) {
+        // Don't load pills if no research is selected
         setCurrentPills([])
         return
       }
@@ -463,11 +479,16 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                     id="enable-pills"
                     checked={pillsEnabled}
                     onChange={(e) => {
-                      if (e.target.checked && availableResearches.length === 0) {
-                        alert('No research projects with generated pills available. Please generate pills in the Research Lab first.')
-                        return
+                      try {
+                        if (e.target.checked && availableResearches.length === 0) {
+                          alert('No research projects with generated pills available. Please generate pills in the Research Lab first.')
+                          return
+                        }
+                        setPillsEnabled(e.target.checked)
+                      } catch (error) {
+                        console.error('Error enabling pills:', error)
+                        setPillsEnabled(false)
                       }
-                      setPillsEnabled(e.target.checked)
                     }}
                     className="h-4 w-4"
                     disabled={availableResearches.length === 0}
@@ -485,9 +506,15 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Research Project</p>
                     <Select 
-                      value={selectedResearchId} 
-                      onValueChange={setSelectedResearchId}
-                      disabled={loadingPills}
+                      value={selectedResearchId || ''} 
+                      onValueChange={(value) => {
+                        try {
+                          setSelectedResearchId(value)
+                        } catch (error) {
+                          console.error('Error selecting research:', error)
+                        }
+                      }}
+                      disabled={loadingPills || availableResearches.length === 0}
                     >
                       <SelectTrigger className="h-8 text-xs">
                         <SelectValue placeholder="Select research..." />
@@ -529,7 +556,13 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                       <Button
                         size="sm"
                         variant={selectedUseCase === 1 ? 'default' : 'outline'}
-                        onClick={() => setSelectedUseCase(1)}
+                        onClick={() => {
+                          try {
+                            setSelectedUseCase(1)
+                          } catch (error) {
+                            console.error('Error setting use case:', error)
+                          }
+                        }}
                         className="text-xs"
                       >
                         Case 1
@@ -537,7 +570,13 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                       <Button
                         size="sm"
                         variant={selectedUseCase === 2 ? 'default' : 'outline'}
-                        onClick={() => setSelectedUseCase(2)}
+                        onClick={() => {
+                          try {
+                            setSelectedUseCase(2)
+                          } catch (error) {
+                            console.error('Error setting use case:', error)
+                          }
+                        }}
                         className="text-xs"
                       >
                         Case 2
@@ -545,7 +584,13 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                       <Button
                         size="sm"
                         variant={selectedUseCase === 3 ? 'default' : 'outline'}
-                        onClick={() => setSelectedUseCase(3)}
+                        onClick={() => {
+                          try {
+                            setSelectedUseCase(3)
+                          } catch (error) {
+                            console.error('Error setting use case:', error)
+                          }
+                        }}
                         className="text-xs"
                       >
                         Case 3
