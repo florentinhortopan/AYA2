@@ -46,10 +46,13 @@ export default function ContentPage() {
             description="Manage Q&A generation projects, prompts, and guidelines."
             actions={(
               <div className="flex items-center gap-2">
-                <Link href="/content/segue-pills">
+                <Link href="/content/segue-pills/list">
                   <Button variant="outline" className="border-primary text-primary hover:bg-primary/10">
-                    🧪 Segue Pills Lab
+                    🧪 Pill Research
                   </Button>
+                </Link>
+                <Link href="/content/segue-pills">
+                  <Button variant="outline">New Pill Research</Button>
                 </Link>
                 <Link href="/content/prompts">
                   <Button variant="outline">Prompts</Button>
