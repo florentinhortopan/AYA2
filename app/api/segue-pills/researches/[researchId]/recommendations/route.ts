@@ -59,7 +59,7 @@ export async function GET(
       }, { status: 400 })
     }
 
-    const intentClusters = research.intentClusters as IntentCluster[]
+    const intentClusters = research.intentClusters as unknown as IntentCluster[]
     
     // Get campaign goal if specified
     let campaignGoal = research.campaignGoal
