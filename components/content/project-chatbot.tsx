@@ -506,7 +506,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                   </label>
                 </div>
               
-              {pillsEnabled && (
+              {pillsEnabled && availableResearches && (
                 <>
                   <div className="space-y-1">
                     <p className="text-xs text-muted-foreground">Research Project</p>
@@ -519,17 +519,21 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                           console.error('Error selecting research:', error)
                         }
                       }}
-                      disabled={loadingPills || availableResearches.length === 0}
+                      disabled={loadingPills || !availableResearches || availableResearches.length === 0}
                     >
                       <SelectTrigger className="h-8 text-xs">
                         <SelectValue placeholder="Select research..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {availableResearches.map((research) => (
-                          <SelectItem key={research.id} value={research.id}>
-                            {research.name}
-                          </SelectItem>
-                        ))}
+                        {availableResearches && availableResearches.length > 0 ? (
+                          availableResearches.map((research) => (
+                            <SelectItem key={research.id} value={research.id}>
+                              {research.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="" disabled>No researches available</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
