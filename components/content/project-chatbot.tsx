@@ -163,7 +163,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
     loadPillsData()
   }, [open, showPillsFeature])
 
-  // Load pills when configuration changes
+  // Load pills when configuration changes and auto-select linked Q&A project
   useEffect(() => {
     const loadPills = async () => {
       if (!pillsEnabled) {
@@ -175,6 +175,16 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         // Don't load pills if no research is selected
         setCurrentPills([])
         return
+      }
+
+      // Find the selected research and auto-select its linked Q&A project
+      const selectedResearch = availableResearches.find(r => r.id === selectedResearchId)
+      if (selectedResearch && (selectedResearch as any).qaProject?.id) {
+        const linkedProjectId = (selectedResearch as any).qaProject.id
+        if (linkedProjectId && linkedProjectId !== selectedProjectId) {
+          // Auto-select the linked Q&A project
+          setSelectedProjectId(linkedProjectId)
+        }
       }
 
       setLoadingPills(true)

@@ -42,6 +42,13 @@ export async function GET(request: NextRequest) {
             name: true,
             goalType: true
           }
+        },
+        qaProject: {
+          select: {
+            id: true,
+            name: true,
+            status: true
+          }
         }
       }
     })
@@ -82,6 +89,7 @@ export async function POST(request: NextRequest) {
       pillLibrary,
       recommendations,
       campaignGoalId,
+      qaProjectId,
       status
     } = body
 
@@ -124,6 +132,7 @@ export async function POST(request: NextRequest) {
           pillLibrary: pillLibrary || null,
           recommendations: recommendations || null,
           campaignGoalId: campaignGoalId || null,
+          qaProjectId: qaProjectId || null,
           status: finalStatus
         }
       })
@@ -145,6 +154,7 @@ export async function POST(request: NextRequest) {
           pillLibrary: pillLibrary || null,
           recommendations: recommendations || null,
           campaignGoalId: campaignGoalId || null,
+          qaProjectId: qaProjectId || null,
           status: finalStatus,
           createdById: userId
         }

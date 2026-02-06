@@ -245,6 +245,7 @@ model QaProject {
   questions      QaQuestion[]
   batchJobs      ContentBatchJob[]
   auditLogs      ContentAuditLog[]
+  pillResearches SeguePillResearch[]
 
   @@index([status])
   @@index([createdAt])
@@ -445,6 +446,10 @@ model SeguePillResearch {
   // Campaign goal
   campaignGoalId String?
   campaignGoal   SegueCampaignGoal? @relation(fields: [campaignGoalId], references: [id], onDelete: SetNull)
+
+  // Linked Q&A Project
+  qaProjectId String?
+  qaProject   QaProject? @relation(fields: [qaProjectId], references: [id], onDelete: SetNull)
 
   // Test results
   testSessions SegueTestSession[]

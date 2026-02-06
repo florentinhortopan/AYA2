@@ -284,6 +284,7 @@ export default function SeguePillsResearchLab() {
         pillLibrary: finalRecommendations?.pillLibrary || null,
         recommendations: finalRecommendations || null,
         campaignGoalId: selectedGoalId || null,
+        qaProjectId: selectedProjectId || null,
         status: finalRecommendations ? 'completed' : (intentClusters.length > 0 ? 'testing' : 'draft')
       }
 
