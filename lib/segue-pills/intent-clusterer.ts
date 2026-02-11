@@ -12,6 +12,8 @@ export interface IntentCluster {
   questions: string[]
   frequency: number
   pillCandidates: string[]
+  hasAnswers?: boolean // Whether this intent has matching answers in the Q&A project
+  matchingQuestionCount?: number // Number of matching questions with answers
 }
 
 export async function clusterQuestionsIntoIntents(

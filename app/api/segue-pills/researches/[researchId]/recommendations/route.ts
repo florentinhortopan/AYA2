@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/db'
 import { generatePillRecommendations } from '@/lib/segue-pills/pill-recommender'
+import { validatePillLabel } from '@/lib/segue-pills/answer-validator'
 import type { IntentCluster } from '@/lib/segue-pills/intent-clusterer'
+import type { PillLabel } from '@/lib/segue-pills/pill-recommender'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,6 +48,37 @@ export async function GET(
     // Check if recommendations already exist
     if (research.recommendations) {
       const existing = research.recommendations as any
+      
+      // Validate pills against answers if Q&A project is linked
+      if (research.qaProjectId && existing.pillLibrary) {
+        console.log(`[Recommendations GET] Validating existing pills against Q&A project: ${research.qaProjectId}`)
+        
+        const validatedPillLibrary: PillLabel[] = []
+        for (const pill of existing.pillLibrary) {
+          const isValid = await validatePillLabel(
+            pill.label,
+            research.qaProjectId,
+            ['approved', 'published', 'valid', 'pending'],
+            ['approved', 'published', 'valid', 'pending']
+          )
+          
+          if (isValid) {
+            validatedPillLibrary.push(pill)
+          }
+        }
+
+        // Update recommendations with validated pills
+        existing.pillLibrary = validatedPillLibrary
+
+        // Filter case recommendations
+        const filterPills = (pills: PillLabel[]) => 
+          pills.filter(p => validatedPillLibrary.some(vp => vp.id === p.id))
+
+        if (existing.case1) existing.case1.pills = filterPills(existing.case1.pills || [])
+        if (existing.case2) existing.case2.pills = filterPills(existing.case2.pills || [])
+        if (existing.case3) existing.case3.pills = filterPills(existing.case3.pills || [])
+      }
+      
       return jsonNoStore({
         recommendations: existing,
         pillLibrary: existing.pillLibrary || []
@@ -80,6 +113,40 @@ export async function GET(
       } : undefined,
       testSessions: research.testSessions
     })
+
+    // Validate pills against answers if Q&A project is linked
+    if (research.qaProjectId) {
+      console.log(`[Recommendations GET] Validating generated pills against Q&A project: ${research.qaProjectId}`)
+      
+      const validatedPillLibrary: PillLabel[] = []
+      for (const pill of recommendations.pillLibrary) {
+        const isValid = await validatePillLabel(
+          pill.label,
+          research.qaProjectId,
+          ['approved', 'published', 'valid', 'pending'],
+          ['approved', 'published', 'valid', 'pending']
+        )
+        
+        if (isValid) {
+          validatedPillLibrary.push(pill)
+        } else {
+          console.warn(`[Recommendations GET] Filtered out pill "${pill.label}" - no matching answers found`)
+        }
+      }
+
+      // Update recommendations with validated pills
+      recommendations.pillLibrary = validatedPillLibrary
+
+      // Filter case recommendations
+      const filterPills = (pills: PillLabel[]) => 
+        pills.filter(p => validatedPillLibrary.some(vp => vp.id === p.id))
+
+      recommendations.case1.pills = filterPills(recommendations.case1.pills)
+      recommendations.case2.pills = filterPills(recommendations.case2.pills)
+      recommendations.case3.pills = filterPills(recommendations.case3.pills)
+
+      console.log(`[Recommendations GET] Validated pills: ${validatedPillLibrary.length}/${recommendations.pillLibrary.length} valid`)
+    }
 
     // Optionally save recommendations back to database
     // (We'll do this async to not block the response)

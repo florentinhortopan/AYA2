@@ -262,7 +262,8 @@ function SeguePillsResearchLabContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           questions,
-          campaignGoal: selectedGoal
+          campaignGoal: selectedGoal,
+          qaProjectId: selectedProjectId // Pass Q&A project ID for answer validation
         })
       })
 
@@ -307,7 +308,8 @@ function SeguePillsResearchLabContent() {
         body: JSON.stringify({
           intentClusters,
           campaignGoal: selectedGoal,
-          testSessions: []
+          testSessions: [],
+          qaProjectId: selectedProjectId // Pass Q&A project ID for answer validation
         })
       })
 
