@@ -259,7 +259,7 @@ model QaQuestion {
   tone                 String?
   questionText         String    @db.Text
   sourceUrls           String[]
-  status               String    @default("draft") // draft, approved, rejected, published
+  status               String    @default("draft") // draft, pending, approved, rejected, published, valid, needs_review, invalid
   batchNumber          Int?
   createdFromGenerator Boolean   @default(true)
   editedById           String?
@@ -292,7 +292,7 @@ model QaAnswer {
   characterCount    Int?
   keywords          String[]
   sourceLink        String?
-  validationStatus  String    @default("pending") // pending, valid, needs_review, invalid
+  validationStatus  String    @default("pending") // draft, pending, approved, rejected, published, valid, needs_review, invalid
   validationNotes   String?
   editedById        String?
   editedAt          DateTime?

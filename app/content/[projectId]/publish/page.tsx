@@ -13,15 +13,18 @@ export default function PublishPage({ params }: { params: { projectId: string } 
   const [answers, setAnswers] = useState<ContentAnswer[]>([])
   const [loadingStats, setLoadingStats] = useState(true)
   const [statsError, setStatsError] = useState('')
-  const questionStatusOrder: QuestionStatus[] = ['approved', 'pending', 'draft', 'rejected', 'published']
-  const answerStatusOrder: AnswerValidationStatus[] = [
+  // Unified status order - same for questions and answers
+  const questionStatusOrder: QuestionStatus[] = [
     'approved',
     'pending',
     'draft',
+    'rejected',
+    'published',
     'valid',
     'needs_review',
     'invalid'
   ]
+  const answerStatusOrder: AnswerValidationStatus[] = questionStatusOrder
 
   useEffect(() => {
     let isMounted = true

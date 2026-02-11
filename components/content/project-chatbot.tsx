@@ -67,15 +67,18 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
   const [pillsShownCount, setPillsShownCount] = useState(0)
   const [loadingPills, setLoadingPills] = useState(false)
   const [loadingResearches, setLoadingResearches] = useState(false)
-  const questionStatusOptions: QuestionStatus[] = ['approved', 'pending', 'draft', 'rejected', 'published']
-  const answerStatusOptions: AnswerValidationStatus[] = [
-    'approved',
-    'pending',
+  // Unified status options - same for questions and answers
+  const questionStatusOptions: QuestionStatus[] = [
     'draft',
+    'pending',
+    'approved',
+    'rejected',
+    'published',
     'valid',
     'needs_review',
     'invalid'
   ]
+  const answerStatusOptions: AnswerValidationStatus[] = questionStatusOptions
 
   useEffect(() => {
     if (projectId) {

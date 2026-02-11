@@ -33,7 +33,17 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
   }>>([])
   const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(new Set())
   const [batchUpdating, setBatchUpdating] = useState(false)
-  const questionStatusOptions: QuestionStatus[] = ['draft', 'pending', 'approved', 'rejected', 'published']
+  // Unified status options - same for questions and answers
+  const questionStatusOptions: QuestionStatus[] = [
+    'draft',
+    'pending',
+    'approved',
+    'rejected',
+    'published',
+    'valid',
+    'needs_review',
+    'invalid'
+  ]
   const ratingOptions: RatingValue[] = [1, 2, 3, 4, 5]
 
   const loadQuestions = useCallback(async () => {

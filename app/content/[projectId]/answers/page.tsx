@@ -35,10 +35,13 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
   }>>([])
   const [selectedAnswerIds, setSelectedAnswerIds] = useState<Set<string>>(new Set())
   const [batchUpdating, setBatchUpdating] = useState(false)
+  // Unified status options - same for questions and answers
   const answerStatusOptions: AnswerValidationStatus[] = [
     'draft',
     'pending',
     'approved',
+    'rejected',
+    'published',
     'valid',
     'needs_review',
     'invalid'

@@ -1,14 +1,22 @@
 export type RatingValue = 1 | 2 | 3 | 4 | 5
 
 export type ProjectStatus = 'draft' | 'in_progress' | 'review' | 'published' | 'archived'
-export type QuestionStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'published'
-export type AnswerValidationStatus =
+
+// Unified content status - includes all statuses for both questions and answers
+export type ContentStatus =
   | 'draft'
   | 'pending'
   | 'approved'
+  | 'rejected'
+  | 'published'
   | 'valid'
   | 'needs_review'
   | 'invalid'
+
+// Question and Answer statuses now use the unified ContentStatus
+export type QuestionStatus = ContentStatus
+export type AnswerValidationStatus = ContentStatus
+
 export type PromptType = 'question_generator' | 'answer_generator'
 
 export interface ContentProject {
