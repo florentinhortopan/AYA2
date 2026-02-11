@@ -564,7 +564,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
   return (
     <div className="fixed bottom-6 right-6 z-50">
       {open && (
-        <Card className="w-[360px] shadow-xl border-border bg-card mb-3">
+        <Card className="w-[360px] max-h-[90vh] shadow-xl border-border bg-card mb-3 flex flex-col">
           <div className="flex items-center justify-between border-b border-border px-4 py-2">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-foreground">Project Sandbox Assistant</p>
@@ -574,56 +574,80 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
               Close
             </Button>
           </div>
-          <div className="border-b border-border px-4 py-3 space-y-3">
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">Project</p>
-              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select project" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">Question status filters</p>
-              <div className="flex flex-wrap gap-1">
-                {questionStatusOptions.map((status) => (
-                  <Button
-                    key={status}
-                    size="sm"
-                    variant={questionStatuses.includes(status) ? 'default' : 'outline'}
-                    onClick={() => toggleQuestionStatus(status)}
-                  >
-                    {status.replace('_', ' ')}
-                  </Button>
-                ))}
+          {/* Configuration Section - Scrollable with max height */}
+          <div className="border-b border-border overflow-y-auto flex-shrink-0">
+            <div className="px-4 py-3 space-y-3">
+              {/* Project Selector - Always visible */}
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Project</p>
+                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">Answer status filters</p>
-              <div className="flex flex-wrap gap-1">
-                {answerStatusOptions.map((status) => (
-                  <Button
-                    key={status}
-                    size="sm"
-                    variant={answerStatuses.includes(status) ? 'default' : 'outline'}
-                    onClick={() => toggleAnswerStatus(status)}
-                  >
-                    {status.replace('_', ' ')}
-                  </Button>
-                ))}
-              </div>
-            </div>
+
+              {/* Status Filters - Collapsible */}
+              <details className="group">
+                <summary className="cursor-pointer text-xs font-medium text-foreground hover:text-primary list-none flex items-center justify-between py-1.5 px-1 rounded hover:bg-muted/50 transition-colors">
+                  <span>📊 Status Filters</span>
+                  <span className="text-muted-foreground text-[10px] font-normal">
+                    {questionStatuses.length + answerStatuses.length} active
+                  </span>
+                </summary>
+                <div className="mt-2 space-y-3 pt-2 border-t border-border">
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">Question status filters</p>
+                    <div className="flex flex-wrap gap-1">
+                      {questionStatusOptions.map((status) => (
+                        <Button
+                          key={status}
+                          size="sm"
+                          variant={questionStatuses.includes(status) ? 'default' : 'outline'}
+                          onClick={() => toggleQuestionStatus(status)}
+                          className="text-[10px] h-7"
+                        >
+                          {status.replace('_', ' ')}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">Answer status filters</p>
+                    <div className="flex flex-wrap gap-1">
+                      {answerStatusOptions.map((status) => (
+                        <Button
+                          key={status}
+                          size="sm"
+                          variant={answerStatuses.includes(status) ? 'default' : 'outline'}
+                          onClick={() => toggleAnswerStatus(status)}
+                          className="text-[10px] h-7"
+                        >
+                          {status.replace('_', ' ')}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </details>
             
-            {/* Segue Pills Configuration - Only show if showPillsFeature is true */}
-            {showPillsFeature && (
-              <div className="space-y-2 pt-2 border-t border-border">
+              {/* Segue Pills Configuration - Collapsible, only show if showPillsFeature is true */}
+              {showPillsFeature && (
+                <details className="group">
+                  <summary className="cursor-pointer text-xs font-medium text-foreground hover:text-primary list-none flex items-center justify-between py-1.5 px-1 rounded hover:bg-muted/50 transition-colors">
+                    <span>💊 Segue Pills</span>
+                    <span className="text-muted-foreground text-[10px] font-normal">
+                      {selectedResearchId ? 'Active' : 'Inactive'}
+                    </span>
+                  </summary>
+                  <div className="mt-2 space-y-3 pt-2 border-t border-border">
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-foreground">Segue Pills Research Project</p>
                   <Select 
@@ -893,10 +917,14 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                   )}
                 </>
               )}
-              </div>
-            )}
+                  </div>
+                </details>
+              )}
+            </div>
           </div>
-          <div className="max-h-[360px] overflow-y-auto px-4 py-3 space-y-3">
+          
+          {/* Chat Messages Area - Flexible height with scroll */}
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
             {messages.map((message, index) => (
               <div
                 key={`${message.timestamp}-${index}`}
@@ -954,7 +982,8 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
             )}
             <div ref={endRef} />
           </div>
-          <div className="border-t border-border px-4 py-3 flex gap-2">
+          {/* Input Area - Fixed at bottom */}
+          <div className="border-t border-border px-4 py-3 flex gap-2 flex-shrink-0 bg-card">
             <Input
               value={input}
               onChange={(event) => setInput(event.target.value)}
