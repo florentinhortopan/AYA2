@@ -35,6 +35,8 @@ interface PillRecommendations {
   pillLibrary: any[]
 }
 
+type LibraryUpdateMode = 'append' | 'replace'
+
 function SeguePillsResearchLabContent() {
   const searchParams = useSearchParams()
   const researchIdParam = searchParams.get('researchId')
@@ -62,6 +64,8 @@ function SeguePillsResearchLabContent() {
   const [savedResearchId, setSavedResearchId] = useState<string | null>(null)
   const [loadingExistingResearch, setLoadingExistingResearch] = useState(false)
   const [researchStatus, setResearchStatus] = useState<string>('draft')
+  const [libraryUpdateMode, setLibraryUpdateMode] = useState<LibraryUpdateMode>('append')
+  const [baseLibraryPills, setBaseLibraryPills] = useState<any[]>([])
 
   const personas = [
     { id: 'high_school', label: 'High School Student' },
@@ -78,6 +82,35 @@ function SeguePillsResearchLabContent() {
     { id: 'join_process', label: 'Joining Process & Next Steps' },
   ]
 
+  const normalizePillLabel = (label: string): string => String(label || '').trim().toLowerCase()
+
+  const mergePillLibraries = (existingPills: any[], newPills: any[]): any[] => {
+    const mergedByLabel = new Map<string, any>()
+    const upsert = (pill: any) => {
+      if (!pill?.id || !pill?.label) return
+      const key = normalizePillLabel(pill.label)
+      const current = mergedByLabel.get(key)
+      if (!current) {
+        mergedByLabel.set(key, { ...pill })
+        return
+      }
+
+      const currentConfidence = Number(current.confidence || 0)
+      const nextConfidence = Number(pill.confidence || 0)
+      const winner = nextConfidence > currentConfidence ? pill : current
+      const useCase = Array.from(new Set([...(Array.isArray(current.useCase) ? current.useCase : []), ...(Array.isArray(pill.useCase) ? pill.useCase : [])]))
+
+      mergedByLabel.set(key, {
+        ...(winner || {}),
+        useCase
+      })
+    }
+
+    existingPills.forEach(upsert)
+    newPills.forEach(upsert)
+    return Array.from(mergedByLabel.values())
+  }
+
   const invalidateDownstreamForSetupChange = (reason: string) => {
     const hasGeneratedArtifacts = questions.length > 0 || intentClusters.length > 0 || !!recommendations
     if (!hasGeneratedArtifacts) return
@@ -88,7 +121,7 @@ function SeguePillsResearchLabContent() {
     setRecommendations(null)
     setPhase('setup')
     setResearchStatus('draft')
-    setNotice(`Setup updated (${reason}). Please regenerate questions and recommendations.`)
+    setNotice(`Setup updated (${reason}). Regenerate questions and recommendations. Existing library (${baseLibraryPills.length} pills) will be ${libraryUpdateMode === 'append' ? 'kept and extended' : 'replaced'} on next run.`)
   }
 
   const togglePersona = (personaId: string) => {
@@ -140,11 +173,22 @@ function SeguePillsResearchLabContent() {
             setPhase('recommendations')
           }
           if (research.recommendations) {
-            setRecommendations(research.recommendations)
+            const library = Array.isArray(research.recommendations?.pillLibrary)
+              ? research.recommendations.pillLibrary
+              : (Array.isArray(research.pillLibrary) ? research.pillLibrary : [])
+            setBaseLibraryPills(library)
+            setRecommendations({
+              ...research.recommendations,
+              pillLibrary: library
+            })
             setPhase('complete')
           } else if (research.intentClusters) {
+            const library = Array.isArray(research.pillLibrary) ? research.pillLibrary : []
+            setBaseLibraryPills(library)
             setPhase('recommendations')
           } else if (research.syntheticQuestions) {
+            const library = Array.isArray(research.pillLibrary) ? research.pillLibrary : []
+            setBaseLibraryPills(library)
             setPhase('clustering')
           }
         }
@@ -342,12 +386,28 @@ function SeguePillsResearchLabContent() {
       if (!data.recommendations) {
         throw new Error('No recommendations were generated')
       }
-      
-      setRecommendations(data.recommendations)
+
+      const incomingLibrary = Array.isArray(data.recommendations.pillLibrary) ? data.recommendations.pillLibrary : []
+      const mergedLibrary = libraryUpdateMode === 'append'
+        ? mergePillLibraries(baseLibraryPills, incomingLibrary)
+        : mergePillLibraries([], incomingLibrary)
+      const mergedRecommendations: PillRecommendations = {
+        ...data.recommendations,
+        pillLibrary: mergedLibrary
+      }
+
+      setRecommendations(mergedRecommendations)
+      setBaseLibraryPills(mergedLibrary)
       setPhase('complete')
+      const addedCount = mergedLibrary.length - baseLibraryPills.length
+      setNotice(
+        libraryUpdateMode === 'append'
+          ? `Added ${Math.max(0, addedCount)} new unique pills. Library now has ${mergedLibrary.length} pills.`
+          : `Replaced library with ${mergedLibrary.length} pills from this run.`
+      )
       
       // Save research to database
-      await saveResearchToDatabase(data.recommendations)
+      await saveResearchToDatabase(mergedRecommendations)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
       console.error('Recommendations generation error:', err)
@@ -362,6 +422,12 @@ function SeguePillsResearchLabContent() {
     options?: { forceStatus?: string }
   ) => {
     try {
+      const effectiveRecommendations = finalRecommendations || recommendations
+      const effectivePillLibrary =
+        (effectiveRecommendations?.pillLibrary && Array.isArray(effectiveRecommendations.pillLibrary)
+          ? effectiveRecommendations.pillLibrary
+          : baseLibraryPills) || []
+
       const researchData = {
         id: savedResearchId || undefined,
         name: projectName || `Research ${new Date().toLocaleDateString()}`,
@@ -373,11 +439,11 @@ function SeguePillsResearchLabContent() {
         scrapedQuestions: null,
         scrapedUrls: [],
         intentClusters: intentClusters.length > 0 ? intentClusters : null,
-        pillLibrary: finalRecommendations?.pillLibrary || null,
-        recommendations: finalRecommendations || null,
+        pillLibrary: effectivePillLibrary.length > 0 ? effectivePillLibrary : null,
+        recommendations: effectiveRecommendations || null,
         campaignGoalId: selectedGoalId || null,
         qaProjectId: selectedProjectId || null,
-        status: options?.forceStatus || (finalRecommendations ? 'completed' : (intentClusters.length > 0 ? 'testing' : 'draft'))
+        status: options?.forceStatus || (effectiveRecommendations ? 'completed' : (intentClusters.length > 0 ? 'testing' : 'draft'))
       }
 
       const response = await fetch('/api/segue-pills/researches', {
@@ -394,6 +460,8 @@ function SeguePillsResearchLabContent() {
       const data = await response.json()
       setSavedResearchId(data.research.id)
       setResearchStatus(data.research.status || researchStatus)
+      const persistedLibrary = Array.isArray(data.research?.pillLibrary) ? data.research.pillLibrary : effectivePillLibrary
+      setBaseLibraryPills(persistedLibrary)
       console.log('Research saved:', data.research.id)
     } catch (error) {
       console.error('Failed to save research:', error)
@@ -454,6 +522,7 @@ function SeguePillsResearchLabContent() {
 
     // Optimistic update for immediate UI feedback
     setRecommendations(updatedRecommendations)
+    setBaseLibraryPills(updatedRecommendations.pillLibrary || [])
 
     try {
       const response = await fetch('/api/segue-pills/researches', {
@@ -474,7 +543,7 @@ function SeguePillsResearchLabContent() {
           recommendations: updatedRecommendations,
           campaignGoalId: selectedGoalId || null,
           qaProjectId: selectedProjectId || null,
-          status: 'completed'
+          status: researchStatus === 'published' ? 'published' : 'completed'
         })
       })
 
@@ -485,6 +554,7 @@ function SeguePillsResearchLabContent() {
     } catch (err) {
       // Rollback on failure
       setRecommendations(previousRecommendations)
+      setBaseLibraryPills(previousRecommendations.pillLibrary || [])
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete pill'
       setError(errorMessage)
     }
@@ -590,6 +660,29 @@ function SeguePillsResearchLabContent() {
                     onChange={(e) => setProjectName(e.target.value)}
                     placeholder="e.g., Q1 2026 Pill Research"
                   />
+                </div>
+
+                <div className="rounded-lg border border-border p-3 bg-muted/20">
+                  <p className="text-sm font-medium mb-2">Library Update Strategy</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setLibraryUpdateMode('append')}
+                      className={`px-3 py-1.5 rounded border text-sm ${libraryUpdateMode === 'append' ? 'border-primary bg-primary/10' : 'border-border'}`}
+                    >
+                      Append new pills (default)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLibraryUpdateMode('replace')}
+                      className={`px-3 py-1.5 rounded border text-sm ${libraryUpdateMode === 'replace' ? 'border-primary bg-primary/10' : 'border-border'}`}
+                    >
+                      Replace with latest run
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Current stored library: {baseLibraryPills.length} pill{baseLibraryPills.length !== 1 ? 's' : ''}. This setting controls what happens on the next recommendation run.
+                  </p>
                 </div>
 
                 <div>
@@ -921,7 +1014,11 @@ function SeguePillsResearchLabContent() {
                   className="w-full"
                   size="lg"
                 >
-                  {isLoading ? '🔄 Generating Recommendations...' : '💡 Generate Final Recommendations'}
+                  {isLoading
+                    ? '🔄 Generating Recommendations...'
+                    : libraryUpdateMode === 'append'
+                      ? '💡 Generate & Append to Library'
+                      : '💡 Generate & Replace Library'}
                 </Button>
               </div>
             )}
@@ -965,6 +1062,9 @@ function SeguePillsResearchLabContent() {
               <div className="bg-green-50 border border-green-200 p-4 rounded-lg mb-6">
                 <p className="text-green-800 font-semibold">
                   ✅ Generated recommendations for all 3 use cases with {recommendations.pillLibrary.length} total pills in library
+                </p>
+                <p className="text-green-700 text-sm mt-1">
+                  Workflow mode: <strong>{libraryUpdateMode === 'append' ? 'Append' : 'Replace'}</strong> | Stored project library: {baseLibraryPills.length} pills
                 </p>
               </div>
 

@@ -29,6 +29,32 @@ const deduplicatePillsByLabel = (pills: PillLabel[]): PillLabel[] => {
   })
 }
 
+const mergePillLibraries = (primary: PillLabel[], secondary: PillLabel[]): PillLabel[] => {
+  const mergedByLabel = new Map<string, PillLabel>()
+
+  const upsert = (pill: PillLabel) => {
+    if (!pill?.id || !pill?.label) return
+    const key = normalizePillLabel(pill.label)
+    const current = mergedByLabel.get(key)
+    if (!current) {
+      mergedByLabel.set(key, pill)
+      return
+    }
+
+    const currentConfidence = Number(current.confidence || 0)
+    const nextConfidence = Number(pill.confidence || 0)
+    const winner = nextConfidence > currentConfidence ? pill : current
+    const mergedUseCase = Array.from(
+      new Set([...(Array.isArray(current.useCase) ? current.useCase : []), ...(Array.isArray(pill.useCase) ? pill.useCase : [])])
+    )
+    mergedByLabel.set(key, { ...winner, useCase: mergedUseCase })
+  }
+
+  primary.forEach(upsert)
+  secondary.forEach(upsert)
+  return Array.from(mergedByLabel.values())
+}
+
 const CASE_POLICY = {
   minAnticipate: 1,
   minEntice: 1,
@@ -176,12 +202,15 @@ export async function GET(
       const existing = research.recommendations as any
       
       // Validate pills against answers if Q&A project is linked
-      if (research.qaProjectId && existing.pillLibrary) {
+      if (research.qaProjectId && (existing.pillLibrary || research.pillLibrary)) {
         console.log(`[Recommendations GET] Validating existing pills against Q&A project: ${research.qaProjectId}`)
         const requiredBusinessLabels = getRequiredBusinessLabels(research.campaignGoal)
+        const existingLibrary = Array.isArray(existing.pillLibrary) ? (existing.pillLibrary as PillLabel[]) : []
+        const persistedLibrary = Array.isArray(research.pillLibrary) ? (research.pillLibrary as unknown as PillLabel[]) : []
+        const sourceLibrary = mergePillLibraries(existingLibrary, persistedLibrary)
         
         const validatedPillLibrary: PillLabel[] = []
-        for (const pill of existing.pillLibrary) {
+        for (const pill of sourceLibrary) {
           const isValid = await validatePillLabel(
             pill.label,
             research.qaProjectId,
@@ -262,9 +291,11 @@ export async function GET(
     if (research.qaProjectId) {
       console.log(`[Recommendations GET] Validating generated pills against Q&A project: ${research.qaProjectId}`)
       const requiredBusinessLabels = getRequiredBusinessLabels(campaignGoal)
+      const persistedLibrary = Array.isArray(research.pillLibrary) ? (research.pillLibrary as unknown as PillLabel[]) : []
+      const sourceLibrary = mergePillLibraries(recommendations.pillLibrary, persistedLibrary)
       
       const validatedPillLibrary: PillLabel[] = []
-      for (const pill of recommendations.pillLibrary) {
+      for (const pill of sourceLibrary) {
         const isValid = await validatePillLabel(
           pill.label,
           research.qaProjectId,
