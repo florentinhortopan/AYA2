@@ -514,3 +514,557 @@ This document defines the 3 AC use cases, the pill count, and the selection rule
 - ✅ Copy guidance for pill text
 - ✅ Research plan to validate and refine pill labels
 
+---
+
+## 🚀 Tier Deployment Strategy
+
+### Introduction
+
+Given that we currently do not have high data quality levels available, we must deploy the segue pills system in a phased, tiered approach. This strategy allows us to launch with basic functionality (Case 1) and gradually evolve to sophisticated personalization (Case 3) as data collection and quality improve.
+
+**Deployment Philosophy:** Start simple, measure, learn, and evolve.
+
+### Current State Assessment
+
+**Data Quality Level:** ⚫ NULL (Case 1)  
+**Available Signals:** None  
+**Confidence:** None  
+**Deployment Tier:** Tier 1 (Generic Default)
+
+### Tier Deployment Roadmap
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    TIER DEPLOYMENT TIMELINE                    │
+└─────────────────────────────────────────────────────────────────┘
+
+┌──────────────┐         ┌──────────────┐         ┌──────────────┐
+│   TIER 1     │   →     │   TIER 2     │   →     │   TIER 3     │
+│              │         │              │         │              │
+│  Case 1 Only │         │  Cases 1+2   │         │ Cases 1+2+3  │
+│  Generic     │         │  + Page Data │         │  + Full Data │
+│  Default     │         │              │         │              │
+│              │         │              │         │              │
+│  Week 1-2    │         │  Week 3-4    │         │  Week 5+      │
+│  Launch      │         │  Enhanced    │         │  Full System  │
+└──────────────┘         └──────────────┘         └──────────────┘
+```
+
+### Tier 1: Generic Default Launch (Weeks 1-2)
+
+**Objective:** Deploy basic segue pills functionality with safe, generic defaults.
+
+**Implementation:**
+- ✅ Deploy Case 1 logic only
+- ✅ Use generic default pills (4 pills: 2 Anticipate + 2 Entice)
+- ✅ No personalization based on user data
+- ✅ All users receive the same pill set
+
+**Pill Set:**
+1. "What can you help me with?" [Anticipate]
+2. "Explore careers" [Anticipate]
+3. "Eligibility basics" [Entice]
+4. "Talk to a recruiter" [Entice + CTA]
+
+**Data Collection Focus:**
+- Track pill click-through rates (CTR)
+- Measure chat completion rates
+- Monitor CTA conversion (recruiter contact)
+- Collect user feedback on pill relevance
+
+**Success Metrics:**
+- Baseline CTR established
+- System stability confirmed
+- User acceptance validated
+
+**Prerequisites:**
+- ✅ Research Lab generates initial pill library
+- ✅ Pill recommendation system operational
+- ✅ Chatbot widget integrated with pills display
+- ✅ Analytics tracking implemented
+
+---
+
+### Tier 2: Page-Based Personalization (Weeks 3-4)
+
+**Objective:** Add page-based personalization when page URL and content are available.
+
+**Implementation:**
+- ✅ Enable Case 2 logic
+- ✅ Detect page URL and extract page content
+- ✅ Capture navigation/source/referral data
+- ✅ Route users to Case 2 when page data available
+- ✅ Fallback to Case 1 when no page data
+
+**Data Requirements:**
+- Page URL available in session
+- Page content/topic extractable
+- Navigation path trackable
+- Referral source identifiable
+
+**Pill Selection Logic:**
+- Case 2: Page-based anticipate pills + adjacent entice pills
+- Case 1: Generic defaults (fallback)
+
+**Example Flow:**
+```
+User on /careers page
+  ↓
+System detects: page = "careers", topic = "career exploration"
+  ↓
+Case 2 Activated
+  ↓
+Pills Generated:
+  1. "Compare career paths" [Anticipate - page-based]
+  2. "See job requirements" [Anticipate - page-based]
+  3. "Training overview" [Entice - adjacent]
+  4. "Talk to a recruiter" [Entice + CTA]
+```
+
+**Data Collection Focus:**
+- Compare Case 1 vs. Case 2 performance
+- Measure relevance improvement
+- Track page-to-pill mapping effectiveness
+- Validate adjacent topic selection
+
+**Success Metrics:**
+- Case 2 CTR > Case 1 CTR (target: +20%)
+- Higher perceived relevance scores
+- Reduced drop-off rate
+- Improved CTA conversion
+
+**Prerequisites:**
+- ✅ Page content extraction system operational
+- ✅ Topic classification working
+- ✅ Navigation tracking implemented
+- ✅ Case 2 pill generation validated in Research Lab
+
+---
+
+### Tier 3: Full Personalization (Week 5+)
+
+**Objective:** Deploy complete three-tier system with sentiment, engagement, and campaign goal integration.
+
+**Implementation:**
+- ✅ Enable Case 3 logic
+- ✅ Integrate sentiment analysis
+- ✅ Calculate engagement scores
+- ✅ Link campaign goals to pill selection
+- ✅ Sentiment-adjusted CTA phrasing
+
+**Data Requirements:**
+- All Tier 2 requirements +
+- Sentiment score (positive/neutral/negative)
+- Engagement score (time on site, pages viewed, interactions)
+- Active campaign goals with CTA requirements
+- User session history
+
+**Pill Selection Logic:**
+- Case 3: Behavior-driven anticipate + goal-aligned entice (when rich data available)
+- Case 2: Page-based (when partial data available)
+- Case 1: Generic defaults (when no data available)
+
+**Example Flow:**
+```
+User with rich session data:
+  - Page: /eligibility
+  - Engagement: High (5+ pages, 3+ minutes)
+  - Sentiment: Positive
+  - Campaign Goal: Recruiter contact
+  ↓
+Case 3 Activated
+  ↓
+Pills Generated:
+  1. "Check eligibility now" [Anticipate - behavior-driven]
+  2. "Next steps to join" [Anticipate - behavior-driven]
+  3. "Schedule a recruiter chat" [Entice + CTA - strong language, positive sentiment]
+  4. "See training timeline" [Entice - adjacent]
+```
+
+**Data Collection Focus:**
+- Compare all three cases performance
+- Measure sentiment impact on CTA conversion
+- Validate engagement score accuracy
+- Track campaign goal effectiveness
+
+**Success Metrics:**
+- Case 3 CTR > Case 2 CTR > Case 1 CTR
+- Sentiment-adjusted CTAs show higher conversion
+- Engagement-based pills show better relevance
+- Campaign goals successfully integrated
+
+**Prerequisites:**
+- ✅ Sentiment analysis system operational
+- ✅ Engagement scoring algorithm implemented
+- ✅ Campaign goal management system ready
+- ✅ Case 3 pill generation validated in Research Lab
+
+---
+
+### Tier Progression Criteria
+
+**Tier 1 → Tier 2:**
+- ✅ Tier 1 stable for 2 weeks
+- ✅ Baseline metrics established
+- ✅ Page data collection infrastructure ready
+- ✅ Case 2 pills generated and tested in Research Lab
+
+**Tier 2 → Tier 3:**
+- ✅ Tier 2 stable for 2 weeks
+- ✅ Case 2 showing improvement over Case 1
+- ✅ Sentiment analysis system operational
+- ✅ Engagement scoring algorithm validated
+- ✅ Campaign goal system integrated
+- ✅ Case 3 pills generated and tested in Research Lab
+
+### Risk Mitigation
+
+**Tier 1 Risks:**
+- Generic pills may feel irrelevant to some users
+- **Mitigation:** Monitor feedback, iterate on default pill library
+
+**Tier 2 Risks:**
+- Page detection may fail or be inaccurate
+- **Mitigation:** Robust fallback to Case 1, validate page classification
+
+**Tier 3 Risks:**
+- Sentiment/engagement scores may be inaccurate
+- **Mitigation:** Start with conservative thresholds, validate against user behavior
+
+### Rollback Strategy
+
+Each tier can be rolled back independently:
+- **Tier 3 → Tier 2:** Disable Case 3, fallback to Cases 1+2
+- **Tier 2 → Tier 1:** Disable Case 2, fallback to Case 1 only
+- **Tier 1 → Off:** Disable pills feature entirely
+
+### Expected Timeline
+
+| Week | Tier | Status | Focus |
+|------|------|--------|-------|
+| 1-2 | Tier 1 | Launch | Generic defaults, baseline metrics |
+| 3-4 | Tier 2 | Enhanced | Page-based personalization |
+| 5+ | Tier 3 | Full System | Complete three-tier personalization |
+
+**Note:** Timeline may vary based on data collection speed and system validation results.
+
+---
+
+## 📋 Product Requirements Document (PRD)
+
+### Overview
+
+This PRD outlines the requirements for Content Operations and Technology teams to implement and maintain the segue pills system. It provides clear, actionable specifications for both teams to ensure successful deployment and ongoing optimization.
+
+---
+
+### Content Operations Requirements
+
+#### 1. Pill Copy Management
+
+**Requirement:** Content Ops must maintain a library of pill labels that are:
+- **Simple and derivative** of real Q&A topics
+- **Plain language** (no jargon or military-specific terms without context)
+- **Action-oriented** (start with verbs: "Explore", "Check", "Compare", "See")
+- **Character limit:** Maximum 25 characters per pill label
+
+**Deliverables:**
+- Initial pill library of 20-30 candidate pills across categories (Orientation, Careers, Eligibility, Benefits, Training, CTA)
+- Pill variants by sentiment (positive, neutral, negative) for Case 3
+- Regular updates based on performance data and user feedback
+
+**Tools:**
+- Access to Segue Pills Research Lab for generating and testing pill candidates
+- Campaign Goal management interface for defining business CTAs
+
+#### 2. Campaign Goal Definition
+
+**Requirement:** Content Ops must define and maintain campaign goals that influence pill selection.
+
+**Deliverables:**
+- Campaign goal name and description
+- Business prompt (guidelines for AI to generate goal-aligned pills)
+- CTA requirements:
+  - Required pill labels (mandatory pills that must appear)
+  - Min/max count of CTA pills (typically 1-2)
+  - Goal type (recruiter_contact, assessment_completion, event_registration, etc.)
+
+**Process:**
+- Create campaign goals in `/content/segue-pills/goals`
+- Link campaign goals to research projects
+- Activate/deactivate goals based on campaign timeline
+
+#### 3. Q&A Project Integration
+
+**Requirement:** Content Ops must link pill research projects to existing Q&A projects.
+
+**Deliverables:**
+- Select appropriate Q&A project when creating pill research
+- Ensure Q&A project has sufficient questions/answers for pill generation context
+- Maintain alignment between pill research and Q&A project updates
+
+**Process:**
+- When creating new pill research, select linked Q&A project
+- System will use Q&A project questions for context in pill generation
+- Chatbot widget will use linked Q&A project for answering user questions
+
+#### 4. Testing & Validation
+
+**Requirement:** Content Ops must test pill recommendations before production deployment.
+
+**Deliverables:**
+- Test pill sets for all three cases (Case 1, Case 2, Case 3)
+- Validate pill relevance and clarity
+- Provide feedback on pill performance
+- Approve pill sets for production use
+
+**Process:**
+- Use Research Lab to generate pill recommendations
+- Test pills in chatbot widget on `/content/segue-pills` page
+- Review confidence scores and rationale
+- Request adjustments if needed
+
+---
+
+### Technology Team Requirements
+
+#### 1. Data Collection Infrastructure
+
+**Requirement:** Tech team must implement data collection for all three cases.
+
+**Tier 1 (Case 1) - Required:**
+- ✅ No data collection needed (NULL data case)
+
+**Tier 2 (Case 2) - Required:**
+- ✅ Page URL capture (current page path)
+- ✅ Page content extraction (topic classification)
+- ✅ Navigation/source tracking (referral URL, entry point)
+- ✅ Session context storage (temporary, per-session)
+
+**Tier 3 (Case 3) - Required:**
+- ✅ All Tier 2 requirements +
+- ✅ Sentiment analysis (positive/neutral/negative score)
+- ✅ Engagement score calculation:
+  - Time on site
+  - Pages viewed
+  - Interactions (clicks, scrolls, form fills)
+- ✅ Campaign goal detection (active goals for current session)
+- ✅ User session history (if available)
+
+**Technical Specifications:**
+- Data must be available in real-time when user opens chatbot
+- Data should be stored in session (not persisted unless user takes action)
+- Fallback gracefully to lower tier if data unavailable
+
+#### 2. API Endpoints
+
+**Requirement:** Tech team must implement and maintain API endpoints for pill generation and retrieval.
+
+**Required Endpoints:**
+
+```
+GET /api/segue-pills/researches
+  - List all pill research projects
+  - Filter by status, withPillsOnly flag
+  - Include campaignGoal and qaProject relations
+
+GET /api/segue-pills/researches/[researchId]
+  - Get single research project details
+  - Include all relations (campaignGoal, qaProject)
+
+GET /api/segue-pills/researches/[researchId]/recommendations
+  - Get pill recommendations for specific research
+  - Query params: campaignGoalId, useCase (1, 2, or 3)
+  - Returns: { case1: {...}, case2: {...}, case3: {...} }
+
+GET /api/segue-pills/campaign-goals
+  - List all campaign goals
+  - Filter by isActive flag
+
+POST /api/segue-pills/campaign-goals
+  - Create new campaign goal
+  - Body: { name, goalType, description, businessPrompt, ctaRequirement }
+```
+
+**Response Format:**
+- All endpoints must return JSON
+- Include error handling with appropriate HTTP status codes
+- Support CORS for frontend access
+
+#### 3. Chatbot Widget Integration
+
+**Requirement:** Tech team must integrate segue pills into the existing `ProjectChatbot` component.
+
+**Implementation Requirements:**
+- Add research project dropdown selector
+- Display pills when research project selected
+- Show pills above chat input area
+- Handle pill clicks (trigger chat message with pill label)
+- Support all three use cases (Case 1, 2, 3)
+- Implement use case detection logic:
+  - Case 1: No data available
+  - Case 2: Page data available
+  - Case 3: Rich data (sentiment + engagement + campaign goals) available
+
+**UI Requirements:**
+- Pills displayed as clickable buttons/chips
+- Maximum 4 pills shown at once
+- Pills should be visually distinct from chat messages
+- Responsive design (mobile-friendly)
+- Loading states while fetching pills
+
+**State Management:**
+- Track selected research project ID
+- Track selected campaign goal ID (optional)
+- Track current use case (1, 2, or 3)
+- Track pills shown to user (for analytics)
+- Track pills clicked (for analytics)
+
+#### 4. Pill Selection Logic
+
+**Requirement:** Tech team must implement pill selection algorithm based on use case.
+
+**Case 1 Logic:**
+- Always return generic default pills
+- No personalization
+- Fixed set of 4 pills
+
+**Case 2 Logic:**
+- Extract page topic from URL/content
+- Select 2 anticipate pills based on page topic
+- Select 2 entice pills (adjacent topics + campaign goals)
+- Apply diversity filter (pills must span ≥2 categories)
+- Apply no-contradiction filter
+
+**Case 3 Logic:**
+- Use most engaged topic or most recent page
+- Select 2 anticipate pills based on behavior
+- Select 2 entice pills (business goal-aligned + adjacent)
+- Adjust CTA phrasing based on sentiment:
+  - Positive: Strong conversion language
+  - Neutral: Standard CTA
+  - Negative: Softer, supportive language
+- Apply all filters (diversity, no-contradiction, CTA cap)
+
+**Implementation Notes:**
+- Use `lib/segue-pills/pill-recommender.ts` for recommendation logic
+- Respect campaign goal requirements (required pills, min/max counts)
+- Return confidence scores for each pill
+- Log selection rationale for debugging
+
+#### 5. Analytics & Tracking
+
+**Requirement:** Tech team must implement analytics tracking for pill performance.
+
+**Required Events:**
+- `pill_shown`: When pills are displayed to user
+  - Data: researchId, useCase, pillIds, pillLabels
+- `pill_clicked`: When user clicks a pill
+  - Data: researchId, useCase, pillId, pillLabel, clickOrder, timeToClick
+- `chat_completed`: When user completes chat conversation
+  - Data: researchId, useCase, pillsShown, pillsClicked
+- `cta_reached`: When user reaches campaign goal CTA
+  - Data: researchId, useCase, ctaType, pillsShown, pillsClicked
+
+**Storage:**
+- Store events in `SegueTestSession` table
+- Aggregate data for performance dashboards
+- Support A/B testing analysis
+
+#### 6. Error Handling & Fallbacks
+
+**Requirement:** Tech team must implement robust error handling and fallback logic.
+
+**Error Scenarios:**
+- Research project not found → Disable pills, show error message
+- Recommendations not available → Fallback to Case 1 generic pills
+- API failure → Gracefully degrade, show generic pills
+- Data collection failure → Fallback to lower tier (Case 3 → Case 2 → Case 1)
+
+**Fallback Chain:**
+```
+Case 3 (attempt) → Case 2 (fallback) → Case 1 (final fallback)
+```
+
+**User Experience:**
+- Never show broken UI
+- Always show at least generic pills (Case 1)
+- Log errors for debugging
+- Display user-friendly error messages if needed
+
+#### 7. Performance Requirements
+
+**Requirement:** Tech team must ensure system performance meets standards.
+
+**Performance Targets:**
+- Pill loading: < 500ms from user opening chatbot
+- API response time: < 200ms for recommendations endpoint
+- No impact on existing chatbot functionality
+- Support concurrent users (no degradation)
+
+**Optimization:**
+- Cache pill recommendations when possible
+- Lazy load pills (only fetch when research selected)
+- Minimize database queries
+- Use efficient data structures
+
+---
+
+### Acceptance Criteria
+
+**Content Ops:**
+- ✅ Pill library of 20-30 candidates created and maintained
+- ✅ Campaign goals defined and linked to research projects
+- ✅ Q&A projects linked to pill research projects
+- ✅ Pills tested and approved for production
+
+**Tech Team:**
+- ✅ Data collection infrastructure implemented for all tiers
+- ✅ API endpoints operational and tested
+- ✅ Chatbot widget integrated with pills display
+- ✅ Pill selection logic implemented for all three cases
+- ✅ Analytics tracking functional
+- ✅ Error handling and fallbacks working
+- ✅ Performance targets met
+
+---
+
+### Dependencies
+
+**Content Ops Dependencies:**
+- Access to Segue Pills Research Lab
+- Access to Campaign Goal management interface
+- Access to Q&A project selection
+
+**Tech Team Dependencies:**
+- Prisma schema updated (SeguePillResearch, SegueCampaignGoal, SegueTestSession)
+- OpenAI API access for pill generation
+- Analytics infrastructure for tracking
+- Session management system
+
+---
+
+### Timeline
+
+**Phase 1 (Week 1-2):** Tier 1 Deployment
+- Content Ops: Create initial pill library, define generic defaults
+- Tech Team: Implement Case 1 logic, basic widget integration
+
+**Phase 2 (Week 3-4):** Tier 2 Deployment
+- Content Ops: Test page-based pills, provide feedback
+- Tech Team: Implement Case 2 logic, page data collection
+
+**Phase 3 (Week 5+):** Tier 3 Deployment
+- Content Ops: Test full personalization, validate campaign goals
+- Tech Team: Implement Case 3 logic, sentiment/engagement integration
+
+---
+
+## 📦 Deliverable Alignment
+This document defines the 3 AC use cases, the pill count, and the selection rules to guide:
+- ✅ Requirements for the logic implementation
+- ✅ Copy guidance for pill text
+- ✅ Research plan to validate and refine pill labels
+- ✅ Tier deployment strategy for gradual rollout
+- ✅ Product Requirements Document for Content Ops and Tech teams
+
