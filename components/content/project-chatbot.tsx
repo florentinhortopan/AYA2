@@ -321,18 +321,41 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
           return
         }
         
-        // Validate pill structure
-        const validPills = caseRec.pills.filter((p: any) => {
+        // Validate case pill structure
+        const casePills = caseRec.pills.filter((p: any) => {
           const isValid = p && p.id && p.label
           if (!isValid) {
             console.warn('[Pills] ⚠️ Invalid pill structure:', p)
           }
           return isValid
         })
-        
-        console.log('[Pills] ✅ Valid pills loaded:', validPills.length)
-        console.log('[Pills] Pills:', validPills.map((p: any) => ({ id: p.id, label: p.label, type: p.type })))
-        setCurrentPills(validPills)
+
+        // Also use the validated pill library as candidate pool for answer-level relevance selection.
+        const libraryPills = Array.isArray(recommendations.pillLibrary)
+          ? recommendations.pillLibrary.filter((p: any) => {
+              if (!p || !p.id || !p.label) return false
+              return Array.isArray(p.useCase) ? p.useCase.includes(selectedUseCase) : true
+            })
+          : []
+
+        // Merge case pills + library candidates by normalized label, keeping higher-confidence entry.
+        const mergedByLabel = new Map<string, PillLabel>()
+        ;[...casePills, ...libraryPills].forEach((pill: any) => {
+          const normalized = String(pill.label).trim().toLowerCase()
+          const existing = mergedByLabel.get(normalized)
+          if (!existing || (pill.confidence || 0) > (existing.confidence || 0)) {
+            mergedByLabel.set(normalized, pill as PillLabel)
+          }
+        })
+        const mergedPills = Array.from(mergedByLabel.values())
+
+        console.log('[Pills] ✅ Candidate pills loaded:', {
+          casePills: casePills.length,
+          libraryPills: libraryPills.length,
+          merged: mergedPills.length
+        })
+        console.log('[Pills] Candidate list:', mergedPills.map((p: any) => ({ id: p.id, label: p.label, type: p.type, confidence: p.confidence })))
+        setCurrentPills(mergedPills)
         console.log('[Pills] ===== LOAD PILLS COMPLETE =====')
       } catch (error) {
         console.error('[Pills] ❌ Failed to load pills:', error)
@@ -427,57 +450,113 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
     })
   }
 
-  /**
-   * Intelligently select 1-4 pills for display based on:
-   * - Confidence level (higher confidence first)
-   * - Anticipate/Entice strategy (balance when possible)
-   * - Use case requirements (Case 2: 2 anticipate + 2 entice, etc.)
-   * - Deduplication by label (safety net)
-   */
-  const selectPillsForDisplay = (pills: PillLabel[], useCase: 1 | 2 | 3, maxPills: number = 4): PillLabel[] => {
-    if (pills.length === 0) return []
+  const tokenizeText = (value: string): Set<string> => {
+    return new Set(
+      value
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .map(token => token.trim())
+        .filter(token => token.length > 2)
+    )
+  }
 
-    // Sort by confidence (highest first) then deduplicate by label
-    const sortedPills = [...pills].sort((a, b) => (b.confidence || 0) - (a.confidence || 0))
-    const uniquePills = deduplicatePillsByLabel(sortedPills)
-    
-    if (uniquePills.length <= maxPills) return uniquePills
+  const scorePillRelevance = (pill: PillLabel, contextTokens: Set<string>): number => {
+    if (contextTokens.size === 0) return 0
+    const pillTokens = tokenizeText(`${pill.label} ${pill.intent}`)
+    if (pillTokens.size === 0) return 0
 
-    // For Case 2 and Case 3, try to maintain anticipate/entice balance
-    if (useCase === 2 || useCase === 3) {
-      const anticipatePills = uniquePills.filter(p => p.type === 'anticipate')
-      const enticePills = uniquePills.filter(p => p.type === 'entice')
-      const ctaPills = uniquePills.filter(p => p.type === 'cta')
-
-      const selected: PillLabel[] = []
-      
-      // Case 2: Target 2 anticipate + 2 entice
-      // Case 3: Target 2 anticipate + 1-2 entice/CTA
-      const targetAnticipate = useCase === 2 ? 2 : 2
-      const targetEntice = useCase === 2 ? 2 : (maxPills - targetAnticipate)
-
-      // Add anticipate pills (highest confidence first)
-      selected.push(...anticipatePills.slice(0, Math.min(targetAnticipate, anticipatePills.length)))
-
-      // Add entice pills (highest confidence first)
-      const remainingSlots = maxPills - selected.length
-      if (remainingSlots > 0) {
-        selected.push(...enticePills.slice(0, Math.min(targetEntice, enticePills.length, remainingSlots)))
+    let overlap = 0
+    for (const token of pillTokens) {
+      if (contextTokens.has(token)) {
+        overlap += 1
       }
-
-      // Fill remaining slots with CTA pills or highest confidence pills
-      const remainingAfterStrategy = maxPills - selected.length
-      if (remainingAfterStrategy > 0) {
-        const remainingPills = uniquePills.filter(p => !selected.find(sp => sp.id === p.id))
-        selected.push(...remainingPills.slice(0, remainingAfterStrategy))
-      }
-
-      // Final deduplication safety check on selected pills
-      return deduplicatePillsByLabel(selected).slice(0, maxPills)
     }
 
-    // Case 1: Just select top confidence unique pills (up to maxPills)
-    return uniquePills.slice(0, maxPills)
+    // Cap denominator to avoid over-penalizing longer labels/intents
+    return overlap / Math.max(1, Math.min(6, pillTokens.size))
+  }
+
+  /**
+   * Select a compact, relevance-first set of pills for the current answer.
+   * Target behavior:
+   * - Prefer 1 anticipate pill that best matches the current answer context
+   * - Add up to 2 entice pills with highest relevance/confidence
+   * - Only surface pills when they are relevant (or strongly confident fallback)
+   */
+  const selectPillsForDisplay = (
+    pills: PillLabel[],
+    useCase: 1 | 2 | 3,
+    responseContext: { matchedQuestionText?: string; response?: string },
+    maxPills: number = 3
+  ): PillLabel[] => {
+    if (pills.length === 0) return []
+
+    const contextTokens = tokenizeText(
+      `${responseContext.matchedQuestionText || ''} ${responseContext.response || ''}`
+    )
+
+    const scored = deduplicatePillsByLabel(pills)
+      .map(pill => {
+        const relevance = scorePillRelevance(pill, contextTokens)
+        const confidence = pill.confidence || 0
+        return {
+          pill,
+          relevance,
+          confidence,
+          score: (relevance * 0.7) + (confidence * 0.3)
+        }
+      })
+      .sort((a, b) => b.score - a.score)
+
+    // Relevance-first pool; allow very high-confidence fallback candidates.
+    const relevancePool = scored.filter(item => item.relevance > 0 || item.confidence >= 0.75)
+    const pool = relevancePool.length > 0
+      ? relevancePool
+      : scored.filter(item => item.confidence >= 0.55)
+
+    if (pool.length === 0) return []
+
+    const selected: PillLabel[] = []
+    const selectedIds = new Set<string>()
+    const selectedLabels = new Set<string>()
+    const add = (pill: PillLabel | undefined) => {
+      if (!pill) return false
+      const normalized = pill.label.trim().toLowerCase()
+      if (selectedIds.has(pill.id) || selectedLabels.has(normalized)) return false
+      selected.push(pill)
+      selectedIds.add(pill.id)
+      selectedLabels.add(normalized)
+      return true
+    }
+
+    const anticipateCandidates = pool.filter(item => item.pill.type === 'anticipate')
+    const enticeCandidates = pool.filter(item => item.pill.type === 'entice')
+    const remainingCandidates = pool
+      .map(item => item.pill)
+      .filter(pill => !selectedIds.has(pill.id))
+
+    // 1) Add the best anticipate pill first if available.
+    add(anticipateCandidates[0]?.pill)
+
+    // 2) Add up to 2 entice pills.
+    for (const item of enticeCandidates.slice(0, 2)) {
+      if (selected.length >= maxPills) break
+      add(item.pill)
+    }
+
+    // 3) If still empty (or missing slots), fill with top remaining relevant pills.
+    for (const pill of remainingCandidates) {
+      if (selected.length >= maxPills) break
+      add(pill)
+    }
+
+    // For generic case 1, keep list compact and broad.
+    if (useCase === 1) {
+      return selected.slice(0, Math.min(2, maxPills))
+    }
+
+    return selected.slice(0, maxPills)
   }
 
   const handlePillClick = async (pill: PillLabel) => {
@@ -536,9 +615,14 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         0.4 // Minimum confidence threshold
       )
 
-      // Select 1-4 pills from filtered pills based on confidence and strategy
+        // Select compact, relevance-first pills for this specific answer
       const availablePills = qualityCheck.shouldShow
-        ? selectPillsForDisplay(qualityCheck.filteredPills, selectedUseCase, 4)
+        ? selectPillsForDisplay(
+            qualityCheck.filteredPills,
+            selectedUseCase,
+            { matchedQuestionText: data.matchedQuestionText, response: data.response },
+            3
+          )
         : []
 
       console.log('[Pills] handlePillClick - pill selection:', {
@@ -642,9 +726,14 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         0.4 // Minimum confidence threshold
       )
 
-      // Select 1-4 pills from filtered pills based on confidence and strategy
+      // Select compact, relevance-first pills for this specific answer
       const availablePills = qualityCheck.shouldShow
-        ? selectPillsForDisplay(qualityCheck.filteredPills, selectedUseCase, 4)
+        ? selectPillsForDisplay(
+            qualityCheck.filteredPills,
+            selectedUseCase,
+            { matchedQuestionText: data.matchedQuestionText, response: data.response },
+            3
+          )
         : []
 
       console.log('[Pills] ===== SEND MESSAGE =====')
