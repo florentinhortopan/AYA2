@@ -89,6 +89,91 @@ const resolveVariantLevel = async (message: string): Promise<VariantLevel> => {
   return parseVariantLevel(result) || 'direct'
 }
 
+/**
+ * Generate an AI fallback response when no questions match or no close match is found.
+ * Uses the project's corpus and guideline to provide contextual answers.
+ */
+const generateAIFallbackResponse = async (
+  message: string,
+  projectId: string
+): Promise<{ response: string; variantLevel: VariantLevel }> => {
+  if (!process.env.OPENAI_API_KEY) {
+    return {
+      response: 'I apologize, but I could not find a matching answer. Please try rephrasing your question or check back later.',
+      variantLevel: 'direct'
+    }
+  }
+
+  try {
+    // Load project with corpus, guideline, and answer prompt
+    const project = await prisma.qaProject.findUnique({
+      where: { id: projectId },
+      include: {
+        corpusFile: true,
+        guideline: true,
+        answerPrompt: true
+      }
+    })
+
+    if (!project) {
+      return {
+        response: 'Project not found.',
+        variantLevel: 'direct'
+      }
+    }
+
+    // Build system prompt with project context
+    let systemPrompt = 'You are a helpful assistant that answers questions based on the provided knowledge base.\n\n'
+    
+    // Add corpus content if available (truncate if too large to avoid token limits)
+    if (project.corpusFile?.fileContent) {
+      const corpusContent = project.corpusFile.fileContent
+      // Limit to ~50k characters to stay within reasonable token limits
+      const maxCorpusLength = 50000
+      const truncatedCorpus = corpusContent.length > maxCorpusLength
+        ? corpusContent.substring(0, maxCorpusLength) + '\n\n[... corpus truncated for length ...]'
+        : corpusContent
+      systemPrompt += `## Knowledge Base\n${truncatedCorpus}\n\n`
+    }
+
+    // Add guideline if available
+    if (project.guideline?.content) {
+      systemPrompt += `## Guidelines\n${project.guideline.content}\n\n`
+    }
+
+    // Add answer prompt if available (for style consistency)
+    if (project.answerPrompt?.content) {
+      systemPrompt += `## Answer Style Guidelines\n${project.answerPrompt.content}\n\n`
+    }
+
+    systemPrompt += `## Instructions
+- Answer the user's question based on the knowledge base and guidelines provided above.
+- If the question cannot be answered from the knowledge base, politely explain that you don't have that information.
+- Be helpful, accurate, and concise.
+- Match the tone and style specified in the guidelines.`
+
+    // Determine variant level
+    const variantLevel = await resolveVariantLevel(message)
+
+    // Generate response using OpenAI
+    const response = await aiService.generateResponse(
+      [{ role: 'user', content: message }],
+      { systemPrompt }
+    )
+
+    return {
+      response: response || 'I apologize, but I could not generate a response.',
+      variantLevel
+    }
+  } catch (error) {
+    console.error('Error generating AI fallback response:', error)
+    return {
+      response: 'I apologize, but I encountered an error while generating a response. Please try again.',
+      variantLevel: 'direct'
+    }
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { projectId: string } }
@@ -107,6 +192,7 @@ export async function POST(
     ? answerStatuses
     : DEFAULT_ANSWER_STATUSES
 
+  // Project will be loaded again in fallback if needed, but we check it exists here
   const project = await prisma.qaProject.findUnique({
     where: { id: params.projectId }
   })
@@ -131,18 +217,16 @@ export async function POST(
   })
 
   if (questions.length === 0) {
-    return jsonNoStore({
-      response: 'No questions match the current filters yet.',
-      variantLevel: 'direct'
-    })
+    // No questions match - use AI fallback
+    const aiResponse = await generateAIFallbackResponse(message, params.projectId)
+    return jsonNoStore(aiResponse)
   }
 
   const queryTokens = tokenize(message)
   if (queryTokens.length === 0) {
-    return jsonNoStore({
-      response: 'Please rephrase with more specific keywords so I can match a question.',
-      variantLevel: 'direct'
-    })
+    // Query has no meaningful tokens (e.g., very short pill text) - use AI fallback
+    const aiResponse = await generateAIFallbackResponse(message, params.projectId)
+    return jsonNoStore(aiResponse)
   }
 
   const scored = questions
@@ -166,10 +250,9 @@ export async function POST(
     .sort((a, b) => b.score - a.score)
 
   if (scored.length === 0 || scored[0].score === 0) {
-    return jsonNoStore({
-      response: 'No close match found for that question. Try different keywords or add a related Q&A first.',
-      variantLevel: 'direct'
-    })
+    // No close match found - use AI fallback
+    const aiResponse = await generateAIFallbackResponse(message, params.projectId)
+    return jsonNoStore(aiResponse)
   }
 
   const best = scored.find((item) => item.score > 0 && item.question.answers.length > 0)
@@ -183,9 +266,11 @@ export async function POST(
     best.question.answers[0]
 
   if (!answerForVariant) {
+    // No answer matches - use AI fallback
+    const aiResponse = await generateAIFallbackResponse(message, params.projectId)
     return jsonNoStore({
-      response: 'No answers match the current filters yet.',
-      variantLevel
+      ...aiResponse,
+      variantLevel // Use the variant level we already determined
     })
   }
 
