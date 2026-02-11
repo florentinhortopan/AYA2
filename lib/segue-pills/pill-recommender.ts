@@ -91,28 +91,59 @@ export function generatePillRecommendations(
     })
   })
   
+  // Deduplicate by normalized label - keep the pill with highest confidence for each unique label
+  const deduplicatedLibrary = deduplicatePillsByLabel(pillLibrary)
+  
   // Sort by confidence and frequency
-  pillLibrary.sort((a, b) => {
+  deduplicatedLibrary.sort((a, b) => {
     const scoreA = (a.confidence * 0.6) + (a.frequency / intentClusters.length * 0.4)
     const scoreB = (b.confidence * 0.6) + (b.frequency / intentClusters.length * 0.4)
     return scoreB - scoreA
   })
   
   // Generate Case 1 recommendations (Generic Default)
-  const case1 = generateCase1Recommendations(pillLibrary, campaignGoal)
+  const case1 = generateCase1Recommendations(deduplicatedLibrary, campaignGoal)
   
   // Generate Case 2 recommendations (Some Data)
-  const case2 = generateCase2Recommendations(pillLibrary, intentClusters, campaignGoal)
+  const case2 = generateCase2Recommendations(deduplicatedLibrary, intentClusters, campaignGoal)
   
   // Generate Case 3 recommendations (Rich Data)
-  const case3 = generateCase3Recommendations(pillLibrary, intentClusters, campaignGoal)
+  const case3 = generateCase3Recommendations(deduplicatedLibrary, intentClusters, campaignGoal)
   
   return {
     case1,
     case2,
     case3,
-    pillLibrary
+    pillLibrary: deduplicatedLibrary
   }
+}
+
+/**
+ * Deduplicate pills by normalized label.
+ * When multiple pills have the same label (case-insensitive, trimmed),
+ * keep only the one with the highest confidence.
+ */
+function deduplicatePillsByLabel(pills: PillLabel[]): PillLabel[] {
+  const normalizeLabel = (label: string): string => label.trim().toLowerCase()
+  
+  // Group pills by normalized label
+  const labelMap = new Map<string, PillLabel>()
+  
+  for (const pill of pills) {
+    const normalizedLabel = normalizeLabel(pill.label)
+    const existing = labelMap.get(normalizedLabel)
+    
+    if (!existing) {
+      // First pill with this label
+      labelMap.set(normalizedLabel, pill)
+    } else if ((pill.confidence || 0) > (existing.confidence || 0)) {
+      // This pill has higher confidence, replace existing
+      labelMap.set(normalizedLabel, pill)
+    }
+    // Otherwise, keep the existing pill (higher or equal confidence)
+  }
+  
+  return Array.from(labelMap.values())
 }
 
 function calculateConfidence(

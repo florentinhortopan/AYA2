@@ -412,23 +412,42 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
   }
 
   /**
+   * Deduplicate pills by normalized label (safety net for display).
+   * Keeps the first occurrence (which should have highest confidence after sorting).
+   */
+  const deduplicatePillsByLabel = (pills: PillLabel[]): PillLabel[] => {
+    const seenLabels = new Set<string>()
+    return pills.filter(pill => {
+      const normalizedLabel = pill.label.trim().toLowerCase()
+      if (seenLabels.has(normalizedLabel)) {
+        return false // Skip duplicate
+      }
+      seenLabels.add(normalizedLabel)
+      return true
+    })
+  }
+
+  /**
    * Intelligently select 1-4 pills for display based on:
    * - Confidence level (higher confidence first)
    * - Anticipate/Entice strategy (balance when possible)
    * - Use case requirements (Case 2: 2 anticipate + 2 entice, etc.)
+   * - Deduplication by label (safety net)
    */
   const selectPillsForDisplay = (pills: PillLabel[], useCase: 1 | 2 | 3, maxPills: number = 4): PillLabel[] => {
     if (pills.length === 0) return []
-    if (pills.length <= maxPills) return pills
 
-    // Sort by confidence (highest first)
+    // Sort by confidence (highest first) then deduplicate by label
     const sortedPills = [...pills].sort((a, b) => (b.confidence || 0) - (a.confidence || 0))
+    const uniquePills = deduplicatePillsByLabel(sortedPills)
+    
+    if (uniquePills.length <= maxPills) return uniquePills
 
     // For Case 2 and Case 3, try to maintain anticipate/entice balance
     if (useCase === 2 || useCase === 3) {
-      const anticipatePills = sortedPills.filter(p => p.type === 'anticipate')
-      const enticePills = sortedPills.filter(p => p.type === 'entice')
-      const ctaPills = sortedPills.filter(p => p.type === 'cta')
+      const anticipatePills = uniquePills.filter(p => p.type === 'anticipate')
+      const enticePills = uniquePills.filter(p => p.type === 'entice')
+      const ctaPills = uniquePills.filter(p => p.type === 'cta')
 
       const selected: PillLabel[] = []
       
@@ -449,15 +468,16 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
       // Fill remaining slots with CTA pills or highest confidence pills
       const remainingAfterStrategy = maxPills - selected.length
       if (remainingAfterStrategy > 0) {
-        const remainingPills = sortedPills.filter(p => !selected.find(sp => sp.id === p.id))
+        const remainingPills = uniquePills.filter(p => !selected.find(sp => sp.id === p.id))
         selected.push(...remainingPills.slice(0, remainingAfterStrategy))
       }
 
-      return selected.slice(0, maxPills)
+      // Final deduplication safety check on selected pills
+      return deduplicatePillsByLabel(selected).slice(0, maxPills)
     }
 
-    // Case 1: Just select top confidence pills (up to maxPills)
-    return sortedPills.slice(0, maxPills)
+    // Case 1: Just select top confidence unique pills (up to maxPills)
+    return uniquePills.slice(0, maxPills)
   }
 
   const handlePillClick = async (pill: PillLabel) => {
