@@ -50,8 +50,21 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [questionStatuses, setQuestionStatuses] = useState<QuestionStatus[]>(['approved'])
-  const [answerStatuses, setAnswerStatuses] = useState<AnswerValidationStatus[]>(['approved'])
+  // Unified status options - same for questions and answers
+  const questionStatusOptions: QuestionStatus[] = [
+    'draft',
+    'pending',
+    'approved',
+    'rejected',
+    'published',
+    'valid',
+    'needs_review',
+    'invalid'
+  ]
+  const answerStatusOptions: AnswerValidationStatus[] = questionStatusOptions
+  // Initialize with all statuses active by default
+  const [questionStatuses, setQuestionStatuses] = useState<QuestionStatus[]>(questionStatusOptions)
+  const [answerStatuses, setAnswerStatuses] = useState<AnswerValidationStatus[]>(answerStatusOptions)
   const endRef = useRef<HTMLDivElement>(null)
   const projectName = projects.find((project) => project.id === selectedProjectId)?.name || 'Project'
   
@@ -67,18 +80,6 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
   const [pillsShownCount, setPillsShownCount] = useState(0)
   const [loadingPills, setLoadingPills] = useState(false)
   const [loadingResearches, setLoadingResearches] = useState(false)
-  // Unified status options - same for questions and answers
-  const questionStatusOptions: QuestionStatus[] = [
-    'draft',
-    'pending',
-    'approved',
-    'rejected',
-    'published',
-    'valid',
-    'needs_review',
-    'invalid'
-  ]
-  const answerStatusOptions: AnswerValidationStatus[] = questionStatusOptions
 
   useEffect(() => {
     if (projectId) {
