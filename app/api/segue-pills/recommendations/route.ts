@@ -62,6 +62,8 @@ const finalizeCasePills = (
   const validatedCasePills = pills.filter((pill) => validatedPillLibrary.some((vp) => vp.id === pill.id))
   const prioritizedCasePills = deduplicatePillsByLabel(validatedCasePills)
     .sort((a, b) => (b.confidence || 0) - (a.confidence || 0))
+  const originalCasePool = deduplicatePillsByLabel(pills)
+    .sort((a, b) => (b.confidence || 0) - (a.confidence || 0))
   const validatedCasePool = deduplicatePillsByLabel(
     validatedPillLibrary
       .filter((pill) => Array.isArray(pill.useCase) && pill.useCase.includes(caseNumber))
@@ -83,22 +85,33 @@ const finalizeCasePills = (
 
   const businessPill =
     prioritizedCasePills.find((pill) => matchesBusinessRequirement(pill, requiredBusinessLabels)) ||
-    validatedCasePool.find((pill) => matchesBusinessRequirement(pill, requiredBusinessLabels))
+    validatedCasePool.find((pill) => matchesBusinessRequirement(pill, requiredBusinessLabels)) ||
+    originalCasePool.find((pill) => matchesBusinessRequirement(pill, requiredBusinessLabels))
   addPill(businessPill)
 
   const anticipatePill =
     prioritizedCasePills.find((pill) => pill.type === 'anticipate') ||
-    validatedCasePool.find((pill) => pill.type === 'anticipate')
+    validatedCasePool.find((pill) => pill.type === 'anticipate') ||
+    originalCasePool.find((pill) => pill.type === 'anticipate')
   addPill(anticipatePill)
 
   const enticePill =
     prioritizedCasePills.find((pill) => pill.type === 'entice') ||
-    validatedCasePool.find((pill) => pill.type === 'entice')
+    validatedCasePool.find((pill) => pill.type === 'entice') ||
+    originalCasePool.find((pill) => pill.type === 'entice')
   addPill(enticePill)
 
   for (const candidate of validatedCasePool) {
     if (selected.length >= CASE_POLICY.maxPills) break
     addPill(candidate)
+  }
+
+  // Soft fallback for diversity: if validation is too strict, recover missing types from original case pills.
+  if (!selected.some((pill) => pill.type === 'entice')) {
+    addPill(originalCasePool.find((pill) => pill.type === 'entice'))
+  }
+  if (!selected.some((pill) => pill.type === 'anticipate')) {
+    addPill(originalCasePool.find((pill) => pill.type === 'anticipate'))
   }
 
   const hasBusiness = selected.some((pill) => matchesBusinessRequirement(pill, requiredBusinessLabels))
