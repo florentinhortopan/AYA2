@@ -581,6 +581,13 @@ function SeguePillsResearchLabContent() {
     }
   }
 
+  const getPillBorderClass = (type: string): string => {
+    if (type === 'anticipate') return 'border-sky-500/60'
+    if (type === 'entice') return 'border-violet-500/60'
+    // Generic/business/CTA bucket
+    return 'border-emerald-500/60'
+  }
+
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-7xl mx-auto">
@@ -1073,7 +1080,7 @@ function SeguePillsResearchLabContent() {
                 <h3 className="text-xl font-bold mb-3">Case 1: Unknown User (Generic Default)</h3>
                 <div className="grid grid-cols-4 gap-3 mb-3">
                   {recommendations.case1.pills.map((pill: any) => (
-                    <div key={pill.id} className="border-2 border-primary bg-primary/5 rounded-lg p-3 text-center">
+                    <div key={pill.id} className={`border-2 ${getPillBorderClass(pill.type)} bg-primary/5 rounded-lg p-3 text-center`}>
                       <p className="font-medium">{pill.label}</p>
                       <p className="text-xs text-muted-foreground mt-1">{pill.type}</p>
                     </div>
@@ -1094,7 +1101,7 @@ function SeguePillsResearchLabContent() {
                 <h3 className="text-xl font-bold mb-3">Case 2: Some Data (Page/Referral Context)</h3>
                 <div className="grid grid-cols-4 gap-3 mb-3">
                   {recommendations.case2.pills.map((pill: any) => (
-                    <div key={pill.id} className="border-2 border-primary bg-primary/5 rounded-lg p-3 text-center">
+                    <div key={pill.id} className={`border-2 ${getPillBorderClass(pill.type)} bg-primary/5 rounded-lg p-3 text-center`}>
                       <p className="font-medium">{pill.label}</p>
                       <p className="text-xs text-muted-foreground mt-1">{pill.type}</p>
                     </div>
@@ -1115,7 +1122,7 @@ function SeguePillsResearchLabContent() {
                 <h3 className="text-xl font-bold mb-3">Case 3: Rich Data (Behavior + Engagement)</h3>
                 <div className="grid grid-cols-4 gap-3 mb-3">
                   {recommendations.case3.pills.map((pill: any) => (
-                    <div key={pill.id} className="border-2 border-primary bg-primary/5 rounded-lg p-3 text-center">
+                    <div key={pill.id} className={`border-2 ${getPillBorderClass(pill.type)} bg-primary/5 rounded-lg p-3 text-center`}>
                       <p className="font-medium">{pill.label}</p>
                       <p className="text-xs text-muted-foreground mt-1">{pill.type}</p>
                     </div>

@@ -92,7 +92,7 @@ export function generatePillRecommendations(
   })
   
   // Deduplicate by normalized label - keep the pill with highest confidence for each unique label
-  const deduplicatedLibrary = deduplicatePillsByLabel(pillLibrary)
+  const deduplicatedLibrary = enforcePillTypeDiversity(deduplicatePillsByLabel(pillLibrary))
   
   // Sort by confidence and frequency
   deduplicatedLibrary.sort((a, b) => {
@@ -144,6 +144,39 @@ function deduplicatePillsByLabel(pills: PillLabel[]): PillLabel[] {
   }
   
   return Array.from(labelMap.values())
+}
+
+/**
+ * Ensure we always keep a mix of anticipate + entice pills.
+ * CTA pills are preserved as-is and excluded from retyping.
+ */
+function enforcePillTypeDiversity(pills: PillLabel[]): PillLabel[] {
+  const adjusted = pills.map((pill) => ({ ...pill }))
+  const nonCta = adjusted.filter((pill) => pill.type !== 'cta')
+
+  if (nonCta.length === 0) {
+    return adjusted
+  }
+
+  const anticipate = nonCta.filter((pill) => pill.type === 'anticipate')
+  const entice = nonCta.filter((pill) => pill.type === 'entice')
+
+  // If one bucket is missing, retag one candidate from the other bucket.
+  if (anticipate.length === 0 && entice.length > 0) {
+    // Promote the highest-frequency entice pill to anticipate.
+    const promote = [...entice].sort((a, b) => b.frequency - a.frequency)[0]
+    if (promote) {
+      promote.type = 'anticipate'
+    }
+  } else if (entice.length === 0 && anticipate.length > 0) {
+    // Demote the lowest-frequency anticipate pill to entice.
+    const demote = [...anticipate].sort((a, b) => a.frequency - b.frequency)[0]
+    if (demote) {
+      demote.type = 'entice'
+    }
+  }
+
+  return adjusted
 }
 
 function calculateConfidence(

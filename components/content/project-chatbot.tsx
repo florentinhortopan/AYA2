@@ -482,17 +482,17 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
   }
 
   /**
-   * Select a compact, relevance-first set of pills for the current answer.
-   * Target behavior:
-   * - Prefer 1 anticipate pill that best matches the current answer context
-   * - Add up to 2 entice pills with highest relevance/confidence
-   * - Only surface pills when they are relevant (or strongly confident fallback)
+   * Select answer-aware pills with type diversity and confidence gating.
+   * Rules:
+   * - If both anticipate and entice match this answer, include at least one of each.
+   * - Include business CTA pill when campaign goal is active and a CTA candidate exists.
+   * - Show up to 4 pills only when confidence is high; otherwise keep compact.
    */
   const selectPillsForDisplay = (
     pills: PillLabel[],
     useCase: 1 | 2 | 3,
     responseContext: { matchedQuestionText?: string; response?: string },
-    maxPills: number = 3
+    maxPills: number = 4
   ): PillLabel[] => {
     if (pills.length === 0) return []
 
@@ -521,6 +521,10 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
 
     if (pool.length === 0) return []
 
+    // Only expand to 4 when enough candidates are high-confidence.
+    const highConfidenceCount = pool.filter(item => item.confidence >= 0.7 || item.relevance >= 0.25).length
+    const targetMax = highConfidenceCount >= 3 ? Math.min(4, maxPills) : Math.min(2, maxPills)
+
     const selected: PillLabel[] = []
     const selectedIds = new Set<string>()
     const selectedLabels = new Set<string>()
@@ -536,31 +540,36 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
 
     const anticipateCandidates = pool.filter(item => item.pill.type === 'anticipate')
     const enticeCandidates = pool.filter(item => item.pill.type === 'entice')
-    const remainingCandidates = pool
-      .map(item => item.pill)
-      .filter(pill => !selectedIds.has(pill.id))
+    const ctaCandidates = pool.filter(item => item.pill.type === 'cta')
+    const hasBothTypes = anticipateCandidates.length > 0 && enticeCandidates.length > 0
 
-    // 1) Add the best anticipate pill first if available.
-    add(anticipateCandidates[0]?.pill)
+    // 1) If campaign goal is active, prioritize one business CTA pill.
+    if (selectedCampaignGoalId) {
+      add(ctaCandidates[0]?.pill)
+    }
 
-    // 2) Add up to 2 entice pills.
-    for (const item of enticeCandidates.slice(0, 2)) {
-      if (selected.length >= maxPills) break
+    // 2) If both types exist, guarantee 1 anticipate + 1 entice.
+    if (hasBothTypes) {
+      add(anticipateCandidates[0]?.pill)
+      add(enticeCandidates[0]?.pill)
+    } else {
+      // Otherwise take the strongest non-CTA first.
+      const strongestNonCta = pool.find(item => item.pill.type !== 'cta')
+      add(strongestNonCta?.pill)
+    }
+
+    // 3) Fill remaining slots by score while preserving diversity.
+    for (const item of pool) {
+      if (selected.length >= targetMax) break
       add(item.pill)
     }
 
-    // 3) If still empty (or missing slots), fill with top remaining relevant pills.
-    for (const pill of remainingCandidates) {
-      if (selected.length >= maxPills) break
-      add(pill)
+    // Case 1 stays compact unless confidence is very high.
+    if (useCase === 1 && targetMax < 4) {
+      return selected.slice(0, Math.min(2, targetMax))
     }
 
-    // For generic case 1, keep list compact and broad.
-    if (useCase === 1) {
-      return selected.slice(0, Math.min(2, maxPills))
-    }
-
-    return selected.slice(0, maxPills)
+    return selected.slice(0, targetMax)
   }
 
   const handlePillClick = async (pill: PillLabel) => {
@@ -625,7 +634,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
             qualityCheck.filteredPills,
             selectedUseCase,
             { matchedQuestionText: data.matchedQuestionText, response: data.response },
-            3
+            4
           )
         : []
 
@@ -736,7 +745,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
             qualityCheck.filteredPills,
             selectedUseCase,
             { matchedQuestionText: data.matchedQuestionText, response: data.response },
-            3
+            4
           )
         : []
 
@@ -1202,13 +1211,19 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                         entice: 'secondary',
                         cta: 'default'
                       } as const
+
+                      const pillBorderClasses = {
+                        anticipate: 'border-sky-500/60',
+                        entice: 'border-violet-500/60',
+                        cta: 'border-emerald-500/60'
+                      } as const
                       
                       return (
                         <Button
                           key={pill.id}
                           size="sm"
                           variant={pillVariants[pill.type as keyof typeof pillVariants] || 'outline'}
-                          className="text-xs h-7"
+                          className={`text-xs h-7 border ${pillBorderClasses[pill.type as keyof typeof pillBorderClasses] || 'border-border'}`}
                           onClick={() => handlePillClick(pill)}
                           disabled={loading}
                         >
