@@ -168,8 +168,49 @@ function areSemanticallySimilar(text1: string, text2: string): boolean {
 }
 
 /**
+ * Normalize text for matching (same as chat endpoint)
+ */
+const normalizeText = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+/**
+ * Tokenize text (same as chat endpoint)
+ */
+const STOP_WORDS = new Set([
+  'a', 'an', 'the', 'and', 'or', 'but', 'if', 'then', 'than', 'to', 'of', 'for', 'on', 'in', 'at', 'by',
+  'is', 'are', 'was', 'were', 'be', 'been', 'being', 'with', 'from', 'as', 'it', 'this', 'that', 'these',
+  'those', 'i', 'you', 'we', 'they', 'he', 'she', 'my', 'your', 'our', 'their', 'me', 'us', 'them', 'do',
+  'does', 'did', 'can', 'could', 'should', 'would', 'will', 'may', 'might', 'about', 'into', 'what', 'how',
+  'why', 'when', 'where', 'which', 'who'
+])
+
+const tokenize = (value: string) =>
+  normalizeText(value)
+    .split(' ')
+    .filter((token) => token.length > 2 && !STOP_WORDS.has(token))
+
+/**
+ * Score match between query tokens and text (same as chat endpoint)
+ */
+const scoreMatch = (queryTokens: string[], text: string) => {
+  const textTokens = new Set(tokenize(text))
+  let score = 0
+  for (const token of queryTokens) {
+    if (textTokens.has(token)) {
+      score += 1
+    }
+  }
+  return score
+}
+
+/**
  * Validates a single pill label against available answers.
- * Returns true if the pill would lead to a question with answers.
+ * Uses the same matching logic as the chat endpoint for consistency.
+ * Returns true if the pill would likely lead to a question with answers.
  */
 export async function validatePillLabel(
   pillLabel: string,
@@ -196,23 +237,39 @@ export async function validatePillLabel(
       }
     })
 
-    const pillLower = pillLabel.toLowerCase()
+    if (questions.length === 0) {
+      // No questions available, fail open (don't block pills)
+      return true
+    }
+
+    const pillTokens = tokenize(pillLabel)
+    if (pillTokens.length === 0) {
+      // Pill label has no meaningful tokens, fail open
+      return true
+    }
     
-    // Check if any question matches this pill label
+    // Use the same scoring logic as the chat endpoint
+    // A pill is valid if it would match at least one question with answers
     return questions.some(q => {
       if (q.answers.length === 0) return false
       
-      const questionLower = q.questionText.toLowerCase()
-      const topicLower = q.topic?.toLowerCase() || ''
+      // Build searchable text (same as chat endpoint)
+      const answerText = q.answers.map(a => a.answerText).join(' ') || ''
+      const searchableText = [
+        q.questionText,
+        q.topic,
+        answerText
+      ].filter(Boolean).join(' ')
       
-      return questionLower.includes(pillLower) ||
-             pillLower.includes(questionLower) ||
-             topicLower.includes(pillLower) ||
-             pillLower.includes(topicLower) ||
-             areSemanticallySimilar(pillLower, questionLower)
+      // Score the match (same as chat endpoint)
+      const score = scoreMatch(pillTokens, searchableText)
+      
+      // Pill is valid if it has at least 1 matching token (lenient threshold)
+      // This matches the chat endpoint's behavior where any token match can work
+      return score > 0
     })
   } catch (error) {
     console.error('[Answer Validator] Error validating pill label:', error)
-    return true // Fail open
+    return true // Fail open - don't block pills on validation errors
   }
 }

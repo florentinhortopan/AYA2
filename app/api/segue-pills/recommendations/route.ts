@@ -59,15 +59,23 @@ export async function POST(req: NextRequest) {
       // Update recommendations with validated pills
       recommendations.pillLibrary = validatedPillLibrary
 
-      // Filter case recommendations to only include validated pills
-      const filterPills = (pills: PillLabel[]) => 
-        pills.filter(p => validatedPillLibrary.some(vp => vp.id === p.id))
+      // Filter case recommendations - but be lenient: if validation fails, keep original pills
+      const filterPills = (pills: PillLabel[], caseName: string) => {
+        const filtered = pills.filter(p => validatedPillLibrary.some(vp => vp.id === p.id))
+        // If validation filtered out all pills, keep original (fail open)
+        if (filtered.length === 0 && pills.length > 0) {
+          console.warn(`[Recommendations POST] Validation filtered out all pills for ${caseName}, keeping original ${pills.length} pills`)
+          return pills
+        }
+        console.log(`[Recommendations POST] ${caseName}: ${filtered.length}/${pills.length} pills validated`)
+        return filtered
+      }
 
-      recommendations.case1.pills = filterPills(recommendations.case1.pills)
-      recommendations.case2.pills = filterPills(recommendations.case2.pills)
-      recommendations.case3.pills = filterPills(recommendations.case3.pills)
+      recommendations.case1.pills = filterPills(recommendations.case1.pills, 'case1')
+      recommendations.case2.pills = filterPills(recommendations.case2.pills, 'case2')
+      recommendations.case3.pills = filterPills(recommendations.case3.pills, 'case3')
 
-      console.log(`[Recommendations] Validated pills: ${validatedPillLibrary.length}/${recommendations.pillLibrary.length} valid`)
+      console.log(`[Recommendations POST] Validated pills: ${validatedPillLibrary.length}/${recommendations.pillLibrary.length} valid`)
     }
 
     return NextResponse.json({

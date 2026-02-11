@@ -82,7 +82,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
 
   useEffect(() => {
     if (projectId) {
-      setSelectedProjectId(projectId)
+    setSelectedProjectId(projectId)
     } else if (projects.length > 0 && !selectedProjectId) {
       // Auto-select first project if no projectId provided
       setSelectedProjectId(projects[0].id)
@@ -362,6 +362,55 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
     })
   }
 
+  /**
+   * Intelligently select 1-4 pills for display based on:
+   * - Confidence level (higher confidence first)
+   * - Anticipate/Entice strategy (balance when possible)
+   * - Use case requirements (Case 2: 2 anticipate + 2 entice, etc.)
+   */
+  const selectPillsForDisplay = (pills: PillLabel[], useCase: 1 | 2 | 3, maxPills: number = 4): PillLabel[] => {
+    if (pills.length === 0) return []
+    if (pills.length <= maxPills) return pills
+
+    // Sort by confidence (highest first)
+    const sortedPills = [...pills].sort((a, b) => (b.confidence || 0) - (a.confidence || 0))
+
+    // For Case 2 and Case 3, try to maintain anticipate/entice balance
+    if (useCase === 2 || useCase === 3) {
+      const anticipatePills = sortedPills.filter(p => p.type === 'anticipate')
+      const enticePills = sortedPills.filter(p => p.type === 'entice')
+      const ctaPills = sortedPills.filter(p => p.type === 'cta')
+
+      const selected: PillLabel[] = []
+      
+      // Case 2: Target 2 anticipate + 2 entice
+      // Case 3: Target 2 anticipate + 1-2 entice/CTA
+      const targetAnticipate = useCase === 2 ? 2 : 2
+      const targetEntice = useCase === 2 ? 2 : (maxPills - targetAnticipate)
+
+      // Add anticipate pills (highest confidence first)
+      selected.push(...anticipatePills.slice(0, Math.min(targetAnticipate, anticipatePills.length)))
+
+      // Add entice pills (highest confidence first)
+      const remainingSlots = maxPills - selected.length
+      if (remainingSlots > 0) {
+        selected.push(...enticePills.slice(0, Math.min(targetEntice, enticePills.length, remainingSlots)))
+      }
+
+      // Fill remaining slots with CTA pills or highest confidence pills
+      const remainingAfterStrategy = maxPills - selected.length
+      if (remainingAfterStrategy > 0) {
+        const remainingPills = sortedPills.filter(p => !selected.find(sp => sp.id === p.id))
+        selected.push(...remainingPills.slice(0, remainingAfterStrategy))
+      }
+
+      return selected.slice(0, maxPills)
+    }
+
+    // Case 1: Just select top confidence pills (up to maxPills)
+    return sortedPills.slice(0, maxPills)
+  }
+
   const handlePillClick = async (pill: PillLabel) => {
     // Mark pill as used
     setUsedPillIds(prev => new Set([...prev, pill.id]))
@@ -409,19 +458,23 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
       }
 
       // Determine if we should show pills
-      const availablePills = currentPills.filter(p => p && p.id && !usedPillIds.has(p.id) && p.id !== pill.id)
+      const allAvailablePills = currentPills.filter(p => p && p.id && !usedPillIds.has(p.id) && p.id !== pill.id)
+      // Select 1-4 pills based on confidence and strategy
+      const availablePills = selectPillsForDisplay(allAvailablePills, selectedUseCase, 4)
       const shouldShowPills = !!selectedResearchId && 
                               pillsShownCount < 3 && 
                               Array.isArray(currentPills) && 
                               currentPills.length > 0 &&
                               availablePills.length > 0
 
-      console.log('[Pills] handlePillClick - shouldShowPills:', shouldShowPills, {
-        selectedResearchId,
-        pillsShownCount,
-        currentPillsCount: currentPills.length,
-        availablePillsCount: availablePills.length,
-        usedPillIds: Array.from(usedPillIds)
+      console.log('[Pills] handlePillClick - pill selection:', {
+        allAvailable: allAvailablePills.length,
+        selected: availablePills.length,
+        selection: availablePills.map(p => ({ label: p.label, type: p.type, confidence: p.confidence })),
+        anticipate: availablePills.filter(p => p.type === 'anticipate').length,
+        entice: availablePills.filter(p => p.type === 'entice').length,
+        cta: availablePills.filter(p => p.type === 'cta').length,
+        shouldShowPills
       })
 
       const assistantMessage: ChatMessage = {
@@ -502,7 +555,9 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
       }
 
       // Determine if we should show pills (first 3 assistant messages, research selected)
-      const availablePills = currentPills.filter(p => p && p.id && !usedPillIds.has(p.id))
+      const allAvailablePills = currentPills.filter(p => p && p.id && !usedPillIds.has(p.id))
+      // Select 1-4 pills based on confidence and strategy
+      const availablePills = selectPillsForDisplay(allAvailablePills, selectedUseCase, 4)
       const shouldShowPills = !!selectedResearchId && 
                               pillsShownCount < 3 && 
                               Array.isArray(currentPills) && 
@@ -510,12 +565,14 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                               availablePills.length > 0
 
       console.log('[Pills] ===== SEND MESSAGE =====')
-      console.log('[Pills] Pills check:', {
-        selectedResearchId,
-        pillsShownCount: `${pillsShownCount}/3`,
-        currentPillsCount: currentPills.length,
-        availablePillsCount: availablePills.length,
-        usedPillIds: Array.from(usedPillIds),
+      console.log('[Pills] Pill selection:', {
+        allAvailable: allAvailablePills.length,
+        selected: availablePills.length,
+        selection: availablePills.map(p => ({ label: p.label, type: p.type, confidence: p.confidence })),
+        anticipate: availablePills.filter(p => p.type === 'anticipate').length,
+        entice: availablePills.filter(p => p.type === 'entice').length,
+        cta: availablePills.filter(p => p.type === 'cta').length,
+        useCase: selectedUseCase,
         shouldShowPills
       })
 
@@ -578,21 +635,21 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
           <div className="border-b border-border overflow-y-auto flex-shrink-0">
             <div className="px-4 py-3 space-y-3">
               {/* Project Selector - Always visible */}
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Project</p>
-                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Project</p>
+              <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
               {/* Status Filters - Collapsible */}
               <details className="group">
@@ -603,39 +660,39 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                   </span>
                 </summary>
                 <div className="mt-2 space-y-3 pt-2 border-t border-border">
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">Question status filters</p>
-                    <div className="flex flex-wrap gap-1">
-                      {questionStatusOptions.map((status) => (
-                        <Button
-                          key={status}
-                          size="sm"
-                          variant={questionStatuses.includes(status) ? 'default' : 'outline'}
-                          onClick={() => toggleQuestionStatus(status)}
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Question status filters</p>
+              <div className="flex flex-wrap gap-1">
+                {questionStatusOptions.map((status) => (
+                  <Button
+                    key={status}
+                    size="sm"
+                    variant={questionStatuses.includes(status) ? 'default' : 'outline'}
+                    onClick={() => toggleQuestionStatus(status)}
                           className="text-[10px] h-7"
-                        >
-                          {status.replace('_', ' ')}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">Answer status filters</p>
-                    <div className="flex flex-wrap gap-1">
-                      {answerStatusOptions.map((status) => (
-                        <Button
-                          key={status}
-                          size="sm"
-                          variant={answerStatuses.includes(status) ? 'default' : 'outline'}
-                          onClick={() => toggleAnswerStatus(status)}
+                  >
+                    {status.replace('_', ' ')}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Answer status filters</p>
+              <div className="flex flex-wrap gap-1">
+                {answerStatusOptions.map((status) => (
+                  <Button
+                    key={status}
+                    size="sm"
+                    variant={answerStatuses.includes(status) ? 'default' : 'outline'}
+                    onClick={() => toggleAnswerStatus(status)}
                           className="text-[10px] h-7"
-                        >
-                          {status.replace('_', ' ')}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                  >
+                    {status.replace('_', ' ')}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
               </details>
             
               {/* Segue Pills Configuration - Collapsible, only show if showPillsFeature is true */}
