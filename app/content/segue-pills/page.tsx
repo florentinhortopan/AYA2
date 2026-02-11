@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 
 type ResearchPhase = 'setup' | 'generating' | 'clustering' | 'recommendations' | 'complete'
 
@@ -57,8 +58,10 @@ function SeguePillsResearchLabContent() {
   const [intentClusters, setIntentClusters] = useState<IntentCluster[]>([])
   const [recommendations, setRecommendations] = useState<PillRecommendations | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [savedResearchId, setSavedResearchId] = useState<string | null>(null)
   const [loadingExistingResearch, setLoadingExistingResearch] = useState(false)
+  const [researchStatus, setResearchStatus] = useState<string>('draft')
 
   const personas = [
     { id: 'high_school', label: 'High School Student' },
@@ -75,7 +78,21 @@ function SeguePillsResearchLabContent() {
     { id: 'join_process', label: 'Joining Process & Next Steps' },
   ]
 
+  const invalidateDownstreamForSetupChange = (reason: string) => {
+    const hasGeneratedArtifacts = questions.length > 0 || intentClusters.length > 0 || !!recommendations
+    if (!hasGeneratedArtifacts) return
+
+    setError(null)
+    setQuestions([])
+    setIntentClusters([])
+    setRecommendations(null)
+    setPhase('setup')
+    setResearchStatus('draft')
+    setNotice(`Setup updated (${reason}). Please regenerate questions and recommendations.`)
+  }
+
   const togglePersona = (personaId: string) => {
+    invalidateDownstreamForSetupChange('persona changed')
     setSelectedPersonas(prev =>
       prev.includes(personaId)
         ? prev.filter(p => p !== personaId)
@@ -84,6 +101,7 @@ function SeguePillsResearchLabContent() {
   }
 
   const toggleTopic = (topicId: string) => {
+    invalidateDownstreamForSetupChange('topic changed')
     setSelectedTopics(prev =>
       prev.includes(topicId)
         ? prev.filter(t => t !== topicId)
@@ -111,6 +129,7 @@ function SeguePillsResearchLabContent() {
           setSelectedTopics(research.topics || [])
           setQuestionCount(research.questionCount || 100)
           setSavedResearchId(research.id)
+          setResearchStatus(research.status || 'draft')
           
           // Load generated data
           if (research.syntheticQuestions) {
@@ -338,7 +357,10 @@ function SeguePillsResearchLabContent() {
     }
   }
 
-  const saveResearchToDatabase = async (finalRecommendations?: PillRecommendations) => {
+  const saveResearchToDatabase = async (
+    finalRecommendations?: PillRecommendations,
+    options?: { forceStatus?: string }
+  ) => {
     try {
       const researchData = {
         id: savedResearchId || undefined,
@@ -355,7 +377,7 @@ function SeguePillsResearchLabContent() {
         recommendations: finalRecommendations || null,
         campaignGoalId: selectedGoalId || null,
         qaProjectId: selectedProjectId || null,
-        status: finalRecommendations ? 'completed' : (intentClusters.length > 0 ? 'testing' : 'draft')
+        status: options?.forceStatus || (finalRecommendations ? 'completed' : (intentClusters.length > 0 ? 'testing' : 'draft'))
       }
 
       const response = await fetch('/api/segue-pills/researches', {
@@ -371,6 +393,7 @@ function SeguePillsResearchLabContent() {
 
       const data = await response.json()
       setSavedResearchId(data.research.id)
+      setResearchStatus(data.research.status || researchStatus)
       console.log('Research saved:', data.research.id)
     } catch (error) {
       console.error('Failed to save research:', error)
@@ -384,7 +407,9 @@ function SeguePillsResearchLabContent() {
     setIntentClusters([])
     setRecommendations(null)
     setError(null)
+    setNotice(null)
     setSavedResearchId(null)
+    setResearchStatus('draft')
   }
 
   const exportRecommendations = () => {
@@ -398,6 +423,92 @@ function SeguePillsResearchLabContent() {
     a.download = `segue-pills-recommendations-${Date.now()}.json`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const removePillFromRecommendations = (current: PillRecommendations, pillId: string): PillRecommendations => {
+    const filterPill = (pill: any) => pill && pill.id !== pillId
+
+    return {
+      ...current,
+      pillLibrary: (current.pillLibrary || []).filter(filterPill),
+      case1: {
+        ...current.case1,
+        pills: (current.case1?.pills || []).filter(filterPill)
+      },
+      case2: {
+        ...current.case2,
+        pills: (current.case2?.pills || []).filter(filterPill)
+      },
+      case3: {
+        ...current.case3,
+        pills: (current.case3?.pills || []).filter(filterPill)
+      }
+    }
+  }
+
+  const handleDeletePill = async (pillId: string) => {
+    if (!recommendations || !savedResearchId) return
+
+    const updatedRecommendations = removePillFromRecommendations(recommendations, pillId)
+    const previousRecommendations = recommendations
+
+    // Optimistic update for immediate UI feedback
+    setRecommendations(updatedRecommendations)
+
+    try {
+      const response = await fetch('/api/segue-pills/researches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: savedResearchId,
+          name: projectName || `Research ${new Date().toLocaleDateString()}`,
+          description: `Generated ${questions.length} questions, ${intentClusters.length} intent clusters`,
+          personas: selectedPersonas,
+          topics: selectedTopics,
+          questionCount: questions.length,
+          syntheticQuestions: questions.length > 0 ? questions : null,
+          scrapedQuestions: null,
+          scrapedUrls: [],
+          intentClusters: intentClusters.length > 0 ? intentClusters : null,
+          pillLibrary: updatedRecommendations.pillLibrary || null,
+          recommendations: updatedRecommendations,
+          campaignGoalId: selectedGoalId || null,
+          qaProjectId: selectedProjectId || null,
+          status: 'completed'
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to persist pill deletion')
+      }
+    } catch (err) {
+      // Rollback on failure
+      setRecommendations(previousRecommendations)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete pill'
+      setError(errorMessage)
+    }
+  }
+
+  const handlePublishToggle = async () => {
+    if (!savedResearchId || !recommendations) {
+      setError('Generate recommendations before publishing.')
+      return
+    }
+
+    const nextStatus = researchStatus === 'published' ? 'completed' : 'published'
+    setError(null)
+    setNotice(null)
+    setIsLoading(true)
+    try {
+      await saveResearchToDatabase(recommendations, { forceStatus: nextStatus })
+      setNotice(nextStatus === 'published' ? 'Research published for chatbot use.' : 'Research unpublished (kept as completed).')
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update publish status'
+      setError(errorMessage)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -431,6 +542,12 @@ function SeguePillsResearchLabContent() {
         {error && (
           <Card className="bg-red-50 border-red-200 p-4 mb-6">
             <p className="text-red-800">{error}</p>
+          </Card>
+        )}
+
+        {notice && (
+          <Card className="bg-blue-50 border-blue-200 p-4 mb-6">
+            <p className="text-blue-800">{notice}</p>
           </Card>
         )}
 
@@ -497,7 +614,10 @@ function SeguePillsResearchLabContent() {
                       <select
                         id="qaProjectSelect"
                         value={selectedProjectId}
-                        onChange={(e) => setSelectedProjectId(e.target.value)}
+                        onChange={(e) => {
+                          invalidateDownstreamForSetupChange('linked Q&A project changed')
+                          setSelectedProjectId(e.target.value)
+                        }}
                         className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                         required
                       >
@@ -526,7 +646,10 @@ function SeguePillsResearchLabContent() {
                   <Label>Question Source</Label>
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     <button
-                      onClick={() => setSourceType('synthetic')}
+                      onClick={() => {
+                        invalidateDownstreamForSetupChange('question source changed')
+                        setSourceType('synthetic')
+                      }}
                       className={`
                         p-4 rounded-lg border-2 text-left transition
                         ${sourceType === 'synthetic'
@@ -540,7 +663,10 @@ function SeguePillsResearchLabContent() {
                       </div>
                     </button>
                     <button
-                      onClick={() => setSourceType('import')}
+                      onClick={() => {
+                        invalidateDownstreamForSetupChange('question source changed')
+                        setSourceType('import')
+                      }}
                       className={`
                         p-4 rounded-lg border-2 text-left transition
                         ${sourceType === 'import'
@@ -562,7 +688,10 @@ function SeguePillsResearchLabContent() {
                     <select
                       id="projectSelect"
                       value={selectedProjectId}
-                      onChange={(e) => setSelectedProjectId(e.target.value)}
+                      onChange={(e) => {
+                        invalidateDownstreamForSetupChange('import project changed')
+                        setSelectedProjectId(e.target.value)
+                      }}
                       className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                     >
                       <option value="">Choose a project...</option>
@@ -595,7 +724,10 @@ function SeguePillsResearchLabContent() {
                         id="questionCount"
                         type="number"
                         value={questionCount}
-                        onChange={(e) => setQuestionCount(parseInt(e.target.value))}
+                        onChange={(e) => {
+                          invalidateDownstreamForSetupChange('question count changed')
+                          setQuestionCount(parseInt(e.target.value))
+                        }}
                         min={10}
                         max={500}
                       />
@@ -655,7 +787,10 @@ function SeguePillsResearchLabContent() {
                   <select
                     id="campaignGoal"
                     value={selectedGoalId}
-                    onChange={(e) => setSelectedGoalId(e.target.value)}
+                    onChange={(e) => {
+                      invalidateDownstreamForSetupChange('campaign goal changed')
+                      setSelectedGoalId(e.target.value)
+                    }}
                     className="w-full p-2 border border-border rounded-lg bg-background text-foreground"
                   >
                     <option value="">No specific goal</option>
@@ -798,8 +933,26 @@ function SeguePillsResearchLabContent() {
           <div className="space-y-6">
             <Card className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold">🎉 Recommendations Complete</h2>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-bold">🎉 Recommendations Complete</h2>
+                  <Badge variant={researchStatus === 'published' ? 'default' : 'secondary'}>
+                    {researchStatus}
+                  </Badge>
+                </div>
                 <div className="flex gap-2">
+                  <Button
+                    onClick={handlePublishToggle}
+                    variant={researchStatus === 'published' ? 'secondary' : 'default'}
+                    disabled={isLoading || !savedResearchId}
+                  >
+                    {researchStatus === 'published' ? 'Unpublish' : 'Publish'}
+                  </Button>
+                  <Button
+                    onClick={() => setPhase('setup')}
+                    variant="outline"
+                  >
+                    Edit Setup
+                  </Button>
                   <Button onClick={exportRecommendations} variant="outline">
                     📥 Export JSON
                   </Button>
@@ -893,6 +1046,13 @@ function SeguePillsResearchLabContent() {
                     <p className="text-xs text-muted-foreground mt-2">
                       Confidence: {(pill.confidence * 100).toFixed(0)}% | Use Cases: {pill.useCase.join(', ')}
                     </p>
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePill(pill.id)}
+                      className="mt-2 text-xs text-red-600 hover:text-red-700 hover:underline"
+                    >
+                      Delete
+                    </button>
                   </div>
                 ))}
               </div>

@@ -73,6 +73,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
   const pillsEnabled = !!selectedResearchId // Derived state: enabled when research is selected
   const [selectedCampaignGoalId, setSelectedCampaignGoalId] = useState<string>('')
   const [selectedUseCase, setSelectedUseCase] = useState<1 | 2 | 3>(1)
+  const [publishedOnlyResearches, setPublishedOnlyResearches] = useState(false)
   const [availableResearches, setAvailableResearches] = useState<SeguePillResearch[]>([])
   const [availableCampaignGoals, setAvailableCampaignGoals] = useState<SegueCampaignGoal[]>([])
   const [currentPills, setCurrentPills] = useState<PillLabel[]>([])
@@ -150,8 +151,11 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
       console.log('[Pills] ✅ Loading researches and campaign goals...')
       setLoadingResearches(true)
       try {
-        // Load only researches with pills generated (intentClusters)
-        const researchesResponse = await fetch('/api/segue-pills/researches?withPillsOnly=true')
+        // Load only researches with pills generated (intentClusters), optionally restricted to published
+        const researchesUrl = publishedOnlyResearches
+          ? '/api/segue-pills/researches?withPillsOnly=true&status=published'
+          : '/api/segue-pills/researches?withPillsOnly=true'
+        const researchesResponse = await fetch(researchesUrl)
         if (researchesResponse.ok) {
           const researchesData = await researchesResponse.json()
           console.log('[Pills] Loaded researches:', researchesData)
@@ -192,7 +196,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
     }
 
     loadPillsData()
-  }, [open, showPillsFeature])
+  }, [open, showPillsFeature, publishedOnlyResearches])
 
   // Reset pills state when research is cleared
   useEffect(() => {
@@ -882,6 +886,13 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                   <div className="mt-2 space-y-3 pt-2 border-t border-border">
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-foreground">Segue Pills Research Project</p>
+                  <button
+                    type="button"
+                    onClick={() => setPublishedOnlyResearches(prev => !prev)}
+                    className="text-[11px] text-muted-foreground hover:text-foreground underline"
+                  >
+                    {publishedOnlyResearches ? 'Showing published only (click to show all)' : 'Showing all (click to show published only)'}
+                  </button>
                   <Select 
                     value={selectedResearchId || undefined} 
                     onValueChange={(value) => {

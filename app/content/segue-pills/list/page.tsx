@@ -12,6 +12,7 @@ const statusStyles: Record<string, string> = {
   generating: 'bg-blue-500/10 text-blue-500',
   testing: 'bg-yellow-500/10 text-yellow-500',
   completed: 'bg-green-500/10 text-green-500',
+  published: 'bg-emerald-500/10 text-emerald-600',
   archived: 'bg-muted text-muted-foreground'
 }
 

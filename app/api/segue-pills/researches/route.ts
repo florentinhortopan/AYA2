@@ -109,9 +109,11 @@ export async function POST(request: NextRequest) {
       userId = user?.id || null
     }
 
-    // Determine status - if intentClusters exist, set to 'testing', if recommendations exist, set to 'completed'
+    // Determine status. Preserve explicit "published" to support operator publish workflow.
     let finalStatus = status || 'draft'
-    if (recommendations) {
+    if (status === 'published') {
+      finalStatus = 'published'
+    } else if (recommendations) {
       finalStatus = 'completed'
     } else if (intentClusters) {
       finalStatus = 'testing'
