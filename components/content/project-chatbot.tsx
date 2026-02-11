@@ -364,6 +364,54 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
   }
 
   /**
+   * Determine if pills should be shown based on quality gates and confidence thresholds.
+   * Uses context-aware relevancy strategy to maintain high quality throughout conversation.
+   */
+  const shouldShowPillsWithQualityGates = (
+    availablePills: PillLabel[],
+    responseData: { matchedQuestionId?: string; matchedQuestionText?: string },
+    minConfidence: number = 0.4
+  ): { shouldShow: boolean; filteredPills: PillLabel[]; reason: string } => {
+    if (!selectedResearchId) {
+      return { shouldShow: false, filteredPills: [], reason: 'no research selected' }
+    }
+
+    if (availablePills.length === 0) {
+      return { shouldShow: false, filteredPills: [], reason: 'no available pills' }
+    }
+
+    // Quality Gate 1: Check if response was matched from DB (high quality)
+    const isHighQualityResponse = !!(responseData.matchedQuestionId || responseData.matchedQuestionText)
+
+    // Quality Gate 2: Filter pills by confidence threshold
+    const highConfidencePills = availablePills.filter(p => (p.confidence || 0) >= minConfidence)
+    const lowConfidencePills = availablePills.filter(p => (p.confidence || 0) < minConfidence)
+
+    // Decision logic:
+    // - Show pills if response is high quality (matched from DB) AND we have any pills
+    // - OR if we have high confidence pills available (even with AI fallback)
+    // - Don't show if only low confidence pills remain (unless response was matched)
+    const hasHighConfidencePills = highConfidencePills.length > 0
+    const shouldShow = isHighQualityResponse 
+      ? availablePills.length > 0  // High quality response: show any available pills
+      : hasHighConfidencePills     // AI fallback: only show high confidence pills
+
+    const filteredPills = shouldShow
+      ? (isHighQualityResponse ? availablePills : highConfidencePills)
+      : []
+
+    const reason = !shouldShow
+      ? (isHighQualityResponse 
+          ? 'no pills available (unexpected)' 
+          : 'only low confidence pills available (< 0.4)')
+      : isHighQualityResponse
+        ? 'high quality matched response'
+        : 'high confidence pills available (≥ 0.4)'
+
+    return { shouldShow, filteredPills, reason }
+  }
+
+  /**
    * Intelligently select 1-4 pills for display based on:
    * - Confidence level (higher confidence first)
    * - Anticipate/Entice strategy (balance when possible)
@@ -458,24 +506,32 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         metaParts.push(`Answer: ${String(data.matchedAnswerStatus).replace('_', ' ')}`)
       }
 
-      // Determine if we should show pills
+      // Determine if we should show pills using quality gates
       const allAvailablePills = currentPills.filter(p => p && p.id && !usedPillIds.has(p.id) && p.id !== pill.id)
-      // Select 1-4 pills based on confidence and strategy
-      const availablePills = selectPillsForDisplay(allAvailablePills, selectedUseCase, 4)
-      const shouldShowPills = !!selectedResearchId && 
-                              pillsShownCount < 3 && 
-                              Array.isArray(currentPills) && 
-                              currentPills.length > 0 &&
-                              availablePills.length > 0
+      
+      // Apply quality gates
+      const qualityCheck = shouldShowPillsWithQualityGates(
+        allAvailablePills,
+        { matchedQuestionId: data.matchedQuestionId, matchedQuestionText: data.matchedQuestionText },
+        0.4 // Minimum confidence threshold
+      )
+
+      // Select 1-4 pills from filtered pills based on confidence and strategy
+      const availablePills = qualityCheck.shouldShow
+        ? selectPillsForDisplay(qualityCheck.filteredPills, selectedUseCase, 4)
+        : []
 
       console.log('[Pills] handlePillClick - pill selection:', {
         allAvailable: allAvailablePills.length,
+        qualityFiltered: qualityCheck.filteredPills.length,
         selected: availablePills.length,
         selection: availablePills.map(p => ({ label: p.label, type: p.type, confidence: p.confidence })),
         anticipate: availablePills.filter(p => p.type === 'anticipate').length,
         entice: availablePills.filter(p => p.type === 'entice').length,
         cta: availablePills.filter(p => p.type === 'cta').length,
-        shouldShowPills
+        shouldShowPills: qualityCheck.shouldShow,
+        reason: qualityCheck.reason,
+        isHighQualityResponse: !!(data.matchedQuestionId || data.matchedQuestionText)
       })
 
       const assistantMessage: ChatMessage = {
@@ -489,12 +545,13 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
           .filter(Boolean)
           .join('\n'),
         timestamp: new Date().toISOString(),
-        pills: shouldShowPills ? availablePills : undefined
+        pills: qualityCheck.shouldShow ? availablePills : undefined
       }
       
       setMessages((current) => [...current, assistantMessage])
       
-      if (shouldShowPills) {
+      // Track pills shown for analytics (no longer used as a limit)
+      if (qualityCheck.shouldShow) {
         setPillsShownCount(prev => prev + 1)
       }
     } catch (error) {
@@ -555,26 +612,34 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         metaParts.push(`Answer: ${String(data.matchedAnswerStatus).replace('_', ' ')}`)
       }
 
-      // Determine if we should show pills (first 3 assistant messages, research selected)
+      // Determine if we should show pills using quality gates
       const allAvailablePills = currentPills.filter(p => p && p.id && !usedPillIds.has(p.id))
-      // Select 1-4 pills based on confidence and strategy
-      const availablePills = selectPillsForDisplay(allAvailablePills, selectedUseCase, 4)
-      const shouldShowPills = !!selectedResearchId && 
-                              pillsShownCount < 3 && 
-                              Array.isArray(currentPills) && 
-                              currentPills.length > 0 &&
-                              availablePills.length > 0
+      
+      // Apply quality gates
+      const qualityCheck = shouldShowPillsWithQualityGates(
+        allAvailablePills,
+        { matchedQuestionId: data.matchedQuestionId, matchedQuestionText: data.matchedQuestionText },
+        0.4 // Minimum confidence threshold
+      )
+
+      // Select 1-4 pills from filtered pills based on confidence and strategy
+      const availablePills = qualityCheck.shouldShow
+        ? selectPillsForDisplay(qualityCheck.filteredPills, selectedUseCase, 4)
+        : []
 
       console.log('[Pills] ===== SEND MESSAGE =====')
       console.log('[Pills] Pill selection:', {
         allAvailable: allAvailablePills.length,
+        qualityFiltered: qualityCheck.filteredPills.length,
         selected: availablePills.length,
         selection: availablePills.map(p => ({ label: p.label, type: p.type, confidence: p.confidence })),
         anticipate: availablePills.filter(p => p.type === 'anticipate').length,
         entice: availablePills.filter(p => p.type === 'entice').length,
         cta: availablePills.filter(p => p.type === 'cta').length,
         useCase: selectedUseCase,
-        shouldShowPills
+        shouldShowPills: qualityCheck.shouldShow,
+        reason: qualityCheck.reason,
+        isHighQualityResponse: !!(data.matchedQuestionId || data.matchedQuestionText)
       })
 
       const assistantMessage: ChatMessage = {
@@ -588,18 +653,18 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
           .filter(Boolean)
           .join('\n'),
         timestamp: new Date().toISOString(),
-        pills: shouldShowPills ? availablePills : undefined
+        pills: qualityCheck.shouldShow ? availablePills : undefined
       }
       
-      if (shouldShowPills) {
+      if (qualityCheck.shouldShow) {
         console.log('[Pills] ✅ Attaching pills to message:', availablePills.map(p => p.label))
-        setPillsShownCount(prev => prev + 1)
+        setPillsShownCount(prev => prev + 1) // Track for analytics (no longer used as limit)
       } else {
         console.log('[Pills] ❌ Not showing pills:', {
-          reason: !selectedResearchId ? 'no research selected' :
-                  pillsShownCount >= 3 ? 'already shown 3 times' :
-                  currentPills.length === 0 ? 'no pills loaded' :
-                  availablePills.length === 0 ? 'all pills used' : 'unknown'
+          reason: qualityCheck.reason,
+          allAvailable: allAvailablePills.length,
+          qualityFiltered: qualityCheck.filteredPills.length,
+          isHighQualityResponse: !!(data.matchedQuestionId || data.matchedQuestionText)
         })
       }
       
@@ -945,7 +1010,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
                         <div>Use Case: {selectedUseCase}</div>
                         <div>Available Researches: {availableResearches.length}</div>
                         <div>Current Pills: {currentPills.length}</div>
-                        <div>Pills Shown: {pillsShownCount}/3</div>
+                        <div>Pills Shown (analytics): {pillsShownCount}</div>
                         <div>Used Pills: {usedPillIds.size}</div>
                         <div>Loading Pills: {loadingPills ? '⏳' : '✅'}</div>
                         <div>Loading Researches: {loadingResearches ? '⏳' : '✅'}</div>
