@@ -15,6 +15,132 @@ const jsonNoStore = (payload: unknown, init?: Parameters<typeof NextResponse.jso
   return response
 }
 
+const normalizePillLabel = (label: string): string => label.trim().toLowerCase()
+
+const deduplicatePillsByLabel = (pills: PillLabel[]): PillLabel[] => {
+  const seenLabels = new Set<string>()
+  return pills.filter((pill) => {
+    const normalized = normalizePillLabel(pill.label)
+    if (seenLabels.has(normalized)) {
+      return false
+    }
+    seenLabels.add(normalized)
+    return true
+  })
+}
+
+const CASE_POLICY = {
+  minAnticipate: 1,
+  minEntice: 1,
+  maxPills: 4
+} as const
+
+const getRequiredBusinessLabels = (campaignGoal: any): string[] => {
+  const labels = campaignGoal?.ctaRequirement?.requiredPills
+  if (!Array.isArray(labels)) return []
+  return labels
+    .map((label: unknown) => String(label || '').trim())
+    .filter(Boolean)
+}
+
+const matchesBusinessRequirement = (pill: PillLabel, requiredLabels: string[]): boolean => {
+  if (requiredLabels.length === 0) {
+    // If no explicit labels are configured, CTA acts as business requirement.
+    return pill.type === 'cta'
+  }
+
+  const label = normalizePillLabel(pill.label)
+  return requiredLabels.some((required) => {
+    const normalized = normalizePillLabel(required)
+    return label === normalized || label.includes(normalized) || normalized.includes(label)
+  })
+}
+
+const finalizeCasePills = (
+  pills: PillLabel[],
+  caseNumber: 1 | 2 | 3,
+  caseName: string,
+  validatedPillLibrary: PillLabel[],
+  requiredBusinessLabels: string[] = [],
+  fallbackCase1Pills: PillLabel[] = []
+): PillLabel[] => {
+  if (!Array.isArray(pills) || pills.length === 0) {
+    return pills
+  }
+
+  const validatedCasePills = pills.filter((pill) => validatedPillLibrary.some((vp) => vp.id === pill.id))
+  const prioritizedCasePills = deduplicatePillsByLabel(validatedCasePills)
+    .sort((a, b) => (b.confidence || 0) - (a.confidence || 0))
+  const validatedCasePool = deduplicatePillsByLabel(
+    validatedPillLibrary
+      .filter((pill) => Array.isArray(pill.useCase) && pill.useCase.includes(caseNumber))
+      .sort((a, b) => (b.confidence || 0) - (a.confidence || 0))
+  )
+
+  const selected: PillLabel[] = []
+  const selectedIds = new Set<string>()
+  const selectedLabels = new Set<string>()
+  const addPill = (pill: PillLabel | undefined) => {
+    if (!pill) return false
+    const normalized = normalizePillLabel(pill.label)
+    if (selectedIds.has(pill.id) || selectedLabels.has(normalized)) return false
+    selected.push(pill)
+    selectedIds.add(pill.id)
+    selectedLabels.add(normalized)
+    return true
+  }
+
+  // Mandatory business pill first.
+  const businessPill =
+    prioritizedCasePills.find((pill) => matchesBusinessRequirement(pill, requiredBusinessLabels)) ||
+    validatedCasePool.find((pill) => matchesBusinessRequirement(pill, requiredBusinessLabels))
+  addPill(businessPill)
+
+  // Guarantee at least one anticipate and one entice.
+  const anticipatePill =
+    prioritizedCasePills.find((pill) => pill.type === 'anticipate') ||
+    validatedCasePool.find((pill) => pill.type === 'anticipate')
+  addPill(anticipatePill)
+
+  const enticePill =
+    prioritizedCasePills.find((pill) => pill.type === 'entice') ||
+    validatedCasePool.find((pill) => pill.type === 'entice')
+  addPill(enticePill)
+
+  // Fill remaining slots from validated pool by confidence.
+  const backfillCandidates = validatedCasePool
+    .filter((pill) => Array.isArray(pill.useCase) && pill.useCase.includes(caseNumber))
+
+  for (const candidate of backfillCandidates) {
+    if (selected.length >= CASE_POLICY.maxPills) break
+    addPill(candidate)
+  }
+
+  const hasBusiness = selected.some((pill) => matchesBusinessRequirement(pill, requiredBusinessLabels))
+  const anticipateCount = selected.filter((pill) => pill.type === 'anticipate').length
+  const enticeCount = selected.filter((pill) => pill.type === 'entice').length
+  const meetsPolicy =
+    hasBusiness &&
+    anticipateCount >= CASE_POLICY.minAnticipate &&
+    enticeCount >= CASE_POLICY.minEntice
+
+  if (!meetsPolicy) {
+    if (caseNumber !== 1 && fallbackCase1Pills.length > 0) {
+      console.warn(
+        `[Recommendations GET] ${caseName} does not meet policy (business=${hasBusiness}, anticipate=${anticipateCount}, entice=${enticeCount}); falling back to case1`
+      )
+      return fallbackCase1Pills.slice(0, CASE_POLICY.maxPills)
+    }
+    console.warn(
+      `[Recommendations GET] ${caseName} cannot meet policy and no fallback is available; keeping best validated pills`
+    )
+  }
+
+  const finalized = selected.slice(0, CASE_POLICY.maxPills)
+  console.log(`[Recommendations GET] ${caseName}: finalized ${finalized.length}/${pills.length} pills`)
+  return finalized
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { researchId: string } }
@@ -52,6 +178,7 @@ export async function GET(
       // Validate pills against answers if Q&A project is linked
       if (research.qaProjectId && existing.pillLibrary) {
         console.log(`[Recommendations GET] Validating existing pills against Q&A project: ${research.qaProjectId}`)
+        const requiredBusinessLabels = getRequiredBusinessLabels(research.campaignGoal)
         
         const validatedPillLibrary: PillLabel[] = []
         for (const pill of existing.pillLibrary) {
@@ -70,22 +197,30 @@ export async function GET(
         // Update recommendations with validated pills
         existing.pillLibrary = validatedPillLibrary
 
-        // Filter case recommendations - but be lenient: if validation fails, keep original pills
-        const filterPills = (pills: PillLabel[], caseName: string) => {
-          if (!pills || pills.length === 0) return pills
-          const filtered = pills.filter(p => validatedPillLibrary.some(vp => vp.id === p.id))
-          // If validation filtered out all pills, keep original (fail open)
-          if (filtered.length === 0 && pills.length > 0) {
-            console.warn(`[Recommendations GET] Validation filtered out all pills for ${caseName}, keeping original ${pills.length} pills`)
-            return pills
-          }
-          console.log(`[Recommendations GET] ${caseName}: ${filtered.length}/${pills.length} pills validated`)
-          return filtered
+        const case1Pills = existing.case1
+          ? finalizeCasePills(existing.case1.pills || [], 1, 'case1', validatedPillLibrary, requiredBusinessLabels)
+          : []
+        if (existing.case1) existing.case1.pills = case1Pills
+        if (existing.case2) {
+          existing.case2.pills = finalizeCasePills(
+            existing.case2.pills || [],
+            2,
+            'case2',
+            validatedPillLibrary,
+            requiredBusinessLabels,
+            case1Pills
+          )
         }
-
-        if (existing.case1) existing.case1.pills = filterPills(existing.case1.pills || [], 'case1')
-        if (existing.case2) existing.case2.pills = filterPills(existing.case2.pills || [], 'case2')
-        if (existing.case3) existing.case3.pills = filterPills(existing.case3.pills || [], 'case3')
+        if (existing.case3) {
+          existing.case3.pills = finalizeCasePills(
+            existing.case3.pills || [],
+            3,
+            'case3',
+            validatedPillLibrary,
+            requiredBusinessLabels,
+            case1Pills
+          )
+        }
       }
       
       return jsonNoStore({
@@ -126,6 +261,7 @@ export async function GET(
     // Validate pills against answers if Q&A project is linked
     if (research.qaProjectId) {
       console.log(`[Recommendations GET] Validating generated pills against Q&A project: ${research.qaProjectId}`)
+      const requiredBusinessLabels = getRequiredBusinessLabels(campaignGoal)
       
       const validatedPillLibrary: PillLabel[] = []
       for (const pill of recommendations.pillLibrary) {
@@ -146,21 +282,30 @@ export async function GET(
       // Update recommendations with validated pills
       recommendations.pillLibrary = validatedPillLibrary
 
-      // Filter case recommendations - but be lenient: if validation fails, keep original pills
-      const filterPills = (pills: PillLabel[], caseName: string) => {
-        const filtered = pills.filter(p => validatedPillLibrary.some(vp => vp.id === p.id))
-        // If validation filtered out all pills, keep original (fail open)
-        if (filtered.length === 0 && pills.length > 0) {
-          console.warn(`[Recommendations GET] Validation filtered out all pills for ${caseName}, keeping original ${pills.length} pills`)
-          return pills
-        }
-        console.log(`[Recommendations GET] ${caseName}: ${filtered.length}/${pills.length} pills validated`)
-        return filtered
-      }
-
-      recommendations.case1.pills = filterPills(recommendations.case1.pills, 'case1')
-      recommendations.case2.pills = filterPills(recommendations.case2.pills, 'case2')
-      recommendations.case3.pills = filterPills(recommendations.case3.pills, 'case3')
+      const case1Pills = finalizeCasePills(
+        recommendations.case1.pills,
+        1,
+        'case1',
+        validatedPillLibrary,
+        requiredBusinessLabels
+      )
+      recommendations.case1.pills = case1Pills
+      recommendations.case2.pills = finalizeCasePills(
+        recommendations.case2.pills,
+        2,
+        'case2',
+        validatedPillLibrary,
+        requiredBusinessLabels,
+        case1Pills
+      )
+      recommendations.case3.pills = finalizeCasePills(
+        recommendations.case3.pills,
+        3,
+        'case3',
+        validatedPillLibrary,
+        requiredBusinessLabels,
+        case1Pills
+      )
 
       console.log(`[Recommendations GET] Validated pills: ${validatedPillLibrary.length}/${recommendations.pillLibrary.length} valid`)
     }
