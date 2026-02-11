@@ -6,6 +6,7 @@ import { RequireAuth } from '@/components/content/require-auth'
 import { PageHeader } from '@/components/content/page-header'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { ContentQuestion, QuestionStatus, RatingValue } from '@/types/content'
 
 export default function QuestionsPage({ params }: { params: { projectId: string } }) {
@@ -30,6 +31,8 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
     questionText: string
     sourceUrl?: string
   }>>([])
+  const [selectedQuestionIds, setSelectedQuestionIds] = useState<Set<string>>(new Set())
+  const [batchUpdating, setBatchUpdating] = useState(false)
   const questionStatusOptions: QuestionStatus[] = ['draft', 'pending', 'approved', 'rejected', 'published']
   const ratingOptions: RatingValue[] = [1, 2, 3, 4, 5]
 
@@ -203,6 +206,85 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
     }
   }
 
+  const handleSelectQuestion = (questionId: string, checked: boolean) => {
+    setSelectedQuestionIds((prev) => {
+      const next = new Set(prev)
+      if (checked) {
+        next.add(questionId)
+      } else {
+        next.delete(questionId)
+      }
+      return next
+    })
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedQuestionIds(new Set(questions.map((q) => q.id)))
+    } else {
+      setSelectedQuestionIds(new Set())
+    }
+  }
+
+  const handleBatchStatusChange = async (status: QuestionStatus) => {
+    if (selectedQuestionIds.size === 0 || batchUpdating) {
+      return
+    }
+
+    setBatchUpdating(true)
+    setStatusError('')
+
+    const previousStatuses = new Map(
+      questions
+        .filter((q) => selectedQuestionIds.has(q.id))
+        .map((q) => [q.id, q.status])
+    )
+
+    // Optimistic update
+    setQuestions((current) =>
+      current.map((question) =>
+        selectedQuestionIds.has(question.id)
+          ? { ...question, status }
+          : question
+      )
+    )
+
+    try {
+      const response = await fetch('/api/content-tool/questions/batch', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          questionIds: Array.from(selectedQuestionIds),
+          status
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Unable to update status.')
+      }
+
+      // Clear selection after successful update
+      setSelectedQuestionIds(new Set())
+      await loadQuestions()
+    } catch (error) {
+      // Revert optimistic update
+      setQuestions((current) =>
+        current.map((question) => {
+          const previousStatus = previousStatuses.get(question.id)
+          return previousStatus && selectedQuestionIds.has(question.id)
+            ? { ...question, status: previousStatus }
+            : question
+        })
+      )
+      setStatusError('Unable to update status. Please try again.')
+    } finally {
+      setBatchUpdating(false)
+    }
+  }
+
+  const isAllSelected = questions.length > 0 && selectedQuestionIds.size === questions.length
+  const isSomeSelected = selectedQuestionIds.size > 0 && selectedQuestionIds.size < questions.length
+
   return (
     <RequireAuth>
       <main className="min-h-screen bg-background">
@@ -273,33 +355,84 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
           {loading ? (
             <p className="text-muted-foreground">Loading questions...</p>
           ) : (
-            <div className="overflow-x-auto border border-border rounded-lg">
-              {statusError && (
-                <p className="text-sm text-red-500 p-3 border-b border-border">
-                  {statusError}
-                </p>
+            <div className="space-y-4">
+              {/* Batch Action Bar */}
+              {selectedQuestionIds.size > 0 && (
+                <div className="border border-border rounded-lg p-4 bg-muted/50 flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">
+                      {selectedQuestionIds.size} question{selectedQuestionIds.size !== 1 ? 's' : ''} selected
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Select
+                      value=""
+                      onValueChange={(value) => handleBatchStatusChange(value as QuestionStatus)}
+                      disabled={batchUpdating}
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Change status to..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {questionStatusOptions.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            Set to {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedQuestionIds(new Set())}
+                      disabled={batchUpdating}
+                    >
+                      Clear Selection
+                    </Button>
+                  </div>
+                </div>
               )}
-              {ratingError && (
-                <p className="text-sm text-red-500 p-3 border-b border-border">
-                  {ratingError}
-                </p>
-              )}
-              <table className="w-full text-sm">
-                <thead className="bg-muted text-muted-foreground">
-                  <tr>
-                    <th className="text-left p-3">Topic</th>
-                    <th className="text-left p-3">Persona</th>
-                    <th className="text-left p-3">Tone</th>
-                    <th className="text-left p-3">Question</th>
-                    <th className="text-left p-3">Status</th>
-                    <th className="text-left p-3">Rating</th>
-                    <th className="text-left p-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {questions.map((question) => (
-                    <tr key={question.id} className="border-t border-border">
-                      <td className="p-3">{question.topic}</td>
+
+              <div className="overflow-x-auto border border-border rounded-lg">
+                {statusError && (
+                  <p className="text-sm text-red-500 p-3 border-b border-border">
+                    {statusError}
+                  </p>
+                )}
+                {ratingError && (
+                  <p className="text-sm text-red-500 p-3 border-b border-border">
+                    {ratingError}
+                  </p>
+                )}
+                <table className="w-full text-sm">
+                  <thead className="bg-muted text-muted-foreground">
+                    <tr>
+                      <th className="text-left p-3 w-12">
+                        <Checkbox
+                          checked={isAllSelected}
+                          indeterminate={isSomeSelected}
+                          onChange={(e) => handleSelectAll(e.target.checked)}
+                        />
+                      </th>
+                      <th className="text-left p-3">Topic</th>
+                      <th className="text-left p-3">Persona</th>
+                      <th className="text-left p-3">Tone</th>
+                      <th className="text-left p-3">Question</th>
+                      <th className="text-left p-3">Status</th>
+                      <th className="text-left p-3">Rating</th>
+                      <th className="text-left p-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {questions.map((question) => (
+                      <tr key={question.id} className="border-t border-border">
+                        <td className="p-3">
+                          <Checkbox
+                            checked={selectedQuestionIds.has(question.id)}
+                            onChange={(e) => handleSelectQuestion(question.id, e.target.checked)}
+                          />
+                        </td>
+                        <td className="p-3">{question.topic}</td>
                       <td className="p-3">{question.persona || '—'}</td>
                       <td className="p-3">{question.tone || '—'}</td>
                       <td className="p-3">

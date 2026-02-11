@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/content/page-header'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { AnswerValidationStatus, ContentAnswer, ContentQuestion, RatingValue } from '@/types/content'
 
 export default function AnswersPage({ params }: { params: { projectId: string } }) {
@@ -32,6 +33,8 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
     answerText: string
     sourceLink?: string
   }>>([])
+  const [selectedAnswerIds, setSelectedAnswerIds] = useState<Set<string>>(new Set())
+  const [batchUpdating, setBatchUpdating] = useState(false)
   const answerStatusOptions: AnswerValidationStatus[] = [
     'draft',
     'pending',
@@ -231,6 +234,85 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
     }
   }
 
+  const handleSelectAnswer = (answerId: string, checked: boolean) => {
+    setSelectedAnswerIds((prev) => {
+      const next = new Set(prev)
+      if (checked) {
+        next.add(answerId)
+      } else {
+        next.delete(answerId)
+      }
+      return next
+    })
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedAnswerIds(new Set(answers.map((a) => a.id)))
+    } else {
+      setSelectedAnswerIds(new Set())
+    }
+  }
+
+  const handleBatchStatusChange = async (status: AnswerValidationStatus) => {
+    if (selectedAnswerIds.size === 0 || batchUpdating) {
+      return
+    }
+
+    setBatchUpdating(true)
+    setStatusError('')
+
+    const previousStatuses = new Map(
+      answers
+        .filter((a) => selectedAnswerIds.has(a.id))
+        .map((a) => [a.id, a.validationStatus])
+    )
+
+    // Optimistic update
+    setAnswers((current) =>
+      current.map((answer) =>
+        selectedAnswerIds.has(answer.id)
+          ? { ...answer, validationStatus: status }
+          : answer
+      )
+    )
+
+    try {
+      const response = await fetch('/api/content-tool/answers/batch', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          answerIds: Array.from(selectedAnswerIds),
+          validationStatus: status
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Unable to update status.')
+      }
+
+      // Clear selection after successful update
+      setSelectedAnswerIds(new Set())
+      await loadAnswers()
+    } catch (error) {
+      // Revert optimistic update
+      setAnswers((current) =>
+        current.map((answer) => {
+          const previousStatus = previousStatuses.get(answer.id)
+          return previousStatus && selectedAnswerIds.has(answer.id)
+            ? { ...answer, validationStatus: previousStatus }
+            : answer
+        })
+      )
+      setStatusError('Unable to update status. Please try again.')
+    } finally {
+      setBatchUpdating(false)
+    }
+  }
+
+  const isAllSelected = answers.length > 0 && selectedAnswerIds.size === answers.length
+  const isSomeSelected = selectedAnswerIds.size > 0 && selectedAnswerIds.size < answers.length
+
   return (
     <RequireAuth>
       <main className="min-h-screen bg-background">
@@ -326,16 +408,72 @@ export default function AnswersPage({ params }: { params: { projectId: string } 
             <p className="text-muted-foreground">Loading answers...</p>
           ) : (
             <div className="space-y-4">
+              {/* Batch Action Bar */}
+              {selectedAnswerIds.size > 0 && (
+                <div className="border border-border rounded-lg p-4 bg-muted/50 flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">
+                      {selectedAnswerIds.size} answer{selectedAnswerIds.size !== 1 ? 's' : ''} selected
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Select
+                      value=""
+                      onValueChange={(value) => handleBatchStatusChange(value as AnswerValidationStatus)}
+                      disabled={batchUpdating}
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Change status to..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {answerStatusOptions.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            Set to {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedAnswerIds(new Set())}
+                      disabled={batchUpdating}
+                    >
+                      Clear Selection
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {statusError && (
                 <p className="text-sm text-red-500">{statusError}</p>
               )}
               {ratingError && (
                 <p className="text-sm text-red-500">{ratingError}</p>
               )}
+              
+              {/* Select All Bar */}
+              {answers.length > 0 && (
+                <div className="border border-border rounded-lg p-3 bg-muted/30 flex items-center gap-3">
+                  <Checkbox
+                    checked={isAllSelected}
+                    indeterminate={isSomeSelected}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    Select all ({answers.length} answers)
+                  </span>
+                </div>
+              )}
+
               {answers.map((answer) => (
                 <div key={answer.id} className="border border-border rounded-lg p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={selectedAnswerIds.has(answer.id)}
+                        onChange={(e) => handleSelectAnswer(answer.id, e.target.checked)}
+                      />
                       <Badge variant="secondary">{answer.variantLevel.replace('_', ' ')}</Badge>
                       <div className="min-w-[140px]">
                         <Select
