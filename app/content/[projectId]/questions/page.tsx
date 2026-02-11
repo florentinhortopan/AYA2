@@ -355,10 +355,10 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
           {loading ? (
             <p className="text-muted-foreground">Loading questions...</p>
           ) : (
-            <div className="space-y-4">
+            <>
               {/* Batch Action Bar */}
               {selectedQuestionIds.size > 0 && (
-                <div className="border border-border rounded-lg p-4 bg-muted/50 flex flex-wrap items-center justify-between gap-4">
+                <div className="border border-border rounded-lg p-4 bg-muted/50 flex flex-wrap items-center justify-between gap-4 mb-4">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">
                       {selectedQuestionIds.size} question{selectedQuestionIds.size !== 1 ? 's' : ''} selected
@@ -433,26 +433,26 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
                           />
                         </td>
                         <td className="p-3">{question.topic}</td>
-                      <td className="p-3">{question.persona || '—'}</td>
-                      <td className="p-3">{question.tone || '—'}</td>
-                      <td className="p-3">
-                        {editingQuestionId === question.id ? (
-                          <div className="space-y-2">
-                            <textarea
-                              className="min-h-[90px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                              value={editingQuestionText}
-                              onChange={(event) => setEditingQuestionText(event.target.value)}
-                            />
-                            {editingError && (
-                              <p className="text-xs text-red-500">{editingError}</p>
-                            )}
-                          </div>
-                        ) : (
-                          question.questionText
-                        )}
-                      </td>
-                      <td className="p-3">
-                        <div className="min-w-[140px]">
+                        <td className="p-3">{question.persona || '—'}</td>
+                        <td className="p-3">{question.tone || '—'}</td>
+                        <td className="p-3">
+                          {editingQuestionId === question.id ? (
+                            <div className="space-y-2">
+                              <textarea
+                                className="min-h-[90px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                value={editingQuestionText}
+                                onChange={(event) => setEditingQuestionText(event.target.value)}
+                              />
+                              {editingError && (
+                                <p className="text-xs text-red-500">{editingError}</p>
+                              )}
+                            </div>
+                          ) : (
+                            question.questionText
+                          )}
+                        </td>
+                        <td className="p-3">
+                          <div className="min-w-[140px]">
                           <Select
                             value={question.status}
                             onValueChange={(value) => handleStatusChange(question.id, value as QuestionStatus)}
@@ -471,10 +471,10 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
                               ))}
                             </SelectContent>
                           </Select>
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        <div className="min-w-[120px]">
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="min-w-[120px]">
                           <Select
                             value={
                               question.ratingValue ?? question.ratingDefault
@@ -494,10 +494,10 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
                               ))}
                             </SelectContent>
                           </Select>
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        <div className="flex flex-wrap gap-2">
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="flex flex-wrap gap-2">
                           <Link href={`/content/${params.projectId}/answers`}>
                             <Button size="sm" variant="outline">View Answers</Button>
                           </Link>
@@ -524,13 +524,14 @@ export default function QuestionsPage({ params }: { params: { projectId: string 
                               Edit
                             </Button>
                           )}
-                        </div>
-                      </td>
-                    </tr>
+                          </div>
+                        </td>
+                      </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            </>
           )}
 
           <div className="mt-6">
