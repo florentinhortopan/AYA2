@@ -66,6 +66,8 @@ function SeguePillsResearchLabContent() {
   const [researchStatus, setResearchStatus] = useState<string>('draft')
   const [libraryUpdateMode, setLibraryUpdateMode] = useState<LibraryUpdateMode>('append')
   const [baseLibraryPills, setBaseLibraryPills] = useState<any[]>([])
+  const [editingPillId, setEditingPillId] = useState<string | null>(null)
+  const [editingPillLabel, setEditingPillLabel] = useState<string>('')
 
   const personas = [
     { id: 'high_school', label: 'High School Student' },
@@ -514,6 +516,67 @@ function SeguePillsResearchLabContent() {
     }
   }
 
+  const updatePillLabelInRecommendations = (
+    current: PillRecommendations,
+    pillId: string,
+    newLabel: string
+  ): PillRecommendations => {
+    const updateLabel = (pill: any) => {
+      if (!pill || pill.id !== pillId) return pill
+      return { ...pill, label: newLabel }
+    }
+
+    return {
+      ...current,
+      pillLibrary: (current.pillLibrary || []).map(updateLabel),
+      case1: {
+        ...current.case1,
+        pills: (current.case1?.pills || []).map(updateLabel)
+      },
+      case2: {
+        ...current.case2,
+        pills: (current.case2?.pills || []).map(updateLabel)
+      },
+      case3: {
+        ...current.case3,
+        pills: (current.case3?.pills || []).map(updateLabel)
+      }
+    }
+  }
+
+  const persistRecommendationsUpdate = async (updatedRecommendations: PillRecommendations) => {
+    if (!savedResearchId) {
+      throw new Error('Research project is not saved yet')
+    }
+
+    const response = await fetch('/api/segue-pills/researches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: savedResearchId,
+        name: projectName || `Research ${new Date().toLocaleDateString()}`,
+        description: `Generated ${questions.length} questions, ${intentClusters.length} intent clusters`,
+        personas: selectedPersonas,
+        topics: selectedTopics,
+        questionCount: questions.length,
+        syntheticQuestions: questions.length > 0 ? questions : null,
+        scrapedQuestions: null,
+        scrapedUrls: [],
+        intentClusters: intentClusters.length > 0 ? intentClusters : null,
+        pillLibrary: updatedRecommendations.pillLibrary || null,
+        recommendations: updatedRecommendations,
+        campaignGoalId: selectedGoalId || null,
+        qaProjectId: selectedProjectId || null,
+        status: researchStatus === 'published' ? 'published' : 'completed'
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error || 'Failed to persist pill changes')
+    }
+  }
+
   const handleDeletePill = async (pillId: string) => {
     if (!recommendations || !savedResearchId) return
 
@@ -525,37 +588,52 @@ function SeguePillsResearchLabContent() {
     setBaseLibraryPills(updatedRecommendations.pillLibrary || [])
 
     try {
-      const response = await fetch('/api/segue-pills/researches', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: savedResearchId,
-          name: projectName || `Research ${new Date().toLocaleDateString()}`,
-          description: `Generated ${questions.length} questions, ${intentClusters.length} intent clusters`,
-          personas: selectedPersonas,
-          topics: selectedTopics,
-          questionCount: questions.length,
-          syntheticQuestions: questions.length > 0 ? questions : null,
-          scrapedQuestions: null,
-          scrapedUrls: [],
-          intentClusters: intentClusters.length > 0 ? intentClusters : null,
-          pillLibrary: updatedRecommendations.pillLibrary || null,
-          recommendations: updatedRecommendations,
-          campaignGoalId: selectedGoalId || null,
-          qaProjectId: selectedProjectId || null,
-          status: researchStatus === 'published' ? 'published' : 'completed'
-        })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to persist pill deletion')
-      }
+      await persistRecommendationsUpdate(updatedRecommendations)
     } catch (err) {
       // Rollback on failure
       setRecommendations(previousRecommendations)
       setBaseLibraryPills(previousRecommendations.pillLibrary || [])
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete pill'
+      setError(errorMessage)
+    }
+  }
+
+  const startEditPill = (pillId: string, currentLabel: string) => {
+    setEditingPillId(pillId)
+    setEditingPillLabel(currentLabel)
+    setError(null)
+  }
+
+  const cancelEditPill = () => {
+    setEditingPillId(null)
+    setEditingPillLabel('')
+  }
+
+  const saveEditPill = async (pillId: string) => {
+    if (!recommendations || !savedResearchId) return
+
+    const nextLabel = editingPillLabel.trim()
+    if (!nextLabel) {
+      setError('Pill label cannot be empty.')
+      return
+    }
+
+    const updatedRecommendations = updatePillLabelInRecommendations(recommendations, pillId, nextLabel)
+    const previousRecommendations = recommendations
+
+    // Optimistic update
+    setRecommendations(updatedRecommendations)
+    setBaseLibraryPills(updatedRecommendations.pillLibrary || [])
+    setEditingPillId(null)
+    setEditingPillLabel('')
+
+    try {
+      await persistRecommendationsUpdate(updatedRecommendations)
+    } catch (err) {
+      // Rollback
+      setRecommendations(previousRecommendations)
+      setBaseLibraryPills(previousRecommendations.pillLibrary || [])
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save pill edit'
       setError(errorMessage)
     }
   }
@@ -1145,7 +1223,16 @@ function SeguePillsResearchLabContent() {
               <div className="grid grid-cols-3 gap-3">
                 {recommendations.pillLibrary.map((pill: any) => (
                   <div key={pill.id} className="border rounded-lg p-3">
-                    <p className="font-medium mb-1">{pill.label}</p>
+                    {editingPillId === pill.id ? (
+                      <Input
+                        value={editingPillLabel}
+                        onChange={(e) => setEditingPillLabel(e.target.value)}
+                        className="h-7 text-xs mb-1"
+                        autoFocus
+                      />
+                    ) : (
+                      <p className="font-medium mb-1">{pill.label}</p>
+                    )}
                     <div className="flex gap-2 text-xs">
                       <span className="bg-muted px-2 py-1 rounded">{pill.type}</span>
                       <span className="bg-muted px-2 py-1 rounded">{pill.intent}</span>
@@ -1153,13 +1240,43 @@ function SeguePillsResearchLabContent() {
                     <p className="text-xs text-muted-foreground mt-2">
                       Confidence: {(pill.confidence * 100).toFixed(0)}% | Use Cases: {pill.useCase.join(', ')}
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => handleDeletePill(pill.id)}
-                      className="mt-2 text-xs text-red-600 hover:text-red-700 hover:underline"
-                    >
-                      Delete
-                    </button>
+                    <div className="mt-2 flex items-center gap-3">
+                      {editingPillId === pill.id ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => saveEditPill(pill.id)}
+                            className="text-xs text-primary hover:underline"
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEditPill}
+                            className="text-xs text-muted-foreground hover:underline"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => startEditPill(pill.id, pill.label)}
+                            className="text-xs text-primary hover:underline"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePill(pill.id)}
+                            className="text-xs text-red-600 hover:text-red-700 hover:underline"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

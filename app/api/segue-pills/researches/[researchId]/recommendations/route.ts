@@ -164,14 +164,14 @@ const finalizeCasePills = (
     enticeCount >= CASE_POLICY.minEntice
 
   if (!meetsPolicy) {
-    if (caseNumber !== 1 && fallbackCase1Pills.length > 0) {
+    if (caseNumber !== 1 && selected.length === 0 && fallbackCase1Pills.length > 0) {
       console.warn(
-        `[Recommendations GET] ${caseName} does not meet policy (business=${hasBusiness}, anticipate=${anticipateCount}, entice=${enticeCount}); falling back to case1`
+        `[Recommendations GET] ${caseName} has no pills after validation; falling back to case1`
       )
       return fallbackCase1Pills.slice(0, CASE_POLICY.maxPills)
     }
     console.warn(
-      `[Recommendations GET] ${caseName} cannot meet policy and no fallback is available; keeping best validated pills`
+      `[Recommendations GET] ${caseName} does not fully meet policy (business=${hasBusiness}, anticipate=${anticipateCount}, entice=${enticeCount}); keeping case-specific pills`
     )
   }
 
