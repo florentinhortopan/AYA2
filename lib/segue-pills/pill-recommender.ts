@@ -211,6 +211,18 @@ function generateCase1Recommendations(
 ): CaseRecommendation {
   // Case 1: No data - use generic, safe pills
   const case1Pills = pillLibrary.filter(p => p.useCase.includes(1))
+  const sortedLibrary = [...pillLibrary].sort((a, b) => (b.confidence || 0) - (a.confidence || 0))
+  const fallbackPool: PillLabel[] = [...case1Pills]
+  
+  // If case1 tagging is sparse, backfill from broader high-confidence library.
+  // This keeps a generic baseline available even when few pills are explicitly marked for case1.
+  if (fallbackPool.length < 4) {
+    sortedLibrary.forEach(pill => {
+      if (!fallbackPool.find(fp => fp.id === pill.id)) {
+        fallbackPool.push(pill)
+      }
+    })
+  }
   
   let selectedPills: PillLabel[] = []
   
@@ -237,9 +249,9 @@ function generateCase1Recommendations(
   
   // If we need more CTA pills to meet minCount, add generic ones
   while (selectedPills.filter(p => p.type === 'cta').length < minCtaCount) {
-    const additionalCta = case1Pills.find(p => 
+    const additionalCta = fallbackPool.find(p => 
       p.type === 'cta' && !selectedPills.find(sp => sp.id === p.id)
-    ) || pillLibrary.find(p => 
+    ) || sortedLibrary.find(p => 
       p.type === 'cta' && !selectedPills.find(sp => sp.id === p.id)
     )
     if (additionalCta) {
@@ -251,7 +263,7 @@ function generateCase1Recommendations(
   
   // Fill remaining slots with non-CTA pills
   if (selectedPills.length < 4) {
-    const orientationPill = case1Pills.find(p => 
+    const orientationPill = fallbackPool.find(p => 
       (p.intent.toLowerCase().includes('general') || p.label.toLowerCase().includes('help')) &&
       !selectedPills.find(sp => sp.id === p.id)
     )
@@ -259,7 +271,7 @@ function generateCase1Recommendations(
   }
   
   if (selectedPills.length < 4) {
-    const careerPill = case1Pills.find(p => 
+    const careerPill = fallbackPool.find(p => 
       p.intent.toLowerCase().includes('career') &&
       p.type === 'anticipate' &&
       !selectedPills.find(sp => sp.id === p.id)
@@ -268,17 +280,32 @@ function generateCase1Recommendations(
   }
   
   if (selectedPills.length < 4) {
-    const eligibilityPill = case1Pills.find(p => 
+    const eligibilityPill = fallbackPool.find(p => 
       p.intent.toLowerCase().includes('eligibility') &&
       p.type === 'anticipate' &&
       !selectedPills.find(sp => sp.id === p.id)
     )
     if (eligibilityPill) selectedPills.push(eligibilityPill)
   }
+
+  // Ensure we retain a generic mix in case1 whenever available.
+  if (!selectedPills.find(p => p.type === 'anticipate')) {
+    const anticipateFallback = fallbackPool.find(p =>
+      p.type === 'anticipate' && !selectedPills.find(sp => sp.id === p.id)
+    )
+    if (anticipateFallback) selectedPills.push(anticipateFallback)
+  }
+
+  if (!selectedPills.find(p => p.type === 'entice')) {
+    const enticeFallback = fallbackPool.find(p =>
+      p.type === 'entice' && !selectedPills.find(sp => sp.id === p.id)
+    )
+    if (enticeFallback) selectedPills.push(enticeFallback)
+  }
   
   // Fill any remaining slots with top confidence pills
   while (selectedPills.length < 4) {
-    const nextPill = case1Pills.find(p => !selectedPills.find(sp => sp.id === p.id))
+    const nextPill = fallbackPool.find(p => !selectedPills.find(sp => sp.id === p.id))
     if (nextPill) {
       selectedPills.push(nextPill)
     } else {
