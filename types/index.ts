@@ -1,5 +1,5 @@
 // Agent Types
-export type AgentType = 'recruitment' | 'training' | 'financial' | 'educational'
+export type AgentType = 'recruitment' | 'training' | 'financial' | 'educational' | 'job-finder'
 
 export interface AgentSession {
   id: string

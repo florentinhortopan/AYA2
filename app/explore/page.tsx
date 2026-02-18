@@ -1,8 +1,7 @@
-import { AgentChat } from '@/components/agent-chat'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
-import { Target, Dumbbell, DollarSign, GraduationCap } from 'lucide-react'
+import { Target, Dumbbell, DollarSign, GraduationCap, Briefcase } from 'lucide-react'
 
 const agents = [
   {
@@ -28,6 +27,13 @@ const agents = [
     title: 'Educational Assistant',
     description: 'Learn about educational opportunities, training programs, and skill development.',
     icon: GraduationCap
+  },
+  {
+    type: 'job-finder' as const,
+    title: 'Job Finder Assistant',
+    description: 'Find Army jobs by interests, compare roles, and navigate official job pages.',
+    icon: Briefcase,
+    href: '/explore/find-a-job'
   }
 ]
 
@@ -62,7 +68,7 @@ export default function ExplorePage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Link href={`/explore/${agent.type}`}>
+                  <Link href={agent.href || `/explore/${agent.type}`}>
                     <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
                       Try {agent.title}
                     </Button>

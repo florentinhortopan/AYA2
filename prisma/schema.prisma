@@ -243,6 +243,7 @@ model QaProject {
   guideline      ContentGuideline? @relation(fields: [guidelineId], references: [id])
   createdBy      User?             @relation(fields: [createdById], references: [id], onDelete: SetNull)
   questions      QaQuestion[]
+  sourcePages    KnowledgeSourcePage[]
   batchJobs      ContentBatchJob[]
   auditLogs      ContentAuditLog[]
   pillResearches SeguePillResearch[]
@@ -306,10 +307,94 @@ model QaAnswer {
   question        QaQuestion        @relation(fields: [questionId], references: [id], onDelete: Cascade)
   editedBy        User?             @relation("QaAnswerEditor", fields: [editedById], references: [id], onDelete: SetNull)
   ratingUpdatedBy User?             @relation("QaAnswerRater", fields: [ratingUpdatedById], references: [id], onDelete: SetNull)
+  mediaAssets     QaAnswerMedia[]
   auditLogs       ContentAuditLog[]
 
   @@index([questionId])
   @@index([validationStatus])
+}
+
+model KnowledgeSourcePage {
+  id          String   @id @default(cuid())
+  projectId   String?
+  externalUrl String
+  title       String?
+  slug        String?
+  section     String?
+  status      String   @default("discovered") // discovered, crawled, processed, indexed, archived
+  rawHtml     String?  @db.Text
+  textContent String?  @db.Text
+  checksum    String?
+  scrapedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project     QaProject?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  chunks      KnowledgeSourceChunk[]
+  mediaAssets KnowledgeSourceMedia[]
+
+  @@index([projectId])
+  @@index([section])
+  @@index([status])
+  @@index([externalUrl])
+}
+
+model KnowledgeSourceChunk {
+  id            String   @id @default(cuid())
+  pageId        String
+  chunkIndex    Int
+  heading       String?
+  content       String   @db.Text
+  tokenCount    Int?
+  embeddingJson Json?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  page KnowledgeSourcePage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, chunkIndex])
+  @@index([pageId])
+}
+
+model KnowledgeSourceMedia {
+  id           String   @id @default(cuid())
+  pageId        String
+  mediaType     String // image, youtube, chart_json, embed, file
+  sourceUrl     String
+  title         String?
+  description   String?
+  thumbnailUrl  String?
+  provider      String?
+  data          Json?
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  page KnowledgeSourcePage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+  @@index([mediaType])
+}
+
+model QaAnswerMedia {
+  id           String   @id @default(cuid())
+  answerId     String
+  mediaType    String // image, youtube, chart, chart_json
+  sourceUrl    String
+  title        String?
+  description  String?
+  thumbnailUrl String?
+  provider     String?
+  data         Json?
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  answer QaAnswer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+
+  @@index([answerId])
+  @@index([mediaType])
 }
 
 model CorpusFile {

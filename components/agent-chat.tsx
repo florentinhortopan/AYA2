@@ -166,7 +166,8 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
     recruitment: 'Recruitment Assistant',
     training: 'Training Assistant',
     financial: 'Financial Assistant',
-    educational: 'Educational Assistant'
+    educational: 'Educational Assistant',
+    'job-finder': 'Job Finder Assistant'
   }
 
   return (
