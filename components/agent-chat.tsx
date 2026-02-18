@@ -18,9 +18,20 @@ interface Message {
 interface AgentChatProps {
   agentType: AgentType
   userId?: string
+  titleOverride?: string
+  containerClassName?: string
+  messagesHeightClassName?: string
+  hideHeader?: boolean
 }
 
-export function AgentChat({ agentType, userId }: AgentChatProps) {
+export function AgentChat({
+  agentType,
+  userId,
+  titleOverride,
+  containerClassName,
+  messagesHeightClassName,
+  hideHeader = false
+}: AgentChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -40,7 +51,8 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
   useEffect(() => {
     // Initialize with agent's greeting
     if (!initialized) {
-      fetch(`/api/agents/${agentType}`)
+      const initEndpoint = agentType === 'job-finder' ? '/api/job-finder/chat' : `/api/agents/${agentType}`
+      fetch(initEndpoint)
         .then(res => res.json())
         .then(data => {
           if (data.initialMessage) {
@@ -70,7 +82,8 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
     setLoading(true)
 
     try {
-      const response = await fetch(`/api/agents/${agentType}`, {
+      const endpoint = agentType === 'job-finder' ? '/api/job-finder/chat' : `/api/agents/${agentType}`
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -171,12 +184,14 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
   }
 
   return (
-    <Card className="w-full max-w-3xl mx-auto border-border bg-card">
-      <CardHeader>
-        <CardTitle className="text-2xl text-gold font-bold">{agentNames[agentType]}</CardTitle>
-      </CardHeader>
+    <Card className={`w-full max-w-3xl mx-auto border-border bg-card ${containerClassName || ''}`.trim()}>
+      {!hideHeader && (
+        <CardHeader>
+          <CardTitle className="text-2xl text-gold font-bold">{titleOverride || agentNames[agentType]}</CardTitle>
+        </CardHeader>
+      )}
       <CardContent className="space-y-4">
-        <div className="h-96 overflow-y-auto space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
+        <div className={`${messagesHeightClassName || 'h-96'} overflow-y-auto space-y-4 p-4 bg-muted/30 rounded-lg border border-border`}>
           {messages.map((msg, idx) => (
             <div
               key={idx}

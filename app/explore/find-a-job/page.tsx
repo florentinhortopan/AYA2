@@ -4,9 +4,13 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { jobFinderGroups, getJobFinderPagesByGroup, jobFinderPageDefinitions } from '@/lib/job-finder/jobs-catalog'
+import { loadScrapedJobsPayload } from '@/lib/job-finder/scraped-data'
 import Link from 'next/link'
 
-export default function FindAJobPage() {
+export default async function FindAJobPage() {
+  const scraped = await loadScrapedJobsPayload()
+  const samplePages = scraped?.pages.slice(0, 6) || []
+
   return (
     <main className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-12 space-y-10">
@@ -78,12 +82,35 @@ export default function FindAJobPage() {
           </div>
         </section>
 
+        <section className="max-w-6xl mx-auto space-y-4">
+          <h2 className="text-2xl font-semibold">Scraped Knowledge Snapshot</h2>
+          <Card className="bg-card border-border/50">
+            <CardHeader>
+              <CardTitle>Live Scraped Dataset in Build</CardTitle>
+              <CardDescription>
+                Indexed pages: {scraped?.pages.length || 0}
+                {scraped?.generatedAt ? ` • Generated: ${new Date(scraped.generatedAt).toLocaleString()}` : ''}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {samplePages.map((page) => (
+                <div key={page.url} className="rounded-md border border-border p-3 space-y-2">
+                  <div className="font-medium">{page.title}</div>
+                  <p className="text-xs text-muted-foreground line-clamp-3">{page.textExcerpt}</p>
+                  <a href={page.url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
+                    {page.url}
+                  </a>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </section>
+
         <section className="max-w-6xl mx-auto">
           <Alert>
-            <AlertTitle>Published jobs pages (next phase)</AlertTitle>
+            <AlertTitle>Scraped-content mode active</AlertTitle>
             <AlertDescription>
-              We will replace static modules with scraped and normalized page content from goarmy.com jobs sections,
-              then wire each module card to its published in-app page.
+              Job Finder chat now searches across the full scraped jobs dataset and responds with source links.
             </AlertDescription>
           </Alert>
         </section>

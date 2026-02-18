@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AgentChat } from '@/components/agent-chat'
 import { getJobFinderPageBySlug, jobFinderPageDefinitions } from '@/lib/job-finder/jobs-catalog'
+import { getPagesForSlug, loadScrapedJobsPayload } from '@/lib/job-finder/scraped-data'
 
 interface JobFinderPublishedPageProps {
   params: {
@@ -17,12 +18,15 @@ export function generateStaticParams() {
   return jobFinderPageDefinitions.map((item) => ({ slug: item.slug }))
 }
 
-export default function JobFinderPublishedPage({ params }: JobFinderPublishedPageProps) {
+export default async function JobFinderPublishedPage({ params }: JobFinderPublishedPageProps) {
   const page = getJobFinderPageBySlug(params.slug)
 
   if (!page) {
     notFound()
   }
+
+  const payload = await loadScrapedJobsPayload()
+  const scrapedMatches = await getPagesForSlug(page.slug, page.title, 4)
 
   return (
     <main className="min-h-screen bg-background">
@@ -78,12 +82,33 @@ export default function JobFinderPublishedPage({ params }: JobFinderPublishedPag
 
         <section className="max-w-5xl mx-auto">
           <Alert>
-            <AlertTitle>Coming next</AlertTitle>
+            <AlertTitle>Scraped knowledge loaded</AlertTitle>
             <AlertDescription>
-              Rich media blocks for YouTube and images will be added first. Runtime charts will be generated in chat,
-              then chart JSON ingestion will follow in the next phase.
+              This page is mapped to scraped jobs sources. The assistant queries across {payload?.pages.length || 0} indexed pages.
             </AlertDescription>
           </Alert>
+        </section>
+
+        <section className="max-w-5xl mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle>Relevant Scraped Sources</CardTitle>
+              <CardDescription>
+                Top matched pages for this route based on title/slug overlap.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {scrapedMatches.map((match) => (
+                <div key={match.url} className="rounded-md border border-border p-3 space-y-2">
+                  <div className="font-medium">{match.title}</div>
+                  <p className="text-sm text-muted-foreground">{match.textExcerpt.slice(0, 260)}...</p>
+                  <a href={match.url} target="_blank" rel="noreferrer" className="text-sm text-primary hover:underline">
+                    {match.url}
+                  </a>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </section>
 
         <section className="max-w-5xl mx-auto">
