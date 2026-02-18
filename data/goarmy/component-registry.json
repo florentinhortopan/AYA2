@@ -1,0 +1,36 @@
+{
+  "version": "1.0.0",
+  "description": "Job Finder design-system mapping registry",
+  "mappings": {
+    "hero": {
+      "outputType": "card",
+      "maxBlocksPerPage": 1,
+      "styleVariant": "elevated"
+    },
+    "table": {
+      "outputType": "table",
+      "maxBlocksPerPage": 2,
+      "styleVariant": "striped"
+    },
+    "list": {
+      "outputType": "list",
+      "maxBlocksPerPage": 2,
+      "styleVariant": "bulleted"
+    },
+    "media-grid": {
+      "outputType": "custom",
+      "maxBlocksPerPage": 2,
+      "styleVariant": "gallery"
+    },
+    "cta": {
+      "outputType": "card",
+      "maxBlocksPerPage": 2,
+      "styleVariant": "outline"
+    },
+    "text": {
+      "outputType": "text",
+      "maxBlocksPerPage": 3,
+      "styleVariant": "default"
+    }
+  }
+}

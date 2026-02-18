@@ -3,6 +3,8 @@ import { aiService } from '@/lib/ai'
 import { loadScrapedJobsPayload, searchScrapedPages } from '@/lib/job-finder/scraped-data'
 import { jobFinderAgentConfig } from '@/agents/config/job-finder'
 import { RichAgentResponse } from '@/types'
+import { loadJobFinderComponentRegistry } from '@/lib/job-finder/component-registry'
+import { mapPageBlocksToComponents } from '@/lib/job-finder/component-mapper'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -57,6 +59,12 @@ export async function POST(request: NextRequest) {
       ].join('\n')
     )
     .join('\n\n')
+
+  const registry = await loadJobFinderComponentRegistry()
+  const mappedComponents = relevantPages
+    .slice(0, 2)
+    .flatMap((page) => mapPageBlocksToComponents(page, registry, { maxBlocks: 6 }).components)
+    .slice(0, 4)
 
   const systemPrompt = [
     'You are the AYA Job Finder Assistant.',
@@ -132,9 +140,10 @@ export async function POST(request: NextRequest) {
     } as any
   ]
 
-  const components = (rich.components && rich.components.length > 0)
-    ? [...rich.components, ...fallbackComponents.slice(1, 2)]
+  const baseComponents = (rich.components && rich.components.length > 0)
+    ? [...rich.components]
     : fallbackComponents
+  const components = [...baseComponents, ...mappedComponents, ...fallbackComponents.slice(1, 2)]
 
   return NextResponse.json({
     text: textWithSources,

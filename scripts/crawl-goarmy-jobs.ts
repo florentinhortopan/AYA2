@@ -3,8 +3,9 @@ import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const ROOT_URL = 'https://www.goarmy.com/'
+const CAREERS_URL = 'https://www.goarmy.com/careers-and-jobs'
 const ALLOWED_HOSTS = new Set(['www.goarmy.com', 'goarmy.com'])
-const DEFAULT_MAX_PAGES = 60
+const DEFAULT_MAX_PAGES = 180
 
 const TARGET_LABELS = [
   'Career Paths',
@@ -42,6 +43,19 @@ const TARGET_LABELS = [
   'Leadership Training'
 ]
 
+const JOB_PATH_KEYWORDS = [
+  '/careers-and-jobs',
+  '/special-operations',
+  '/army-cyber',
+  '/army-aviation',
+  '/army-medical',
+  '/army-law',
+  '/army-chaplain',
+  '/leadership',
+  '/job-training',
+  '/advanced-individual-training'
+]
+
 type CrawlLink = {
   href: string
   text: string
@@ -55,6 +69,32 @@ type CrawledPage = {
   images: string[]
   youtubeLinks: string[]
   links: CrawlLink[]
+  componentBlocks: ScrapedComponentBlock[]
+}
+
+type ScrapedComponentBlock = {
+  id: string
+  type: 'hero' | 'table' | 'list' | 'media-grid' | 'cta' | 'text'
+  position: number
+  title?: string
+  text?: string
+  listItems?: string[]
+  tableHeaders?: string[]
+  tableRows?: string[][]
+  links?: CrawlLink[]
+  images?: string[]
+  styleHints?: {
+    classes: string[]
+    htmlTag: string
+  }
+}
+
+type CoverageReport = {
+  totalTargetLabels: number
+  labelsFound: string[]
+  labelsMissing: string[]
+  coveragePercent: number
+  matchedPagesByLabel: Record<string, string[]>
 }
 
 const normalizeText = (value: string) =>
@@ -139,19 +179,174 @@ const matchLabels = (text: string): string[] => {
   return TARGET_LABELS.filter((label) => lower.includes(label.toLowerCase()))
 }
 
+const stripSectionWrapper = (value: string) =>
+  value.replace(/^<section[^>]*>/i, '').replace(/<\/section>$/i, '')
+
+const extractHeading = (html: string): string | undefined => {
+  const match = html.match(/<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/i)
+  const heading = stripTags(match?.[1] || '')
+  return heading || undefined
+}
+
+const extractListItems = (html: string): string[] => {
+  const items: string[] = []
+  const regex = /<li[^>]*>([\s\S]*?)<\/li>/gi
+  let match: RegExpExecArray | null = regex.exec(html)
+  while (match) {
+    const value = stripTags(match[1])
+    if (value) items.push(value)
+    match = regex.exec(html)
+  }
+  return items
+}
+
+const extractTableData = (html: string): { headers: string[]; rows: string[][] } => {
+  const headers: string[] = []
+  const rows: string[][] = []
+
+  const headerRegex = /<th[^>]*>([\s\S]*?)<\/th>/gi
+  let headerMatch: RegExpExecArray | null = headerRegex.exec(html)
+  while (headerMatch) {
+    const value = stripTags(headerMatch[1])
+    if (value) headers.push(value)
+    headerMatch = headerRegex.exec(html)
+  }
+
+  const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi
+  let rowMatch: RegExpExecArray | null = rowRegex.exec(html)
+  while (rowMatch) {
+    const cells: string[] = []
+    const cellRegex = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi
+    let cellMatch: RegExpExecArray | null = cellRegex.exec(rowMatch[1])
+    while (cellMatch) {
+      const value = stripTags(cellMatch[1])
+      cells.push(value)
+      cellMatch = cellRegex.exec(rowMatch[1])
+    }
+    if (cells.length > 0) rows.push(cells)
+    rowMatch = rowRegex.exec(html)
+  }
+
+  return { headers, rows }
+}
+
+const extractClassHints = (tagHtml: string): string[] => {
+  const classMatch = tagHtml.match(/\sclass=["']([^"']+)["']/i)
+  const classes = normalizeText(classMatch?.[1] || '')
+    .split(' ')
+    .filter(Boolean)
+  return classes.slice(0, 8)
+}
+
+const classifySection = (
+  html: string,
+  images: string[],
+  links: CrawlLink[],
+  listItems: string[],
+  hasTable: boolean
+): ScrapedComponentBlock['type'] => {
+  const text = stripTags(html).toLowerCase()
+  if (hasTable) return 'table'
+  if (text.includes('apply') || text.includes('get started') || text.includes('talk to a recruiter')) {
+    return 'cta'
+  }
+  if (images.length >= 2 && links.length >= 2) return 'media-grid'
+  if (listItems.length >= 3) return 'list'
+  if (text.includes('career') && text.includes('path') && images.length > 0) return 'hero'
+  return 'text'
+}
+
+const extractSections = (html: string): Array<{ raw: string; inner: string; tag: string }> => {
+  const sections: Array<{ raw: string; inner: string; tag: string }> = []
+  const sectionRegex = /(<section[^>]*>[\s\S]*?<\/section>)/gi
+  let sectionMatch: RegExpExecArray | null = sectionRegex.exec(html)
+  while (sectionMatch) {
+    const raw = sectionMatch[1]
+    sections.push({ raw, inner: stripSectionWrapper(raw), tag: 'section' })
+    sectionMatch = sectionRegex.exec(html)
+  }
+
+  // Fallback for pages with weak semantic sectioning.
+  if (sections.length === 0) {
+    const mainMatch = html.match(/<main[^>]*>([\s\S]*?)<\/main>/i)
+    const inner = mainMatch?.[1] || html
+    sections.push({ raw: inner, inner, tag: 'main' })
+  }
+
+  return sections
+}
+
+const extractComponentBlocks = (html: string, pageUrl: string): ScrapedComponentBlock[] => {
+  const sections = extractSections(html)
+  return sections
+    .map((section, idx) => {
+      const links = extractLinks(section.inner, pageUrl).slice(0, 10)
+      const images = extractImages(section.inner, pageUrl).slice(0, 10)
+      const heading = extractHeading(section.inner)
+      const listItems = extractListItems(section.inner).slice(0, 8)
+      const hasTable = /<table[\s>]/i.test(section.inner)
+      const tableData = hasTable ? extractTableData(section.inner) : { headers: [], rows: [] }
+      const blockType = classifySection(section.inner, images, links, listItems, hasTable)
+      const text = stripTags(section.inner).slice(0, 600)
+
+      return {
+        id: `${new URL(pageUrl).pathname || 'root'}#${idx + 1}`,
+        type: blockType,
+        position: idx + 1,
+        title: heading,
+        text: text || undefined,
+        listItems: listItems.length > 0 ? listItems : undefined,
+        tableHeaders: tableData.headers.length > 0 ? tableData.headers : undefined,
+        tableRows: tableData.rows.length > 0 ? tableData.rows.slice(0, 6) : undefined,
+        links: links.length > 0 ? links : undefined,
+        images: images.length > 0 ? images : undefined,
+        styleHints: {
+          classes: extractClassHints(section.raw),
+          htmlTag: section.tag
+        }
+      } as ScrapedComponentBlock
+    })
+    .filter((block) => Boolean(block.text || block.title || block.links?.length || block.images?.length))
+    .slice(0, 20)
+}
+
 const shouldEnqueue = (url: string, labelMatches: string[], linkText: string): boolean => {
   const lowerPath = new URL(url).pathname.toLowerCase()
   const lowerText = linkText.toLowerCase()
 
-  if (lowerPath.includes('/careers-and-jobs')) return true
-  if (lowerPath.includes('/special-operations')) return true
-  if (lowerPath.includes('/benefits/education')) return true
+  if (JOB_PATH_KEYWORDS.some((keyword) => lowerPath.includes(keyword))) return true
   if (labelMatches.length > 0) return true
   return TARGET_LABELS.some((label) => lowerText.includes(label.toLowerCase()))
 }
 
+const buildCoverageReport = (pages: CrawledPage[]): CoverageReport => {
+  const matchedPagesByLabel: Record<string, string[]> = {}
+  for (const label of TARGET_LABELS) {
+    matchedPagesByLabel[label] = []
+  }
+
+  for (const page of pages) {
+    for (const label of page.matchedLabels) {
+      matchedPagesByLabel[label] = matchedPagesByLabel[label] || []
+      matchedPagesByLabel[label].push(page.url)
+    }
+  }
+
+  const labelsFound = TARGET_LABELS.filter((label) => (matchedPagesByLabel[label] || []).length > 0)
+  const labelsMissing = TARGET_LABELS.filter((label) => (matchedPagesByLabel[label] || []).length === 0)
+  const coveragePercent = Number(((labelsFound.length / TARGET_LABELS.length) * 100).toFixed(2))
+
+  return {
+    totalTargetLabels: TARGET_LABELS.length,
+    labelsFound,
+    labelsMissing,
+    coveragePercent,
+    matchedPagesByLabel
+  }
+}
+
 async function crawlJobsScope(maxPages: number) {
-  const queue = [ROOT_URL, 'https://www.goarmy.com/careers-and-jobs']
+  const queue = [ROOT_URL, CAREERS_URL]
   const visited = new Set<string>()
   const pages: CrawledPage[] = []
 
@@ -175,6 +370,7 @@ async function crawlJobsScope(maxPages: number) {
       const images = extractImages(html, url)
       const youtubeLinks = extractYoutubeLinks(links)
       const matchedLabels = matchLabels(`${title} ${fullText}`)
+      const componentBlocks = extractComponentBlocks(html, url)
 
       pages.push({
         url,
@@ -183,7 +379,8 @@ async function crawlJobsScope(maxPages: number) {
         matchedLabels,
         images: images.slice(0, 20),
         youtubeLinks: youtubeLinks.slice(0, 10),
-        links: links.slice(0, 120)
+        links: links.slice(0, 120),
+        componentBlocks
       })
 
       for (const link of links) {
@@ -198,11 +395,19 @@ async function crawlJobsScope(maxPages: number) {
     }
   }
 
+  const coverage = buildCoverageReport(pages)
+
   return {
     generatedAt: new Date().toISOString(),
     seedUrl: ROOT_URL,
+    crawlConfig: {
+      maxPages,
+      queueSeed: [ROOT_URL, CAREERS_URL],
+      pathKeywords: JOB_PATH_KEYWORDS
+    },
     scopedLabels: TARGET_LABELS,
     crawledPageCount: pages.length,
+    coverage,
     pages
   }
 }
@@ -210,6 +415,7 @@ async function crawlJobsScope(maxPages: number) {
 async function main() {
   const args = process.argv.slice(2)
   const withSnapshot = args.includes('--snapshot')
+  const strictCoverage = args.includes('--strict-coverage')
   const maxPagesInput = args.find((arg) => /^\d+$/.test(arg))
   const maxPagesArg = Number(maxPagesInput || DEFAULT_MAX_PAGES)
   const maxPages = Number.isFinite(maxPagesArg) && maxPagesArg > 0 ? maxPagesArg : DEFAULT_MAX_PAGES
@@ -233,7 +439,15 @@ async function main() {
   }
 
   console.log(`Crawled ${report.crawledPageCount} pages.`)
+  console.log(`Label coverage: ${report.coverage.labelsFound.length}/${report.coverage.totalTargetLabels} (${report.coverage.coveragePercent}%)`)
+  if (report.coverage.labelsMissing.length > 0) {
+    console.log(`Missing labels: ${report.coverage.labelsMissing.join(', ')}`)
+  }
   console.log(`Saved latest: ${latestPath}`)
+
+  if (strictCoverage && report.coverage.labelsMissing.length > 0) {
+    process.exitCode = 1
+  }
 }
 
 main().catch((error) => {

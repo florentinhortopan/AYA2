@@ -1,6 +1,28 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
+export interface ScrapedLink {
+  href: string
+  text: string
+}
+
+export interface ScrapedComponentBlock {
+  id: string
+  type: 'hero' | 'table' | 'list' | 'media-grid' | 'cta' | 'text'
+  position: number
+  title?: string
+  text?: string
+  listItems?: string[]
+  tableHeaders?: string[]
+  tableRows?: string[][]
+  links?: ScrapedLink[]
+  images?: string[]
+  styleHints?: {
+    classes: string[]
+    htmlTag: string
+  }
+}
+
 export interface ScrapedJobPage {
   url: string
   title: string
@@ -8,6 +30,16 @@ export interface ScrapedJobPage {
   matchedLabels: string[]
   images: string[]
   youtubeLinks: string[]
+  links?: ScrapedLink[]
+  componentBlocks?: ScrapedComponentBlock[]
+}
+
+export interface ScrapedCoverageReport {
+  totalTargetLabels: number
+  labelsFound: string[]
+  labelsMissing: string[]
+  coveragePercent: number
+  matchedPagesByLabel: Record<string, string[]>
 }
 
 export interface ScrapedJobsPayload {
@@ -15,6 +47,7 @@ export interface ScrapedJobsPayload {
   seedUrl: string
   scopedLabels: string[]
   crawledPageCount: number
+  coverage?: ScrapedCoverageReport
   pages: ScrapedJobPage[]
 }
 
@@ -58,6 +91,11 @@ export async function loadScrapedJobsPayload(): Promise<ScrapedJobsPayload | nul
   } catch {
     return null
   }
+}
+
+export async function getScrapedCoverage(): Promise<ScrapedCoverageReport | null> {
+  const payload = await loadScrapedJobsPayload()
+  return payload?.coverage || null
 }
 
 const scorePage = (queryTokens: string[], page: ScrapedJobPage): number => {

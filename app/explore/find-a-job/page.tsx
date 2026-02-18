@@ -28,6 +28,9 @@ export default async function FindAJobPage() {
                 Start with Job Finder Assistant
               </Button>
             </a>
+            <Link href="/explore/find-a-job/mapper">
+              <Button variant="outline">Open Mapper Lab</Button>
+            </Link>
             <Link href="/explore">
               <Button variant="outline">All Assistants</Button>
             </Link>
