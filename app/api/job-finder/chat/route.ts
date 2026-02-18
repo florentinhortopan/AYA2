@@ -63,7 +63,10 @@ export async function POST(request: NextRequest) {
   const registry = await loadJobFinderComponentRegistry()
   const mappedComponents = relevantPages
     .slice(0, 2)
-    .flatMap((page) => mapPageBlocksToComponents(page, registry, { maxBlocks: 6 }).components)
+    .flatMap((page) =>
+      mapPageBlocksToComponents(page, registry, { maxBlocks: 6, allowCustom: false }).components
+    )
+    .filter((component) => component.type !== 'custom')
     .slice(0, 4)
 
   const systemPrompt = [
@@ -126,16 +129,12 @@ export async function POST(request: NextRequest) {
       }
     } as any,
     {
-      type: 'custom',
+      type: 'card',
       props: {
-        componentName: 'source_bundle',
         title: 'Source Coverage',
-        description: 'Extensible custom component payload for future designs.',
-        data: {
-          totalIndexedPages: payload.pages.length,
-          retrievedPages: relevantPages.length,
-          generatedAt: payload.generatedAt
-        }
+        description: 'Scraped dataset grounding stats',
+        content: `Indexed pages: ${payload.pages.length}. Retrieved for this answer: ${relevantPages.length}. Generated: ${payload.generatedAt}.`,
+        variant: 'outline'
       }
     } as any
   ]

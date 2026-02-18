@@ -102,14 +102,28 @@ const normalizeText = (value: string) =>
     .replace(/\s+/g, ' ')
     .trim()
 
+const decodeEntities = (value: string) =>
+  value
+    .replace(/&#34;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+
 const stripTags = (value: string) =>
   normalizeText(
-    value
+    decodeEntities(
+      value
       .replace(/<script[\s\S]*?<\/script>/gi, ' ')
       .replace(/<style[\s\S]*?<\/style>/gi, ' ')
       .replace(/<[^>]+>/g, ' ')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
+      .replace(/\/content\/dam\/[^\s]+/gi, ' ')
+      .replace(/xdm:linkurl/gi, ' ')
+    )
   )
 
 const getTitle = (html: string): string => {

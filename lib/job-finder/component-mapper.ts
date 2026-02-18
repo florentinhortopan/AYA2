@@ -11,8 +11,31 @@ interface MapperResult {
   }
 }
 
+interface MapperOptions {
+  maxBlocks?: number
+  allowCustom?: boolean
+}
+
+const cleanArtifactText = (value: string) =>
+  value
+    .replace(/&#\d+;/g, ' ')
+    .replace(/&[a-z]+;/gi, ' ')
+    .replace(/xdm:linkurl/gi, ' ')
+    .replace(/\/content\/dam\/[^\s]+/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
 const toSafeText = (value: string | undefined, fallback = '') =>
-  (value || fallback).replace(/\s+/g, ' ').trim()
+  cleanArtifactText(value || fallback)
+
+const isLowQualityText = (value: string) => {
+  if (!value) return true
+  const lowered = value.toLowerCase()
+  if (lowered.includes('xdm:linkurl')) return true
+  if (/&#\d+;/.test(value)) return true
+  if (lowered.includes('/content/dam/')) return true
+  return false
+}
 
 const mapBlockToComponent = (
   block: ScrapedComponentBlock,
@@ -111,10 +134,11 @@ const mapBlockToComponent = (
 export function mapPageBlocksToComponents(
   page: ScrapedJobPage,
   registry: JobFinderComponentRegistry,
-  options?: { maxBlocks?: number }
+  options?: MapperOptions
 ): MapperResult {
   const blocks = page.componentBlocks || []
   const maxBlocks = options?.maxBlocks || 8
+  const allowCustom = options?.allowCustom ?? true
   const selectedBlocks = blocks.slice(0, maxBlocks)
 
   const components: AnyUIComponent[] = []
@@ -133,6 +157,15 @@ export function mapPageBlocksToComponents(
 
     const component = mapBlockToComponent(block, page, registry)
     if (!component) continue
+    if (!allowCustom && component.type === 'custom') continue
+    if (component.type === 'text') {
+      const content = ((component.props as any)?.content || '') as string
+      if (isLowQualityText(content)) continue
+    }
+    if (component.type === 'card') {
+      const content = ((component.props as any)?.content || '') as string
+      if (isLowQualityText(content)) continue
+    }
 
     perTypeCount[block.type] += 1
     stats.byType[block.type] = (stats.byType[block.type] || 0) + 1
