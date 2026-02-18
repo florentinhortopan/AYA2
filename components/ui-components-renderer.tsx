@@ -342,6 +342,30 @@ function ComponentRenderer({
         </Button>
       )
 
+    case 'custom':
+      const customProps = component.props as any
+      return (
+        <Card className="border-dashed">
+          <CardHeader>
+            <CardTitle className="text-base">{customProps.title || customProps.componentName || 'Custom Component'}</CardTitle>
+            {customProps.description && (
+              <CardDescription>{customProps.description}</CardDescription>
+            )}
+          </CardHeader>
+          <CardContent>
+            {customProps.data ? (
+              <pre className="text-xs whitespace-pre-wrap break-words bg-muted/40 rounded-md p-2">
+                {JSON.stringify(customProps.data, null, 2)}
+              </pre>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                This is a custom-rendered component placeholder.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )
+
     default:
       return null
   }

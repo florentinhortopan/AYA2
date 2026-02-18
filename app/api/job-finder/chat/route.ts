@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { aiService } from '@/lib/ai'
 import { loadScrapedJobsPayload, searchScrapedPages } from '@/lib/job-finder/scraped-data'
+import { jobFinderAgentConfig } from '@/agents/config/job-finder'
+import { RichAgentResponse } from '@/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -61,8 +63,11 @@ export async function POST(request: NextRequest) {
     `You are powered by scraped GoArmy jobs content with ${payload.pages.length} indexed pages.`,
     'Answer only with support from provided sources.',
     'Prefer concise, practical recommendations.',
-    'When possible, include 2-4 source URLs inline at the end under "Sources:".',
+    'Always include a "Sources:" section with 2-4 URLs from the retrieved sources.',
     'If sources are insufficient, say what is missing clearly.',
+    'Use polished UI components where relevant (table, card, timeline, matrix, list, segue).',
+    'When asked to compare jobs, prioritize table/matrix components.',
+    'When describing progression, prefer timeline components.',
     '',
     '## Retrieved Sources',
     contextBlock
@@ -78,18 +83,65 @@ export async function POST(request: NextRequest) {
 
   aiMessages.push({ role: 'user', content: message })
 
-  const text = await aiService.generateResponse(aiMessages, { systemPrompt })
+  const rich = await aiService.generateRichResponse(
+    aiMessages,
+    {
+      ...jobFinderAgentConfig,
+      systemPrompt
+    },
+    {
+      scrapedContext: {
+        sourceCount: payload.pages.length,
+        generatedAt: payload.generatedAt
+      }
+    }
+  )
+
   const sources = relevantPages.slice(0, 4).map((page) => page.url)
   const textWithSources =
-    sources.length > 0 && !text.toLowerCase().includes('sources:')
-      ? `${text}\n\nSources:\n${sources.map((url) => `- ${url}`).join('\n')}`
-      : text
+    sources.length > 0 && !rich.text.toLowerCase().includes('sources:')
+      ? `${rich.text}\n\nSources:\n${sources.map((url) => `- ${url}`).join('\n')}`
+      : rich.text
+
+  const fallbackComponents: RichAgentResponse['components'] = [
+    {
+      type: 'table',
+      props: {
+        title: 'Top Retrieved Job Pages',
+        description: 'Most relevant pages from scraped GoArmy content',
+        headers: ['Title', 'Matched Labels', 'Source'],
+        rows: relevantPages.slice(0, 4).map((page) => [
+          page.title,
+          page.matchedLabels.slice(0, 2).join(', ') || 'General',
+          page.url
+        ])
+      }
+    } as any,
+    {
+      type: 'custom',
+      props: {
+        componentName: 'source_bundle',
+        title: 'Source Coverage',
+        description: 'Extensible custom component payload for future designs.',
+        data: {
+          totalIndexedPages: payload.pages.length,
+          retrievedPages: relevantPages.length,
+          generatedAt: payload.generatedAt
+        }
+      }
+    } as any
+  ]
+
+  const components = (rich.components && rich.components.length > 0)
+    ? [...rich.components, ...fallbackComponents.slice(1, 2)]
+    : fallbackComponents
 
   return NextResponse.json({
     text: textWithSources,
-    components: [],
-    segues: [],
+    components,
+    segues: rich.segues || [],
     metadata: {
+      ...(rich.metadata || {}),
       sourceCount: payload.pages.length,
       retrievedSourceCount: relevantPages.length,
       generatedAt: payload.generatedAt
