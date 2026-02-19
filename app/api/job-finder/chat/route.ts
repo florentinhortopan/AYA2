@@ -60,6 +60,36 @@ interface RecruiterProfile {
   dateOfBirth?: string
 }
 
+const detectRecruiterFlowIntent = (
+  message: string
+): 'cancel' | 'continue_intake' | 'exit_to_chat' => {
+  const text = String(message || '').trim().toLowerCase()
+  if (!text) return 'continue_intake'
+
+  if (/(cancel|stop|exit).*(recruiter|intake)|cancel|never mind|nevermind|not now|later/i.test(text)) {
+    return 'cancel'
+  }
+
+  const hasEmail = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(text)
+  const hasPhone = /(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/.test(text)
+  const hasZip = /\b\d{5}(?:-\d{4})?\b/.test(text)
+  const hasDob =
+    /\b(0?[1-9]|1[0-2])[\/.-](0?[1-9]|[12][0-9]|3[01])[\/.-](19|20)\d{2}\b/.test(text) ||
+    /\b(19|20)\d{2}-(0?[1-9]|1[0-2])-(0?[1-9]|[12][0-9]|3[01])\b/.test(text)
+  const hasNameCue = /(name\s*[:\-]|full\s*name|i am\s+[a-z]|this is\s+[a-z])/i.test(text)
+  const intakeSignals = [hasEmail, hasPhone, hasZip, hasDob, hasNameCue].filter(Boolean).length
+
+  if (intakeSignals > 0) return 'continue_intake'
+
+  const chatIntentSignals =
+    /(job|career|role|mos|training|benefit|pay|eligib|asvab|officer|enlisted|compare|difference|timeline|path|special forces)/i.test(
+      text
+    ) || /\b(what|how|which|can i|should i|best)\b/i.test(text) || text.includes('?')
+
+  if (chatIntentSignals) return 'exit_to_chat'
+  return 'continue_intake'
+}
+
 const normalizePhone = (value: string): string => {
   const digits = value.replace(/\D/g, '')
   if (digits.length === 11 && digits.startsWith('1')) {
@@ -143,14 +173,16 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const body = await request.json()
   const { message, history = [], recruiterMode = false } = body || {}
+  let recruiterModeActive = Boolean(recruiterMode)
 
   if (!message || typeof message !== 'string') {
     return NextResponse.json({ error: 'message is required' }, { status: 400 })
   }
 
-  if (recruiterMode) {
-    const lowered = message.toLowerCase()
-    if (/(cancel|stop|exit).*(recruiter|intake)|cancel|never mind|nevermind/.test(lowered)) {
+  if (recruiterModeActive) {
+    const recruiterIntent = detectRecruiterFlowIntent(message)
+
+    if (recruiterIntent === 'cancel') {
       return NextResponse.json({
         text: 'Recruiter connection flow paused. You can ask regular job questions again, or tap the recruiter pill any time to restart.',
         components: [],
@@ -161,55 +193,59 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const userTexts = [
-      ...history
-        .filter((h: any) => h?.role === 'user' && typeof h.content === 'string')
-        .map((h: any) => h.content),
-      message
-    ]
-    const profile = extractRecruiterProfile(userTexts)
-    const missingFields = getMissingRecruiterFields(profile)
-    const completed = missingFields.length === 0
+    if (recruiterIntent === 'exit_to_chat') {
+      recruiterModeActive = false
+    } else {
+      const userTexts = [
+        ...history
+          .filter((h: any) => h?.role === 'user' && typeof h.content === 'string')
+          .map((h: any) => h.content),
+        message
+      ]
+      const profile = extractRecruiterProfile(userTexts)
+      const missingFields = getMissingRecruiterFields(profile)
+      const completed = missingFields.length === 0
 
-    const recruiterCardContent = completed
-      ? [
-          `Name: ${profile.fullName}`,
-          `Email: ${profile.email}`,
-          `Phone: ${profile.phone}`,
-          `Zip Code: ${profile.zipCode}`,
-          `Date of Birth: ${profile.dateOfBirth}`,
-          '',
-          'A recruiter handoff can now proceed from this chat context.'
-        ].join('\n')
-      : [
-          'To connect you with a human recruiter, share the missing details in this chat:',
-          `- ${missingFields.join('\n- ')}`,
-          '',
-          'Official recruiter finder: https://www.goarmy.com/how-to-join/find-a-recruiter'
-        ].join('\n')
+      const recruiterCardContent = completed
+        ? [
+            `Name: ${profile.fullName}`,
+            `Email: ${profile.email}`,
+            `Phone: ${profile.phone}`,
+            `Zip Code: ${profile.zipCode}`,
+            `Date of Birth: ${profile.dateOfBirth}`,
+            '',
+            'A recruiter handoff can now proceed from this chat context.'
+          ].join('\n')
+        : [
+            'To connect you with a human recruiter, share the missing details in this chat:',
+            `- ${missingFields.join('\n- ')}`,
+            '',
+            'Official recruiter finder: https://www.goarmy.com/how-to-join/find-a-recruiter'
+          ].join('\n')
 
-    return NextResponse.json({
-      text: completed
-        ? 'Thanks - I have everything needed to connect you with a recruiter. A human follow-up can now be initiated from this chat flow.'
-        : RECRUITER_REQUEST_TEXT,
-      components: [
-        {
-          type: 'card',
-          props: {
-            title: completed ? 'Recruiter Intake Complete' : 'Recruiter Contact Intake',
-            description: completed ? 'All required information captured.' : 'Human recruiter connection path',
-            content: recruiterCardContent,
-            variant: 'outline'
-          }
-        } as any
-      ],
-      segues: [],
-      metadata: {
-        recruiterMode: !completed,
-        recruiterMissingFields: missingFields,
-        recruiterProfile: profile
-      }
-    })
+      return NextResponse.json({
+        text: completed
+          ? 'Thanks - I have everything needed to connect you with a recruiter. A human follow-up can now be initiated from this chat flow.'
+          : RECRUITER_REQUEST_TEXT,
+        components: [
+          {
+            type: 'card',
+            props: {
+              title: completed ? 'Recruiter Intake Complete' : 'Recruiter Contact Intake',
+              description: completed ? 'All required information captured.' : 'Human recruiter connection path',
+              content: recruiterCardContent,
+              variant: 'outline'
+            }
+          } as any
+        ],
+        segues: [],
+        metadata: {
+          recruiterMode: !completed,
+          recruiterMissingFields: missingFields,
+          recruiterProfile: profile
+        }
+      })
+    }
   }
 
   const payload = await loadScrapedJobsPayload()
@@ -327,6 +363,7 @@ export async function POST(request: NextRequest) {
     segues,
     metadata: {
       ...(rich.metadata || {}),
+      recruiterMode: recruiterModeActive,
       sourceCount: payload.pages.length,
       retrievedSourceCount: relevantPages.length,
       generatedAt: payload.generatedAt,
