@@ -23,8 +23,10 @@ interface PillContext {
     role: string
     content: string
     segues?: Array<{ props?: { label?: string } }>
+    metadata?: { recruiterCounterReset?: boolean }
   }>
   relevantPages: ScrapedJobPage[]
+  recruiterJustExited?: boolean
 }
 
 interface PillDef {
@@ -270,20 +272,32 @@ const pickLabelVariant = (
 }
 
 export function selectSeguePills(ctx: PillContext): SegueComponent[] {
-  const tier = inferCaseTier(ctx)
-  const intents = inferIntents(ctx)
-  const interactionTurns = getInteractionTurns(ctx)
-  const memory = buildConversationMemory(ctx.history)
+  const lastResetIndex = ctx.history
+    .map((message, index) => ({ message, index }))
+    .filter(({ message }) => message.role === 'assistant' && message?.metadata?.recruiterCounterReset)
+    .map(({ index }) => index)
+    .pop()
+  const historyWindow = typeof lastResetIndex === 'number' ? ctx.history.slice(lastResetIndex + 1) : ctx.history
+  const recruiterResetRecently =
+    Boolean(ctx.recruiterJustExited) ||
+    (typeof lastResetIndex === 'number' && lastResetIndex >= ctx.history.length - 3)
+
+  const scopedCtx = { ...ctx, history: historyWindow }
+  const tier = inferCaseTier(scopedCtx)
+  const intents = inferIntents(scopedCtx)
+  const interactionTurns = getInteractionTurns(scopedCtx)
+  const memory = buildConversationMemory(historyWindow)
   const ranked = pillLibrary
     .map((pill) => {
       const baseScore = scorePill(pill, intents, tier)
+      const recruiterBoost = recruiterResetRecently && RECRUITER_PILL_KEYS.has(pill.key) ? 2 : 0
       const alreadyShownCount = memory.shownCountsByKey.get(pill.key) || 0
       const intentPenalty = memory.usedIntentCounts.get(pill.intents[0]) || 0
       const recentPenalty = memory.recentlyShownKeys.has(pill.key) ? 3 : 0
       const turnsSinceLastShown = memory.turnsSinceLastShownByKey.get(pill.key)
       const cooldownActive =
         typeof turnsSinceLastShown === 'number' && turnsSinceLastShown <= PILL_COOLDOWN_TURNS
-      const score = baseScore - alreadyShownCount * 1.75 - intentPenalty * 0.6 - recentPenalty
+      const score = baseScore + recruiterBoost - alreadyShownCount * 1.75 - intentPenalty * 0.6 - recentPenalty
       return { pill, score, baseScore, cooldownActive }
     })
     .filter((item) => {
@@ -291,7 +305,8 @@ export function selectSeguePills(ctx: PillContext): SegueComponent[] {
       // Recruiter CTA is intentionally gated until the conversation has enough context.
       if (
         RECRUITER_PILL_KEYS.has(item.pill.key) &&
-        interactionTurns < SEGUE_POLICY.recruiter.minInteractionTurns
+        interactionTurns < SEGUE_POLICY.recruiter.minInteractionTurns &&
+        !recruiterResetRecently
       ) {
         return false
       }
@@ -346,7 +361,8 @@ export function selectSeguePills(ctx: PillContext): SegueComponent[] {
     .filter((entry) => {
       if (
         RECRUITER_PILL_KEYS.has(entry.pill.key) &&
-        interactionTurns < SEGUE_POLICY.recruiter.minInteractionTurns
+        interactionTurns < SEGUE_POLICY.recruiter.minInteractionTurns &&
+        !recruiterResetRecently
       ) {
         return false
       }

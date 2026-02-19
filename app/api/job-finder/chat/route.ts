@@ -11,6 +11,22 @@ export const revalidate = 0
 const RECRUITER_SEGUE_MIN_INTERACTIONS = 3
 const RECRUITER_REQUEST_TEXT =
   'Hello! 👋 In order to get started, please confirm you are at least 17 years old and interested in joining the Army by providing your full name, email, phone number, zip code, and date of birth.'
+const recruiterResetSegue: RichAgentResponse['segues'] = [
+  {
+    type: 'segue',
+    props: {
+      label: 'Talk to a recruiter',
+      action: 'ask:Talk to a recruiter',
+      sentiment: 'exploratory',
+      context: 'recruiter_reset',
+      variant: 'default',
+      special: true,
+      specialTitle: 'Talk to a recruiter',
+      specialDescription: 'Get personalized guidance from a local recruiter based on your goals.',
+      specialBadge: 'Recommended next step'
+    }
+  } as any
+]
 
 const isRecruiterSegueLabel = (label: string): boolean => {
   const value = String(label || '').toLowerCase()
@@ -208,6 +224,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const { message, history = [], recruiterMode = false } = body || {}
   let recruiterModeActive = Boolean(recruiterMode)
+  let recruiterJustExited = false
 
   if (!message || typeof message !== 'string') {
     return NextResponse.json({ error: 'message is required' }, { status: 400 })
@@ -220,15 +237,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         text: 'Recruiter connection flow paused. You can ask regular job questions again, or tap the recruiter pill any time to restart.',
         components: [],
-        segues: [],
+        segues: recruiterResetSegue,
         metadata: {
-          recruiterMode: false
+          recruiterMode: false,
+          recruiterCounterReset: true
         }
       })
     }
 
     if (recruiterIntent === 'exit_to_chat') {
       recruiterModeActive = false
+      recruiterJustExited = true
     } else {
       const userTexts = [
         ...history
@@ -272,9 +291,10 @@ export async function POST(request: NextRequest) {
             }
           } as any
         ],
-        segues: [],
+        segues: completed ? recruiterResetSegue : [],
         metadata: {
           recruiterMode: !completed,
+          recruiterCounterReset: completed ? true : undefined,
           recruiterMissingFields: missingFields,
           recruiterProfile: profile
         }
@@ -390,7 +410,8 @@ export async function POST(request: NextRequest) {
   const strategySegues = selectSeguePills({
     message,
     history,
-    relevantPages
+    relevantPages,
+    recruiterJustExited
   })
   const interactionTurns = history.filter((h: any) => h?.role === 'user').length + 1
   const fallbackSegues = applyRecruiterSeguePolicy(rich.segues || [], interactionTurns)
@@ -403,6 +424,7 @@ export async function POST(request: NextRequest) {
     metadata: {
       ...(rich.metadata || {}),
       recruiterMode: recruiterModeActive,
+      recruiterCounterReset: recruiterJustExited ? true : undefined,
       sourceCount: payload.pages.length,
       retrievedSourceCount: relevantPages.length,
       generatedAt: payload.generatedAt,

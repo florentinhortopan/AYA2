@@ -17,6 +17,7 @@ interface Message {
     sourceCount?: number
     retrievedSourceCount?: number
     generatedAt?: string
+    recruiterCounterReset?: boolean
     sources?: Array<{
       title?: string
       url?: string
