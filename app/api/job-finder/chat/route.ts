@@ -144,22 +144,13 @@ export async function POST(request: NextRequest) {
           page.url
         ])
       }
-    } as any,
-    {
-      type: 'card',
-      props: {
-        title: 'Source Coverage',
-        description: 'Scraped dataset grounding stats',
-        content: `Indexed pages: ${payload.pages.length}. Retrieved for this answer: ${relevantPages.length}. Generated: ${payload.generatedAt}.`,
-        variant: 'outline'
-      }
     } as any
   ]
 
   const baseComponents = (rich.components && rich.components.length > 0)
     ? [...rich.components]
     : fallbackComponents
-  const components = [...baseComponents, ...fallbackComponents.slice(1, 2)]
+  const components = [...baseComponents]
   const strategySegues = selectSeguePills({
     message,
     history,

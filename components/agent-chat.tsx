@@ -13,6 +13,11 @@ interface Message {
   timestamp: string
   components?: RichAgentResponse['components']
   segues?: RichAgentResponse['segues']
+  metadata?: RichAgentResponse['metadata'] & {
+    sourceCount?: number
+    retrievedSourceCount?: number
+    generatedAt?: string
+  }
 }
 
 interface AgentChatProps {
@@ -38,6 +43,7 @@ export function AgentChat({
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [initialized, setInitialized] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [openCoverageMessageIndex, setOpenCoverageMessageIndex] = useState<number | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -102,7 +108,8 @@ export function AgentChat({
         content: data.text || data.response || 'I apologize, but I could not generate a response.',
         timestamp: new Date().toISOString(),
         components: data.components || [],
-        segues: data.segues || []
+        segues: data.segues || [],
+        metadata: data.metadata
       }
       
       setMessages(prev => [...prev, assistantMessage])
@@ -195,25 +202,40 @@ export function AgentChat({
     'job-finder': 'Job Finder Assistant'
   }
 
+  const formatTimeLabel = (isoTimestamp?: string): string => {
+    if (!isoTimestamp) return ''
+    try {
+      return new Date(isoTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    } catch {
+      return ''
+    }
+  }
+
   return (
-    <Card className={`w-full max-w-3xl mx-auto border-border bg-card ${containerClassName || ''}`.trim()}>
+    <Card className={`w-full max-w-3xl mx-auto border-[#d9d0bc] bg-[#f3efe3] ${containerClassName || ''}`.trim()}>
       {!hideHeader && (
-        <CardHeader>
-          <CardTitle className="text-2xl text-gold font-bold">{titleOverride || agentNames[agentType]}</CardTitle>
+        <CardHeader className="border-b border-[#ddd5c0] pb-3">
+          <CardTitle className="text-xl text-[#1f1f1f] font-semibold">{titleOverride || agentNames[agentType]}</CardTitle>
         </CardHeader>
       )}
       <CardContent className="space-y-4">
-        <div className={`${messagesHeightClassName || 'h-96'} overflow-y-auto space-y-4 p-4 bg-muted/30 rounded-lg border border-border`}>
+        <div className={`${messagesHeightClassName || 'h-96'} overflow-y-auto space-y-4 p-4 bg-[#efe8d5] rounded-lg border border-[#ddd5c0]`}>
+          {messages.length > 0 && (
+            <div className="flex items-center gap-2 text-[11px] text-[#6a6558]">
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#2f3a2f] text-[#f3efe3]">★</span>
+              <span>Chat started at {formatTimeLabel(messages[0]?.timestamp)}</span>
+            </div>
+          )}
           {messages.map((msg, idx) => (
             <div
               key={idx}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[80%] rounded-lg p-3 ${
+                className={`max-w-[80%] p-3 shadow-sm ${
                   msg.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-card border border-border text-foreground'
+                    ? 'bg-[#2f3a2f] text-[#f5f2e9] rounded-[22px] rounded-br-md'
+                    : 'bg-[#e7dfc8] border border-[#ddd5c0] text-[#2a2a2a] rounded-[22px] rounded-bl-md'
                 }`}
               >
                 <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
@@ -227,8 +249,8 @@ export function AgentChat({
                   />
                 )}
                 {msg.segues && msg.segues.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-border/50 space-y-2">
-                    <p className="text-xs text-muted-foreground mb-2">You might also want to:</p>
+                  <div className="mt-4 pt-4 border-t border-[#d9d0bc] space-y-2">
+                    <p className="text-xs text-[#6a6558] mb-2">You might also want to:</p>
                     {msg.segues.map((segue, idx) => (
                       <UIComponentsRenderer
                         key={idx}
@@ -241,13 +263,33 @@ export function AgentChat({
                     ))}
                   </div>
                 )}
+                {msg.role === 'assistant' && msg.metadata?.sourceCount && (
+                  <div className="mt-3 relative">
+                    <button
+                      type="button"
+                      className="text-xs text-[#6a6558] underline underline-offset-2 hover:text-[#2a2a2a] transition-colors"
+                      onClick={() =>
+                        setOpenCoverageMessageIndex((current) => (current === idx ? null : idx))
+                      }
+                    >
+                      Source coverage
+                    </button>
+                    {openCoverageMessageIndex === idx && (
+                      <div className="absolute right-0 mt-2 z-20 w-72 rounded-md border border-[#ddd5c0] bg-[#fbf8ef] p-3 shadow-lg text-xs text-[#2a2a2a] space-y-1">
+                        <p><span className="font-medium">Indexed pages:</span> {String(msg.metadata.sourceCount)}</p>
+                        <p><span className="font-medium">Retrieved now:</span> {String(msg.metadata.retrievedSourceCount || 0)}</p>
+                        <p><span className="font-medium">Dataset generated:</span> {String(msg.metadata.generatedAt || 'unknown')}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-card border border-border rounded-lg p-3">
-                <p className="text-sm text-muted-foreground">Thinking...</p>
+              <div className="bg-[#e7dfc8] border border-[#ddd5c0] rounded-[22px] rounded-bl-md p-3">
+                <p className="text-sm text-[#6a6558]">Thinking...</p>
               </div>
             </div>
           )}
@@ -260,12 +302,12 @@ export function AgentChat({
             onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
             placeholder="Type your message..."
             disabled={loading}
-            className="bg-background border-border"
+            className="bg-[#fbf8ef] border-[#d7ceb8]"
           />
           <Button 
             onClick={sendMessage} 
             disabled={loading || !input.trim()}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
+            className="bg-[#2f3a2f] text-[#f5f2e9] hover:bg-[#263126]"
           >
             Send
           </Button>
