@@ -1,6 +1,6 @@
 # AYA2
 
-AYA2 is a Next.js app for AI-assisted recruiting workflows, content tooling, and segue-pill experimentation.
+AYA2 is a Next.js app for AI-assisted workflows, content tooling, and segue-pill experimentation.
 
 ## Quick Start
 
