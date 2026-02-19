@@ -427,6 +427,12 @@ export async function POST(request: NextRequest) {
     ? [...rich.components]
     : fallbackComponents
   const explicitTimelineRequest = wasTimelineExplicitlyRequested(message)
+  const hasAnyTimelineInHistory = history.some(
+    (item: any) =>
+      item?.role === 'assistant' &&
+      Array.isArray(item?.components) &&
+      item.components.some((component: any) => component?.type === 'timeline')
+  )
   const existingTimelineSignatures = new Set<string>()
   for (const item of history) {
     if (item?.role !== 'assistant' || !Array.isArray(item?.components)) continue
@@ -438,6 +444,7 @@ export async function POST(request: NextRequest) {
   const components = baseComponents.filter((component: any) => {
     const signature = getTimelineSignature(component)
     if (!signature) return true
+    if (!explicitTimelineRequest && hasAnyTimelineInHistory) return false
     if (explicitTimelineRequest) return true
     if (existingTimelineSignatures.has(signature)) return false
     existingTimelineSignatures.add(signature)
