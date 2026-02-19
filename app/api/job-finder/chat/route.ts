@@ -3,11 +3,35 @@ import { aiService } from '@/lib/ai'
 import { loadScrapedJobsPayload, searchScrapedPages } from '@/lib/job-finder/scraped-data'
 import { jobFinderAgentConfig } from '@/agents/config/job-finder'
 import { RichAgentResponse } from '@/types'
-import { loadJobFinderComponentRegistry } from '@/lib/job-finder/component-registry'
-import { mapPageBlocksToComponents } from '@/lib/job-finder/component-mapper'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+const cleanSnippetForChat = (value: string) =>
+  value
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\\r\\n|\\n|\\t/g, ' ')
+    .replace(/&#\d+;/g, ' ')
+    .replace(/&[a-z]+;/gi, ' ')
+    .replace(/data-component="[^"]*"/gi, ' ')
+    .replace(/id="[^"]*"/gi, ' ')
+    .replace(/class="[^"]*"/gi, ' ')
+    .replace(/xdm:linkurl/gi, ' ')
+    .replace(/\/content\/dam\/[^\s"']+/gi, ' ')
+    .replace(/\{\{|\}\}|\["|\]"|":\s*"/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const sanitizeAssistantText = (value: string) =>
+  value
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\\r\\n|\\n|\\t/g, ' ')
+    .replace(/&#\d+;/g, ' ')
+    .replace(/&[a-z]+;/gi, ' ')
+    .replace(/xdm:linkurl/gi, ' ')
+    .replace(/\/content\/dam\/[^\s"']+/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 
 export async function GET() {
   const payload = await loadScrapedJobsPayload()
@@ -55,19 +79,10 @@ export async function POST(request: NextRequest) {
         `### Source ${index + 1}: ${page.title}`,
         `URL: ${page.url}`,
         `Matched Labels: ${page.matchedLabels.join(', ') || 'none'}`,
-        `Excerpt: ${page.textExcerpt}`
+        `Excerpt: ${cleanSnippetForChat(page.textExcerpt).slice(0, 420)}`
       ].join('\n')
     )
     .join('\n\n')
-
-  const registry = await loadJobFinderComponentRegistry()
-  const mappedComponents = relevantPages
-    .slice(0, 2)
-    .flatMap((page) =>
-      mapPageBlocksToComponents(page, registry, { maxBlocks: 6, allowCustom: false }).components
-    )
-    .filter((component) => component.type !== 'custom')
-    .slice(0, 4)
 
   const systemPrompt = [
     'You are the AYA Job Finder Assistant.',
@@ -113,6 +128,7 @@ export async function POST(request: NextRequest) {
     sources.length > 0 && !rich.text.toLowerCase().includes('sources:')
       ? `${rich.text}\n\nSources:\n${sources.map((url) => `- ${url}`).join('\n')}`
       : rich.text
+  const cleanTextWithSources = sanitizeAssistantText(textWithSources)
 
   const fallbackComponents: RichAgentResponse['components'] = [
     {
@@ -142,10 +158,10 @@ export async function POST(request: NextRequest) {
   const baseComponents = (rich.components && rich.components.length > 0)
     ? [...rich.components]
     : fallbackComponents
-  const components = [...baseComponents, ...mappedComponents, ...fallbackComponents.slice(1, 2)]
+  const components = [...baseComponents, ...fallbackComponents.slice(1, 2)]
 
   return NextResponse.json({
-    text: textWithSources,
+    text: cleanTextWithSources,
     components,
     segues: rich.segues || [],
     metadata: {
