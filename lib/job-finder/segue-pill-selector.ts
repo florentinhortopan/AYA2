@@ -282,7 +282,9 @@ export function selectSeguePills(ctx: PillContext): SegueComponent[] {
   const recruiterResetRecently =
     Boolean(ctx.recruiterJustExited) ||
     (typeof lastResetIndex === 'number' && lastResetIndex >= ctx.history.length - 3)
-  const nonIntakeTurnsSinceReset = historyWindow.filter((m) => m.role === 'user').length
+  const nonIntakeTurnsSinceReset = ctx.recruiterJustExited
+    ? 0
+    : historyWindow.filter((m) => m.role === 'user').length
 
   const scopedCtx = { ...ctx, history: historyWindow }
   const tier = inferCaseTier(scopedCtx)

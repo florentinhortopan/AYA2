@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 const RECRUITER_SEGUE_MIN_INTERACTIONS = 3
+const RECRUITER_POST_EXIT_COOLDOWN_TURNS = 4
 const RECRUITER_REQUEST_TEXT =
   'Hello! 👋 In order to get started, please confirm you are at least 17 years old and interested in joining the Army by providing your full name, email, phone number, zip code, and date of birth.'
 
@@ -19,11 +20,25 @@ const isRecruiterSegueLabel = (label: string): boolean => {
 
 const applyRecruiterSeguePolicy = (
   segues: RichAgentResponse['segues'],
-  interactionTurns: number
+  interactionTurns: number,
+  suppressRecruiter: boolean
 ): RichAgentResponse['segues'] => {
   if (!Array.isArray(segues)) return []
-  if (interactionTurns >= RECRUITER_SEGUE_MIN_INTERACTIONS) return segues
+  if (!suppressRecruiter && interactionTurns >= RECRUITER_SEGUE_MIN_INTERACTIONS) return segues
   return segues.filter((segue: any) => !isRecruiterSegueLabel(String(segue?.props?.label || '')))
+}
+
+const getNonIntakeTurnsSinceReset = (history: any[]): number => {
+  const assistantMessages = history
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => item?.role === 'assistant')
+  const lastReset = assistantMessages
+    .filter(({ item }) => Boolean(item?.metadata?.recruiterCounterReset))
+    .map(({ index }) => index)
+    .pop()
+
+  if (typeof lastReset !== 'number') return Number.POSITIVE_INFINITY
+  return history.slice(lastReset + 1).filter((item) => item?.role === 'user').length
 }
 
 const cleanSnippetForChat = (value: string) =>
@@ -51,6 +66,27 @@ const sanitizeAssistantText = (value: string) =>
     .replace(/\/content\/dam\/[^\s"']+/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+
+const stableSerialize = (value: unknown): string => {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value)
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableSerialize(item)).join(',')}]`
+  }
+  const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))
+  return `{${entries.map(([key, val]) => `${JSON.stringify(key)}:${stableSerialize(val)}`).join(',')}}`
+}
+
+const getTimelineSignature = (component: any): string | null => {
+  if (!component || component.type !== 'timeline') return null
+  return stableSerialize(component.props || {})
+}
+
+const wasTimelineExplicitlyRequested = (message: string): boolean =>
+  /(timeline|milestone|roadmap|progression|career path steps|steps to join|path overview)/i.test(
+    String(message || '')
+  )
 
 const stripMarkdownTables = (value: string): string => {
   const lines = value.split('\n')
@@ -390,7 +426,23 @@ export async function POST(request: NextRequest) {
   const baseComponents = (rich.components && rich.components.length > 0)
     ? [...rich.components]
     : fallbackComponents
-  const components = [...baseComponents]
+  const explicitTimelineRequest = wasTimelineExplicitlyRequested(message)
+  const existingTimelineSignatures = new Set<string>()
+  for (const item of history) {
+    if (item?.role !== 'assistant' || !Array.isArray(item?.components)) continue
+    for (const component of item.components) {
+      const signature = getTimelineSignature(component)
+      if (signature) existingTimelineSignatures.add(signature)
+    }
+  }
+  const components = baseComponents.filter((component: any) => {
+    const signature = getTimelineSignature(component)
+    if (!signature) return true
+    if (explicitTimelineRequest) return true
+    if (existingTimelineSignatures.has(signature)) return false
+    existingTimelineSignatures.add(signature)
+    return true
+  })
   const strategySegues = selectSeguePills({
     message,
     history,
@@ -398,7 +450,10 @@ export async function POST(request: NextRequest) {
     recruiterJustExited
   })
   const interactionTurns = history.filter((h: any) => h?.role === 'user').length + 1
-  const fallbackSegues = applyRecruiterSeguePolicy(rich.segues || [], interactionTurns)
+  const nonIntakeTurnsSinceReset = recruiterJustExited ? 0 : getNonIntakeTurnsSinceReset(history)
+  const suppressRecruiter =
+    recruiterJustExited || nonIntakeTurnsSinceReset < RECRUITER_POST_EXIT_COOLDOWN_TURNS
+  const fallbackSegues = applyRecruiterSeguePolicy(rich.segues || [], interactionTurns, suppressRecruiter)
   const segues = strategySegues.length >= 2 ? strategySegues : fallbackSegues
 
   return NextResponse.json({
