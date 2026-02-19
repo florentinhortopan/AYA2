@@ -49,6 +49,7 @@ export function AgentChat({
   const [initialized, setInitialized] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [openCoverageMessageIndex, setOpenCoverageMessageIndex] = useState<number | null>(null)
+  const [recruiterMode, setRecruiterMode] = useState(false)
   const previousMessageCountRef = useRef(0)
   const messageRefs = useRef<Record<number, HTMLDivElement | null>>({})
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -107,7 +108,7 @@ export function AgentChat({
     }
   }, [agentType, initialized])
 
-  const sendMessageInternal = async (content: string) => {
+  const sendMessageInternal = async (content: string, options?: { forceRecruiterMode?: boolean }) => {
     if (!content.trim() || loading) return
 
     const userMessage: Message = {
@@ -129,7 +130,8 @@ export function AgentChat({
           message: content,
           sessionId,
           userId,
-          history: messages
+          history: messages,
+          recruiterMode: options?.forceRecruiterMode ?? recruiterMode
         })
       })
 
@@ -146,6 +148,9 @@ export function AgentChat({
       }
       
       setMessages(prev => [...prev, assistantMessage])
+      if (typeof data?.metadata?.recruiterMode === 'boolean') {
+        setRecruiterMode(data.metadata.recruiterMode)
+      }
       if (data.sessionId && !sessionId) {
         setSessionId(data.sessionId)
       }
@@ -169,7 +174,13 @@ export function AgentChat({
     if (action?.startsWith('ask:')) {
       const prompt = action.replace(/^ask:/, '').trim()
       if (prompt) {
-        await sendMessageInternal(prompt)
+        const specialRecruiter = Boolean((data as any)?.special) || /recruiter/i.test(prompt)
+        if (specialRecruiter) {
+          setRecruiterMode(true)
+          await sendMessageInternal(prompt, { forceRecruiterMode: true })
+        } else {
+          await sendMessageInternal(prompt)
+        }
       }
       return
     }
