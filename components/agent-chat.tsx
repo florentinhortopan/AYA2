@@ -212,17 +212,17 @@ export function AgentChat({
   }
 
   return (
-    <Card className={`w-full max-w-3xl mx-auto border-[#d9d0bc] bg-[#f3efe3] ${containerClassName || ''}`.trim()}>
+    <Card className={`w-full max-w-3xl mx-auto border-[#cfc3a8] bg-[#f7f2e6] ${containerClassName || ''}`.trim()}>
       {!hideHeader && (
-        <CardHeader className="border-b border-[#ddd5c0] pb-3">
-          <CardTitle className="text-xl text-[#1f1f1f] font-semibold">{titleOverride || agentNames[agentType]}</CardTitle>
+        <CardHeader className="border-b border-[#cfc3a8] pb-3">
+          <CardTitle className="text-xl text-[#1f1b15] font-semibold">{titleOverride || agentNames[agentType]}</CardTitle>
         </CardHeader>
       )}
       <CardContent className="space-y-4">
-        <div className={`${messagesHeightClassName || 'h-96'} overflow-y-auto space-y-4 p-4 bg-[#efe8d5] rounded-lg border border-[#ddd5c0]`}>
+        <div className={`${messagesHeightClassName || 'h-96'} overflow-y-auto space-y-4 p-4 bg-[#f0e7d3] rounded-lg border border-[#cfc3a8]`}>
           {messages.length > 0 && (
-            <div className="flex items-center gap-2 text-[11px] text-[#6a6558]">
-              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#2f3a2f] text-[#f3efe3]">★</span>
+            <div className="flex items-center gap-2 text-[11px] text-[#4d4637]">
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#1f3a2c] text-[#f7f2e6]">★</span>
               <span>Chat started at {formatTimeLabel(messages[0]?.timestamp)}</span>
             </div>
           )}
@@ -234,8 +234,8 @@ export function AgentChat({
               <div
                 className={`max-w-[80%] p-3 shadow-sm ${
                   msg.role === 'user'
-                    ? 'bg-[#2f3a2f] text-[#f5f2e9] rounded-[22px] rounded-br-md'
-                    : 'bg-[#e7dfc8] border border-[#ddd5c0] text-[#2a2a2a] rounded-[22px] rounded-bl-md'
+                    ? 'bg-[#1f3a2c] text-[#f7f2e6] rounded-[22px] rounded-br-md'
+                    : 'bg-[#fffaf0] border border-[#cfc3a8] text-[#1f1b15] rounded-[22px] rounded-bl-md'
                 }`}
               >
                 <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
@@ -249,8 +249,8 @@ export function AgentChat({
                   />
                 )}
                 {msg.segues && msg.segues.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-[#d9d0bc] space-y-2">
-                    <p className="text-xs text-[#6a6558] mb-2">You might also want to:</p>
+                  <div className="mt-4 pt-4 border-t border-[#cfc3a8] space-y-2">
+                    <p className="text-xs text-[#4d4637] mb-2">You might also want to:</p>
                     {msg.segues.map((segue, idx) => (
                       <UIComponentsRenderer
                         key={idx}
@@ -267,7 +267,7 @@ export function AgentChat({
                   <div className="mt-3 relative">
                     <button
                       type="button"
-                      className="text-xs text-[#6a6558] underline underline-offset-2 hover:text-[#2a2a2a] transition-colors"
+                      className="text-xs text-[#4d4637] underline underline-offset-2 hover:text-[#1f1b15] transition-colors"
                       onClick={() =>
                         setOpenCoverageMessageIndex((current) => (current === idx ? null : idx))
                       }
@@ -275,7 +275,7 @@ export function AgentChat({
                       Source coverage
                     </button>
                     {openCoverageMessageIndex === idx && (
-                      <div className="absolute right-0 mt-2 z-20 w-72 rounded-md border border-[#ddd5c0] bg-[#fbf8ef] p-3 shadow-lg text-xs text-[#2a2a2a] space-y-1">
+                      <div className="absolute right-0 mt-2 z-20 w-72 rounded-md border border-[#cfc3a8] bg-[#fffaf0] p-3 shadow-lg text-xs text-[#1f1b15] space-y-1">
                         <p><span className="font-medium">Indexed pages:</span> {String(msg.metadata.sourceCount)}</p>
                         <p><span className="font-medium">Retrieved now:</span> {String(msg.metadata.retrievedSourceCount || 0)}</p>
                         <p><span className="font-medium">Dataset generated:</span> {String(msg.metadata.generatedAt || 'unknown')}</p>
@@ -288,8 +288,8 @@ export function AgentChat({
           ))}
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-[#e7dfc8] border border-[#ddd5c0] rounded-[22px] rounded-bl-md p-3">
-                <p className="text-sm text-[#6a6558]">Thinking...</p>
+              <div className="bg-[#fffaf0] border border-[#cfc3a8] rounded-[22px] rounded-bl-md p-3">
+                <p className="text-sm text-[#4d4637]">Thinking...</p>
               </div>
             </div>
           )}
@@ -302,12 +302,12 @@ export function AgentChat({
             onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
             placeholder="Type your message..."
             disabled={loading}
-            className="bg-[#fbf8ef] border-[#d7ceb8]"
+            className="bg-[#fffaf0] border-[#cfc3a8] text-[#1f1b15] placeholder:text-[#6a5f4b] focus-visible:ring-[#8b7a4f] focus-visible:ring-offset-[#f7f2e6]"
           />
           <Button 
             onClick={sendMessage} 
             disabled={loading || !input.trim()}
-            className="bg-[#2f3a2f] text-[#f5f2e9] hover:bg-[#263126]"
+            className="bg-[#1f3a2c] text-[#f7f2e6] hover:bg-[#173022]"
           >
             Send
           </Button>
