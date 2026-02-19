@@ -262,8 +262,8 @@ export function AgentChat({
           <CardTitle className="text-xl text-[#1f1b15] font-semibold">{titleOverride || agentNames[agentType]}</CardTitle>
         </CardHeader>
       )}
-      <CardContent className="space-y-4">
-        <div className={`${messagesHeightClassName || 'h-96'} overflow-y-auto space-y-4 p-4 bg-[#f0e7d3] rounded-lg border border-[#cfc3a8]`}>
+      <CardContent className={hideHeader ? 'h-full flex flex-col gap-3 p-2 pt-2' : 'space-y-4'}>
+        <div className={`${messagesHeightClassName || (hideHeader ? 'flex-1 min-h-0' : 'h-96')} overflow-y-auto space-y-4 p-4 bg-[#f0e7d3] rounded-lg border border-[#cfc3a8]`}>
           {messages.length > 0 && (
             <div className="flex items-center gap-2 text-[11px] text-[#4d4637]">
               <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#1f3a2c] text-[#f7f2e6]">★</span>

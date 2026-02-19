@@ -36,7 +36,6 @@ export function FloatingJobFinderWidget() {
             agentType="job-finder"
             hideHeader
             containerClassName="max-w-none h-full border-0 shadow-none"
-            messagesHeightClassName="h-[calc(100vh-340px)] min-h-[220px]"
           />
         </div>
       </div>
