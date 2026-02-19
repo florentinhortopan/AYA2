@@ -3,6 +3,7 @@ import { aiService } from '@/lib/ai'
 import { loadScrapedJobsPayload, searchScrapedPages } from '@/lib/job-finder/scraped-data'
 import { jobFinderAgentConfig } from '@/agents/config/job-finder'
 import { RichAgentResponse } from '@/types'
+import { selectSeguePills } from '@/lib/job-finder/segue-pill-selector'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -159,11 +160,17 @@ export async function POST(request: NextRequest) {
     ? [...rich.components]
     : fallbackComponents
   const components = [...baseComponents, ...fallbackComponents.slice(1, 2)]
+  const strategySegues = selectSeguePills({
+    message,
+    history,
+    relevantPages
+  })
+  const segues = strategySegues.length >= 2 ? strategySegues : (rich.segues || [])
 
   return NextResponse.json({
     text: cleanTextWithSources,
     components,
-    segues: rich.segues || [],
+    segues,
     metadata: {
       ...(rich.metadata || {}),
       sourceCount: payload.pages.length,

@@ -68,12 +68,12 @@ export function AgentChat({
     }
   }, [agentType, initialized])
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return
+  const sendMessageInternal = async (content: string) => {
+    if (!content.trim() || loading) return
 
     const userMessage: Message = {
       role: 'user',
-      content: input,
+      content,
       timestamp: new Date().toISOString()
     }
 
@@ -87,7 +87,7 @@ export function AgentChat({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: input,
+          message: content,
           sessionId,
           userId,
           history: messages
@@ -121,7 +121,19 @@ export function AgentChat({
     }
   }
 
+  const sendMessage = async () => {
+    await sendMessageInternal(input)
+  }
+
   const handleAction = async (action: string, data?: Record<string, unknown>) => {
+    if (action?.startsWith('ask:')) {
+      const prompt = action.replace(/^ask:/, '').trim()
+      if (prompt) {
+        await sendMessageInternal(prompt)
+      }
+      return
+    }
+
     if (!userId) {
       // Prompt user to sign in
       const confirmSignIn = confirm('Please sign in to perform this action. Would you like to sign in now?')

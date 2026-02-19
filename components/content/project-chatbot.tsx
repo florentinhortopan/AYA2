@@ -806,17 +806,26 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
     }
   }
 
+  const formatTimeLabel = (isoTimestamp?: string): string => {
+    if (!isoTimestamp) return ''
+    try {
+      return new Date(isoTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    } catch {
+      return ''
+    }
+  }
+
   return (
     <div className="fixed bottom-6 right-6 z-50">
       {open && (
-        <Card className="w-[360px] max-h-[90vh] shadow-xl border-border bg-card mb-3 flex flex-col">
-          <div className="flex items-center justify-between border-b border-border px-4 py-2">
+        <Card className="w-[360px] max-h-[90vh] shadow-xl border-[#d9d0bc] bg-[#f3efe3] mb-3 flex flex-col">
+          <div className="flex items-center justify-between border-b border-[#ddd5c0] px-4 py-2.5">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-foreground">Project Sandbox Assistant</p>
-              <p className="text-xs text-muted-foreground">{projectName}</p>
+              <p className="text-sm font-semibold text-[#1f1f1f]">Project Sandbox Assistant</p>
+              <p className="text-xs text-[#6a6558]">{projectName}</p>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
-              Close
+            <Button variant="ghost" size="sm" onClick={() => setOpen(false)} className="text-[#2f2f2f] hover:bg-[#e8e0cc]">
+              ✕
             </Button>
           </div>
           {/* Configuration Section - Scrollable with max height */}
@@ -1177,16 +1186,22 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
           
           {/* Chat Messages Area - Flexible height with scroll */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
+            {messages.length > 0 && (
+              <div className="flex items-center gap-2 text-[11px] text-[#6a6558]">
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#2f3a2f] text-[#f3efe3]">★</span>
+                <span>Chat started at {formatTimeLabel(messages[0]?.timestamp)}</span>
+              </div>
+            )}
             {messages.map((message, index) => (
               <div
                 key={`${message.timestamp}-${index}`}
                 className={`flex flex-col ${message.role === 'user' ? 'items-end' : 'items-start'}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-lg px-3 py-2 text-xs ${
+                  className={`max-w-[85%] px-4 py-3 text-xs shadow-sm ${
                     message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-foreground'
+                      ? 'bg-[#2f3a2f] text-[#f5f2e9] rounded-[26px] rounded-br-md'
+                      : 'bg-[#e7dfc8] text-[#2a2a2a] rounded-[26px] rounded-bl-md'
                   }`}
                 >
                   <div className="space-y-2">
@@ -1236,12 +1251,12 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
               </div>
             ))}
             {loading && (
-              <p className="text-xs text-muted-foreground">Thinking...</p>
+              <p className="text-xs text-[#6a6558]">Thinking...</p>
             )}
             <div ref={endRef} />
           </div>
           {/* Input Area - Fixed at bottom */}
-          <div className="border-t border-border px-4 py-3 flex gap-2 flex-shrink-0 bg-card">
+          <div className="border-t border-[#ddd5c0] px-4 py-3 flex gap-2 flex-shrink-0 bg-[#f3efe3]">
             <Input
               value={input}
               onChange={(event) => setInput(event.target.value)}
@@ -1253,8 +1268,9 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
               }}
               placeholder="Ask about this project..."
               disabled={loading}
+              className="bg-[#fbf8ef] border-[#d7ceb8]"
             />
-            <Button onClick={sendMessage} disabled={loading || !input.trim()}>
+            <Button onClick={sendMessage} disabled={loading || !input.trim()} className="bg-[#2f3a2f] hover:bg-[#263126] text-[#f5f2e9]">
               Send
             </Button>
           </div>
