@@ -8,6 +8,7 @@ const PILL_COOLDOWN_TURNS = 3
 const SEGUE_POLICY = {
   recruiter: {
     minInteractionTurns: 3,
+    postExitCooldownTurns: 4,
     specialVariant: true,
     specialTitle: 'Talk to a recruiter',
     specialDescription: 'Get personalized guidance from a local recruiter based on your goals.',
@@ -281,6 +282,7 @@ export function selectSeguePills(ctx: PillContext): SegueComponent[] {
   const recruiterResetRecently =
     Boolean(ctx.recruiterJustExited) ||
     (typeof lastResetIndex === 'number' && lastResetIndex >= ctx.history.length - 3)
+  const nonIntakeTurnsSinceReset = historyWindow.filter((m) => m.role === 'user').length
 
   const scopedCtx = { ...ctx, history: historyWindow }
   const tier = inferCaseTier(scopedCtx)
@@ -290,14 +292,13 @@ export function selectSeguePills(ctx: PillContext): SegueComponent[] {
   const ranked = pillLibrary
     .map((pill) => {
       const baseScore = scorePill(pill, intents, tier)
-      const recruiterBoost = recruiterResetRecently && RECRUITER_PILL_KEYS.has(pill.key) ? 2 : 0
       const alreadyShownCount = memory.shownCountsByKey.get(pill.key) || 0
       const intentPenalty = memory.usedIntentCounts.get(pill.intents[0]) || 0
       const recentPenalty = memory.recentlyShownKeys.has(pill.key) ? 3 : 0
       const turnsSinceLastShown = memory.turnsSinceLastShownByKey.get(pill.key)
       const cooldownActive =
         typeof turnsSinceLastShown === 'number' && turnsSinceLastShown <= PILL_COOLDOWN_TURNS
-      const score = baseScore + recruiterBoost - alreadyShownCount * 1.75 - intentPenalty * 0.6 - recentPenalty
+      const score = baseScore - alreadyShownCount * 1.75 - intentPenalty * 0.6 - recentPenalty
       return { pill, score, baseScore, cooldownActive }
     })
     .filter((item) => {
@@ -305,8 +306,9 @@ export function selectSeguePills(ctx: PillContext): SegueComponent[] {
       // Recruiter CTA is intentionally gated until the conversation has enough context.
       if (
         RECRUITER_PILL_KEYS.has(item.pill.key) &&
-        interactionTurns < SEGUE_POLICY.recruiter.minInteractionTurns &&
-        !recruiterResetRecently
+        (interactionTurns < SEGUE_POLICY.recruiter.minInteractionTurns ||
+          (recruiterResetRecently &&
+            nonIntakeTurnsSinceReset < SEGUE_POLICY.recruiter.postExitCooldownTurns))
       ) {
         return false
       }
@@ -361,8 +363,9 @@ export function selectSeguePills(ctx: PillContext): SegueComponent[] {
     .filter((entry) => {
       if (
         RECRUITER_PILL_KEYS.has(entry.pill.key) &&
-        interactionTurns < SEGUE_POLICY.recruiter.minInteractionTurns &&
-        !recruiterResetRecently
+        (interactionTurns < SEGUE_POLICY.recruiter.minInteractionTurns ||
+          (recruiterResetRecently &&
+            nonIntakeTurnsSinceReset < SEGUE_POLICY.recruiter.postExitCooldownTurns))
       ) {
         return false
       }
