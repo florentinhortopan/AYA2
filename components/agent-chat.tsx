@@ -232,7 +232,7 @@ export function AgentChat({
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[80%] p-3 shadow-sm ${
+                className={`${msg.role === 'user' ? 'max-w-[80%]' : 'w-full max-w-full'} p-3 shadow-sm ${
                   msg.role === 'user'
                     ? 'bg-[#1f3a2c] text-[#f7f2e6] rounded-[22px] rounded-br-md'
                     : 'bg-[#fffaf0] border border-[#cfc3a8] text-[#1f1b15] rounded-[22px] rounded-bl-md'
