@@ -8,6 +8,22 @@ import { selectSeguePills } from '@/lib/job-finder/segue-pill-selector'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+const RECRUITER_SEGUE_MIN_INTERACTIONS = 3
+
+const isRecruiterSegueLabel = (label: string): boolean => {
+  const value = String(label || '').toLowerCase()
+  return value.includes('recruiter')
+}
+
+const applyRecruiterSeguePolicy = (
+  segues: RichAgentResponse['segues'],
+  interactionTurns: number
+): RichAgentResponse['segues'] => {
+  if (!Array.isArray(segues)) return []
+  if (interactionTurns >= RECRUITER_SEGUE_MIN_INTERACTIONS) return segues
+  return segues.filter((segue: any) => !isRecruiterSegueLabel(String(segue?.props?.label || '')))
+}
+
 const cleanSnippetForChat = (value: string) =>
   value
     .replace(/<[^>]+>/g, ' ')
@@ -33,6 +49,28 @@ const sanitizeAssistantText = (value: string) =>
     .replace(/\/content\/dam\/[^\s"']+/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+
+const formatSourceSlugLabel = (url: string, title: string): string => {
+  try {
+    const parsed = new URL(url)
+    const segments = parsed.pathname.split('/').filter(Boolean)
+    const slug = segments[segments.length - 1]
+    if (slug) {
+      return decodeURIComponent(slug)
+        .replace(/[-_]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase()
+    }
+  } catch {
+    // Fallback to title below.
+  }
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
 
 export async function GET() {
   const payload = await loadScrapedJobsPayload()
@@ -123,13 +161,14 @@ export async function POST(request: NextRequest) {
       }
     }
   )
-
-  const sources = relevantPages.slice(0, 4).map((page) => page.url)
-  const textWithSources =
-    sources.length > 0 && !rich.text.toLowerCase().includes('sources:')
-      ? `${rich.text}\n\nSources:\n${sources.map((url) => `- ${url}`).join('\n')}`
-      : rich.text
-  const cleanTextWithSources = sanitizeAssistantText(textWithSources)
+  const cleanTextWithSources = sanitizeAssistantText(
+    rich.text.replace(/\n?\s*sources:\s*[\s\S]*$/i, '').trim()
+  )
+  const sourceLinks = relevantPages.slice(0, 4).map((page) => ({
+    title: page.title,
+    url: page.url,
+    slugLabel: formatSourceSlugLabel(page.url, page.title)
+  }))
 
   const fallbackComponents: RichAgentResponse['components'] = [
     {
@@ -156,7 +195,9 @@ export async function POST(request: NextRequest) {
     history,
     relevantPages
   })
-  const segues = strategySegues.length >= 2 ? strategySegues : (rich.segues || [])
+  const interactionTurns = history.filter((h: any) => h?.role === 'user').length + 1
+  const fallbackSegues = applyRecruiterSeguePolicy(rich.segues || [], interactionTurns)
+  const segues = strategySegues.length >= 2 ? strategySegues : fallbackSegues
 
   return NextResponse.json({
     text: cleanTextWithSources,
@@ -166,7 +207,8 @@ export async function POST(request: NextRequest) {
       ...(rich.metadata || {}),
       sourceCount: payload.pages.length,
       retrievedSourceCount: relevantPages.length,
-      generatedAt: payload.generatedAt
+      generatedAt: payload.generatedAt,
+      sources: sourceLinks
     }
   })
 }

@@ -5,6 +5,18 @@ type CaseTier = 1 | 2 | 3
 type PillType = 'anticipate' | 'entice'
 const PILL_COOLDOWN_TURNS = 3
 
+const SEGUE_POLICY = {
+  recruiter: {
+    minInteractionTurns: 3,
+    specialVariant: true,
+    specialTitle: 'Talk to a recruiter',
+    specialDescription: 'Get personalized guidance from a local recruiter based on your goals.',
+    specialBadge: 'Recommended next step'
+  }
+} as const
+
+const RECRUITER_PILL_KEYS = new Set(['recruiter_talk', 'recruiter_schedule'])
+
 interface PillContext {
   message: string
   history: Array<{
@@ -152,6 +164,9 @@ const inferCaseTier = (ctx: PillContext): CaseTier => {
   return 1
 }
 
+const getInteractionTurns = (ctx: PillContext): number =>
+  ctx.history.filter((m) => m.role === 'user').length + 1
+
 const scorePill = (pill: PillDef, intents: string[], tier: CaseTier) => {
   if (!pill.tiers.includes(tier)) return -1
   let score = 0
@@ -257,6 +272,7 @@ const pickLabelVariant = (
 export function selectSeguePills(ctx: PillContext): SegueComponent[] {
   const tier = inferCaseTier(ctx)
   const intents = inferIntents(ctx)
+  const interactionTurns = getInteractionTurns(ctx)
   const memory = buildConversationMemory(ctx.history)
   const ranked = pillLibrary
     .map((pill) => {
@@ -270,7 +286,17 @@ export function selectSeguePills(ctx: PillContext): SegueComponent[] {
       const score = baseScore - alreadyShownCount * 1.75 - intentPenalty * 0.6 - recentPenalty
       return { pill, score, baseScore, cooldownActive }
     })
-    .filter((item) => item.score >= 0 && !item.cooldownActive)
+    .filter((item) => {
+      if (item.score < 0 || item.cooldownActive) return false
+      // Recruiter CTA is intentionally gated until the conversation has enough context.
+      if (
+        RECRUITER_PILL_KEYS.has(item.pill.key) &&
+        interactionTurns < SEGUE_POLICY.recruiter.minInteractionTurns
+      ) {
+        return false
+      }
+      return true
+    })
     .sort((a, b) => b.score - a.score)
     .map((item) => item)
 
@@ -317,6 +343,15 @@ export function selectSeguePills(ctx: PillContext): SegueComponent[] {
       return { pill, score: baseScore, baseScore, cooldownActive }
     })
     .sort((a, b) => b.score - a.score)
+    .filter((entry) => {
+      if (
+        RECRUITER_PILL_KEYS.has(entry.pill.key) &&
+        interactionTurns < SEGUE_POLICY.recruiter.minInteractionTurns
+      ) {
+        return false
+      }
+      return true
+    })
 
   // If strict no-repeat is too restrictive, allow high-relevance reused pills with rotated labels.
   if (!selected.some((item) => item.pill.type === 'anticipate')) {
@@ -352,7 +387,11 @@ export function selectSeguePills(ctx: PillContext): SegueComponent[] {
       action: `ask:${label}`,
       sentiment: pill.type === 'anticipate' ? 'informative' : 'exploratory',
       context: `case_${tier}_${pill.type}_${pill.key}`,
-      variant: pill.type === 'anticipate' ? 'outline' : 'default'
+      variant: pill.type === 'anticipate' ? 'outline' : 'default',
+      special: SEGUE_POLICY.recruiter.specialVariant && RECRUITER_PILL_KEYS.has(pill.key),
+      specialTitle: RECRUITER_PILL_KEYS.has(pill.key) ? SEGUE_POLICY.recruiter.specialTitle : undefined,
+      specialDescription: RECRUITER_PILL_KEYS.has(pill.key) ? SEGUE_POLICY.recruiter.specialDescription : undefined,
+      specialBadge: RECRUITER_PILL_KEYS.has(pill.key) ? SEGUE_POLICY.recruiter.specialBadge : undefined
     }
   }))
 }

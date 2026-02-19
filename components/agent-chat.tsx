@@ -17,6 +17,11 @@ interface Message {
     sourceCount?: number
     retrievedSourceCount?: number
     generatedAt?: string
+    sources?: Array<{
+      title?: string
+      url?: string
+      slugLabel?: string
+    }>
   }
 }
 
@@ -44,14 +49,42 @@ export function AgentChat({
   const [initialized, setInitialized] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [openCoverageMessageIndex, setOpenCoverageMessageIndex] = useState<number | null>(null)
+  const previousMessageCountRef = useRef(0)
+  const messageRefs = useRef<Record<number, HTMLDivElement | null>>({})
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  const scrollToMessage = (index: number, block: ScrollLogicalPosition = 'start') => {
+    const node = messageRefs.current[index]
+    if (!node) return
+    node.scrollIntoView({ behavior: 'smooth', block })
+  }
+
   useEffect(() => {
-    scrollToBottom()
+    if (messages.length === 0) {
+      previousMessageCountRef.current = 0
+      return
+    }
+
+    const previousCount = previousMessageCountRef.current
+    if (messages.length > previousCount) {
+      const lastIndex = messages.length - 1
+      const lastMessage = messages[lastIndex]
+
+      window.requestAnimationFrame(() => {
+        // For assistant replies, anchor to the start of the new answer so users read top-to-bottom.
+        if (lastMessage.role === 'assistant') {
+          scrollToMessage(lastIndex, 'start')
+          return
+        }
+        scrollToBottom()
+      })
+    }
+
+    previousMessageCountRef.current = messages.length
   }, [messages])
 
   useEffect(() => {
@@ -229,6 +262,9 @@ export function AgentChat({
           {messages.map((msg, idx) => (
             <div
               key={idx}
+              ref={(node) => {
+                messageRefs.current[idx] = node
+              }}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
@@ -264,16 +300,32 @@ export function AgentChat({
                   </div>
                 )}
                 {msg.role === 'assistant' && msg.metadata?.sourceCount && (
-                  <div className="mt-3 relative">
-                    <button
-                      type="button"
-                      className="text-xs text-[#4d4637] underline underline-offset-2 hover:text-[#1f1b15] transition-colors"
-                      onClick={() =>
-                        setOpenCoverageMessageIndex((current) => (current === idx ? null : idx))
-                      }
-                    >
-                      Source coverage
-                    </button>
+                  <div className="mt-3 relative space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        className="text-xs text-[#4d4637] underline underline-offset-2 hover:text-[#1f1b15] transition-colors"
+                        onClick={() =>
+                          setOpenCoverageMessageIndex((current) => (current === idx ? null : idx))
+                        }
+                      >
+                        Source coverage
+                      </button>
+                      {Array.isArray(msg.metadata.sources) && msg.metadata.sources.map((source, sourceIdx) => (
+                        source?.url ? (
+                          <a
+                            key={`${idx}-source-${sourceIdx}`}
+                            href={source.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={source.title || source.slugLabel || source.url}
+                            className="inline-flex items-center rounded-full border border-[#cfc3a8] bg-[#f6efdf] px-2 py-0.5 text-[11px] leading-4 text-[#4d4637] hover:bg-[#efe3c8] hover:text-[#1f1b15] transition-colors"
+                          >
+                            {source.slugLabel || 'source'}
+                          </a>
+                        ) : null
+                      ))}
+                    </div>
                     {openCoverageMessageIndex === idx && (
                       <div className="absolute right-0 mt-2 z-20 w-72 rounded-md border border-[#cfc3a8] bg-[#fffaf0] p-3 shadow-lg text-xs text-[#1f1b15] space-y-1">
                         <p><span className="font-medium">Indexed pages:</span> {String(msg.metadata.sourceCount)}</p>

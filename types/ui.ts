@@ -148,6 +148,10 @@ export interface SegueComponent extends UIComponent {
     sentiment?: 'positive' | 'neutral' | 'exploratory' | 'informative'
     context?: string // What prompted this segue
     variant?: 'default' | 'outline' | 'ghost'
+    special?: boolean
+    specialTitle?: string
+    specialDescription?: string
+    specialBadge?: string
   }
 }
 

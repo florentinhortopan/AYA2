@@ -18,8 +18,10 @@ export function UIComponentsRenderer({ components, onAction, actionLoading }: UI
     return null
   }
 
+  const allSegues = components.every((component) => component.type === 'segue')
+
   return (
-    <div className="space-y-3 mt-3">
+    <div className={allSegues ? 'flex flex-wrap gap-2 mt-3' : 'space-y-3 mt-3'}>
       {components.map((component, index) => (
         <ComponentRenderer
           key={component.id || index}
@@ -343,10 +345,38 @@ function ComponentRenderer({
 
     case 'segue':
       const segueProps = component.props as any
+      if (segueProps.special) {
+        const isLoading = actionLoading === segueProps.action
+        return (
+          <button
+            type="button"
+            className="w-full text-left border border-[#9fb0a1] bg-[#eef5ef] rounded-xl p-3 hover:bg-[#e3eee4] transition-colors"
+            onClick={() => onAction?.(segueProps.action, { ...segueProps, type: 'segue' })}
+            disabled={isLoading}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-[#1f3a2c]">
+                {segueProps.specialTitle || segueProps.label}
+              </p>
+              {segueProps.specialBadge ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#1f3a2c] text-[#f7f2e6]">
+                  {segueProps.specialBadge}
+                </span>
+              ) : null}
+            </div>
+            <p className="text-xs text-[#4d4637] mt-1">
+              {segueProps.specialDescription || 'Personalized help from a local recruiter.'}
+            </p>
+            <p className="text-xs text-[#1f3a2c] mt-2 underline underline-offset-2">
+              {isLoading ? 'Processing...' : segueProps.label}
+            </p>
+          </button>
+        )
+      }
       return (
         <Button
           variant={segueProps.variant || 'outline'}
-          className={`w-full ${readableButtonClass(segueProps.variant)}`}
+          className={`inline-flex w-auto max-w-full rounded-full px-3 py-1.5 h-auto text-xs leading-tight whitespace-normal break-words border ${readableButtonClass(segueProps.variant)}`}
           onClick={() => onAction?.(segueProps.action, { ...segueProps, type: 'segue' })}
           disabled={actionLoading === segueProps.action}
         >
