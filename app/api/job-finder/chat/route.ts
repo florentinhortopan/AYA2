@@ -52,6 +52,40 @@ const sanitizeAssistantText = (value: string) =>
     .replace(/\s+/g, ' ')
     .trim()
 
+const stripMarkdownTables = (value: string): string => {
+  const lines = value.split('\n')
+  const kept: string[] = []
+  let i = 0
+
+  while (i < lines.length) {
+    const line = lines[i]
+    const next = lines[i + 1] || ''
+    const isTableHeader = /\|/.test(line) && /^\s*\|?[\s:-]+\|[\s|:-]*$/.test(next)
+    if (isTableHeader) {
+      i += 2
+      while (i < lines.length && /\|/.test(lines[i])) i += 1
+      continue
+    }
+    kept.push(line)
+    i += 1
+  }
+
+  return kept.join('\n')
+}
+
+const stripStructuredArtifacts = (value: string, hasComponents: boolean): string => {
+  if (!hasComponents) return value
+  return stripMarkdownTables(
+    value
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/^\s*[\[{]\s*$/gm, ' ')
+      .replace(/^\s*"?(type|props|headers|rows|components)"?\s*:\s*.*$/gim, ' ')
+      .replace(/^\s*[\]}],?\s*$/gm, ' ')
+  )
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 interface RecruiterProfile {
   fullName?: string
   email?: string
@@ -289,6 +323,7 @@ export async function POST(request: NextRequest) {
     'Always include a "Sources:" section with 2-4 URLs from the retrieved sources.',
     'If sources are insufficient, say what is missing clearly.',
     'Use polished UI components where relevant (table, card, timeline, matrix, list, segue).',
+    'Do not output raw JSON, markdown tables, or component schemas in plain text.',
     'When asked to compare jobs, prioritize table/matrix components.',
     'When describing progression, prefer timeline components.',
     '',
@@ -319,8 +354,12 @@ export async function POST(request: NextRequest) {
       }
     }
   )
+  const hasStructuredComponents = Array.isArray(rich.components) && rich.components.length > 0
   const cleanTextWithSources = sanitizeAssistantText(
-    rich.text.replace(/\n?\s*sources:\s*[\s\S]*$/i, '').trim()
+    stripStructuredArtifacts(
+      rich.text.replace(/\n?\s*sources:\s*[\s\S]*$/i, '').trim(),
+      hasStructuredComponents
+    )
   )
   const sourceLinks = relevantPages.slice(0, 4).map((page) => ({
     title: page.title,
