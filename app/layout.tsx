@@ -3,6 +3,7 @@ import { Inter } from "next/font/google"
 import { SessionProvider } from "next-auth/react"
 import { Providers } from "./providers"
 import { Navbar } from "@/components/layout/navbar"
+import { FloatingJobFinderWidget } from "@/components/floating-job-finder-widget"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -23,6 +24,7 @@ export default function RootLayout({
         <Providers>
           <Navbar />
           {children}
+          <FloatingJobFinderWidget />
         </Providers>
       </body>
     </html>

@@ -27,7 +27,7 @@ export async function POST(
     }
 
     // Validate agent type
-    const validTypes: AgentType[] = ['recruitment', 'training', 'financial', 'educational']
+    const validTypes: AgentType[] = ['recruitment', 'training', 'financial', 'educational', 'job-finder']
     if (!validTypes.includes(agentType)) {
       return NextResponse.json(
         { error: 'Invalid agent type' },

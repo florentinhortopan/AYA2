@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -34,36 +34,7 @@ export default function InsightsPage() {
   const [history, setHistory] = useState<any[]>([])
   const [historyFilter, setHistoryFilter] = useState<'all' | 'week' | 'month' | 'year'>('all')
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin')
-      return
-    }
-
-    if (status === 'authenticated' && session?.user?.id) {
-      fetchInsights()
-      fetchHistory()
-    }
-  }, [status, session, router])
-
-  useEffect(() => {
-    if (status === 'authenticated' && session?.user?.id) {
-      fetchHistory()
-    }
-  }, [historyFilter, status, session])
-
-  // Refresh history when insights page is visible/refocused
-  useEffect(() => {
-    if (status === 'authenticated' && session?.user?.id) {
-      const interval = setInterval(() => {
-        fetchHistory()
-      }, 30000) // Refresh every 30 seconds
-
-      return () => clearInterval(interval)
-    }
-  }, [status, session])
-
-  const fetchInsights = async () => {
+  const fetchInsights = useCallback(async () => {
     try {
       const response = await fetch('/api/user/insights')
       
@@ -78,9 +49,9 @@ export default function InsightsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     setHistoryLoading(true)
     try {
       const response = await fetch(`/api/user/insights/history?filter=${historyFilter}&t=${Date.now()}`)
@@ -98,7 +69,36 @@ export default function InsightsPage() {
     } finally {
       setHistoryLoading(false)
     }
-  }
+  }, [historyFilter])
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin')
+      return
+    }
+
+    if (status === 'authenticated' && session?.user?.id) {
+      fetchInsights()
+      fetchHistory()
+    }
+  }, [status, session, router, fetchInsights, fetchHistory])
+
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.id) {
+      fetchHistory()
+    }
+  }, [historyFilter, status, session, fetchHistory])
+
+  // Refresh history when insights page is visible/refocused
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.id) {
+      const interval = setInterval(() => {
+        fetchHistory()
+      }, 30000) // Refresh every 30 seconds
+
+      return () => clearInterval(interval)
+    }
+  }, [status, session, fetchHistory])
 
   if (status === 'loading' || loading) {
     return (

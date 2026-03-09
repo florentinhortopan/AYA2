@@ -19,14 +19,21 @@ export function Navbar() {
               <Link href="/explore" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
                 Explore
               </Link>
+              <Link href="/Sunset/analyze.html" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
+                Analyze
+              </Link>
               {session && (
                 <>
                   <Link href="/dashboard" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
                     Dashboard
                   </Link>
-                  <Link href="/community" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
-                    Community
+                  <Link href="/content" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
+                    Content
                   </Link>
+                  {/* TODO: Uncomment when /community route is created */}
+                  {/* <Link href="/community" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
+                    Community
+                  </Link> */}
                   <Link href="/insights" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
                     Recruiter View
                   </Link>

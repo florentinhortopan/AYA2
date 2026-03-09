@@ -13,6 +13,7 @@ export type UIComponentType =
   | 'timeline'
   | 'matrix'
   | 'segue'
+  | 'custom'
 
 export interface UIComponent {
   type: UIComponentType
@@ -147,6 +148,20 @@ export interface SegueComponent extends UIComponent {
     sentiment?: 'positive' | 'neutral' | 'exploratory' | 'informative'
     context?: string // What prompted this segue
     variant?: 'default' | 'outline' | 'ghost'
+    special?: boolean
+    specialTitle?: string
+    specialDescription?: string
+    specialBadge?: string
+  }
+}
+
+export interface CustomComponent extends UIComponent {
+  type: 'custom'
+  props: {
+    componentName: string
+    title?: string
+    description?: string
+    data?: Record<string, unknown>
   }
 }
 
@@ -162,6 +177,7 @@ export type AnyUIComponent =
   | TimelineComponent
   | MatrixComponent
   | SegueComponent
+  | CustomComponent
 
 export interface RichAgentResponse {
   text: string // Main text response

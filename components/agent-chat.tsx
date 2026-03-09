@@ -13,34 +13,87 @@ interface Message {
   timestamp: string
   components?: RichAgentResponse['components']
   segues?: RichAgentResponse['segues']
+  metadata?: RichAgentResponse['metadata'] & {
+    sourceCount?: number
+    retrievedSourceCount?: number
+    generatedAt?: string
+    recruiterCounterReset?: boolean
+    sources?: Array<{
+      title?: string
+      url?: string
+      slugLabel?: string
+    }>
+  }
 }
 
 interface AgentChatProps {
   agentType: AgentType
   userId?: string
+  titleOverride?: string
+  containerClassName?: string
+  messagesHeightClassName?: string
+  hideHeader?: boolean
 }
 
-export function AgentChat({ agentType, userId }: AgentChatProps) {
+export function AgentChat({
+  agentType,
+  userId,
+  titleOverride,
+  containerClassName,
+  messagesHeightClassName,
+  hideHeader = false
+}: AgentChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [initialized, setInitialized] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [openCoverageMessageIndex, setOpenCoverageMessageIndex] = useState<number | null>(null)
+  const [recruiterMode, setRecruiterMode] = useState(false)
+  const previousMessageCountRef = useRef(0)
+  const messageRefs = useRef<Record<number, HTMLDivElement | null>>({})
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  const scrollToMessage = (index: number, block: ScrollLogicalPosition = 'start') => {
+    const node = messageRefs.current[index]
+    if (!node) return
+    node.scrollIntoView({ behavior: 'smooth', block })
+  }
+
   useEffect(() => {
-    scrollToBottom()
+    if (messages.length === 0) {
+      previousMessageCountRef.current = 0
+      return
+    }
+
+    const previousCount = previousMessageCountRef.current
+    if (messages.length > previousCount) {
+      const lastIndex = messages.length - 1
+      const lastMessage = messages[lastIndex]
+
+      window.requestAnimationFrame(() => {
+        // For assistant replies, anchor to the start of the new answer so users read top-to-bottom.
+        if (lastMessage.role === 'assistant') {
+          scrollToMessage(lastIndex, 'start')
+          return
+        }
+        scrollToBottom()
+      })
+    }
+
+    previousMessageCountRef.current = messages.length
   }, [messages])
 
   useEffect(() => {
     // Initialize with agent's greeting
     if (!initialized) {
-      fetch(`/api/agents/${agentType}`)
+      const initEndpoint = agentType === 'job-finder' ? '/api/job-finder/chat' : `/api/agents/${agentType}`
+      fetch(initEndpoint)
         .then(res => res.json())
         .then(data => {
           if (data.initialMessage) {
@@ -56,12 +109,12 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
     }
   }, [agentType, initialized])
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return
+  const sendMessageInternal = async (content: string, options?: { forceRecruiterMode?: boolean }) => {
+    if (!content.trim() || loading) return
 
     const userMessage: Message = {
       role: 'user',
-      content: input,
+      content,
       timestamp: new Date().toISOString()
     }
 
@@ -70,14 +123,16 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
     setLoading(true)
 
     try {
-      const response = await fetch(`/api/agents/${agentType}`, {
+      const endpoint = agentType === 'job-finder' ? '/api/job-finder/chat' : `/api/agents/${agentType}`
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: input,
+          message: content,
           sessionId,
           userId,
-          history: messages
+          history: messages,
+          recruiterMode: options?.forceRecruiterMode ?? recruiterMode
         })
       })
 
@@ -89,10 +144,14 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
         content: data.text || data.response || 'I apologize, but I could not generate a response.',
         timestamp: new Date().toISOString(),
         components: data.components || [],
-        segues: data.segues || []
+        segues: data.segues || [],
+        metadata: data.metadata
       }
       
       setMessages(prev => [...prev, assistantMessage])
+      if (typeof data?.metadata?.recruiterMode === 'boolean') {
+        setRecruiterMode(data.metadata.recruiterMode)
+      }
       if (data.sessionId && !sessionId) {
         setSessionId(data.sessionId)
       }
@@ -108,7 +167,25 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
     }
   }
 
+  const sendMessage = async () => {
+    await sendMessageInternal(input)
+  }
+
   const handleAction = async (action: string, data?: Record<string, unknown>) => {
+    if (action?.startsWith('ask:')) {
+      const prompt = action.replace(/^ask:/, '').trim()
+      if (prompt) {
+        const specialRecruiter = Boolean((data as any)?.special) || /recruiter/i.test(prompt)
+        if (specialRecruiter) {
+          setRecruiterMode(true)
+          await sendMessageInternal(prompt, { forceRecruiterMode: true })
+        } else {
+          await sendMessageInternal(prompt)
+        }
+      }
+      return
+    }
+
     if (!userId) {
       // Prompt user to sign in
       const confirmSignIn = confirm('Please sign in to perform this action. Would you like to sign in now?')
@@ -166,26 +243,47 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
     recruitment: 'Recruitment Assistant',
     training: 'Training Assistant',
     financial: 'Financial Assistant',
-    educational: 'Educational Assistant'
+    educational: 'Educational Assistant',
+    'job-finder': 'Job Finder Assistant'
+  }
+
+  const formatTimeLabel = (isoTimestamp?: string): string => {
+    if (!isoTimestamp) return ''
+    try {
+      return new Date(isoTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    } catch {
+      return ''
+    }
   }
 
   return (
-    <Card className="w-full max-w-3xl mx-auto border-border bg-card">
-      <CardHeader>
-        <CardTitle className="text-2xl text-gold font-bold">{agentNames[agentType]}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="h-96 overflow-y-auto space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
+    <Card className={`w-full max-w-3xl mx-auto border-[#cfc3a8] bg-[#f7f2e6] ${containerClassName || ''}`.trim()}>
+      {!hideHeader && (
+        <CardHeader className="border-b border-[#cfc3a8] pb-3">
+          <CardTitle className="text-xl text-[#1f1b15] font-semibold">{titleOverride || agentNames[agentType]}</CardTitle>
+        </CardHeader>
+      )}
+      <CardContent className={hideHeader ? 'h-full flex flex-col gap-3 p-2 pt-2' : 'space-y-4'}>
+        <div className={`${messagesHeightClassName || (hideHeader ? 'flex-1 min-h-0' : 'h-96')} overflow-y-auto space-y-4 p-4 bg-[#f0e7d3] rounded-lg border border-[#cfc3a8]`}>
+          {messages.length > 0 && (
+            <div className="flex items-center gap-2 text-[11px] text-[#4d4637]">
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#1f3a2c] text-[#f7f2e6]">★</span>
+              <span>Chat started at {formatTimeLabel(messages[0]?.timestamp)}</span>
+            </div>
+          )}
           {messages.map((msg, idx) => (
             <div
               key={idx}
+              ref={(node) => {
+                messageRefs.current[idx] = node
+              }}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[80%] rounded-lg p-3 ${
+                className={`${msg.role === 'user' ? 'max-w-[80%]' : 'w-full max-w-full'} p-3 shadow-sm ${
                   msg.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-card border border-border text-foreground'
+                    ? 'bg-[#1f3a2c] text-[#f7f2e6] rounded-[22px] rounded-br-md'
+                    : 'bg-[#fffaf0] border border-[#cfc3a8] text-[#1f1b15] rounded-[22px] rounded-bl-md'
                 }`}
               >
                 <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
@@ -199,8 +297,8 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
                   />
                 )}
                 {msg.segues && msg.segues.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-border/50 space-y-2">
-                    <p className="text-xs text-muted-foreground mb-2">You might also want to:</p>
+                  <div className="mt-4 pt-4 border-t border-[#cfc3a8] space-y-2">
+                    <p className="text-xs text-[#4d4637] mb-2">You might also want to:</p>
                     {msg.segues.map((segue, idx) => (
                       <UIComponentsRenderer
                         key={idx}
@@ -213,13 +311,49 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
                     ))}
                   </div>
                 )}
+                {msg.role === 'assistant' && msg.metadata?.sourceCount && (
+                  <div className="mt-3 relative space-y-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        className="text-xs text-[#4d4637] underline underline-offset-2 hover:text-[#1f1b15] transition-colors"
+                        onClick={() =>
+                          setOpenCoverageMessageIndex((current) => (current === idx ? null : idx))
+                        }
+                      >
+                        Source coverage
+                      </button>
+                      {Array.isArray(msg.metadata.sources) && msg.metadata.sources.map((source, sourceIdx) => (
+                        source?.url ? (
+                          <a
+                            key={`${idx}-source-${sourceIdx}`}
+                            href={source.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={source.title || source.slugLabel || source.url}
+                            className="inline-flex items-center rounded-full border border-[#cfc3a8] bg-[#f6efdf] px-2 py-0.5 text-[11px] leading-4 text-[#4d4637] hover:bg-[#efe3c8] hover:text-[#1f1b15] transition-colors"
+                          >
+                            {source.slugLabel || 'source'}
+                          </a>
+                        ) : null
+                      ))}
+                    </div>
+                    {openCoverageMessageIndex === idx && (
+                      <div className="absolute right-0 mt-2 z-20 w-72 rounded-md border border-[#cfc3a8] bg-[#fffaf0] p-3 shadow-lg text-xs text-[#1f1b15] space-y-1">
+                        <p><span className="font-medium">Indexed pages:</span> {String(msg.metadata.sourceCount)}</p>
+                        <p><span className="font-medium">Retrieved now:</span> {String(msg.metadata.retrievedSourceCount || 0)}</p>
+                        <p><span className="font-medium">Dataset generated:</span> {String(msg.metadata.generatedAt || 'unknown')}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-card border border-border rounded-lg p-3">
-                <p className="text-sm text-muted-foreground">Thinking...</p>
+              <div className="bg-[#fffaf0] border border-[#cfc3a8] rounded-[22px] rounded-bl-md p-3">
+                <p className="text-sm text-[#4d4637]">Thinking...</p>
               </div>
             </div>
           )}
@@ -232,12 +366,12 @@ export function AgentChat({ agentType, userId }: AgentChatProps) {
             onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
             placeholder="Type your message..."
             disabled={loading}
-            className="bg-background border-border"
+            className="bg-[#fffaf0] border-[#cfc3a8] text-[#1f1b15] placeholder:text-[#6a5f4b] focus-visible:ring-[#8b7a4f] focus-visible:ring-offset-[#f7f2e6]"
           />
           <Button 
             onClick={sendMessage} 
             disabled={loading || !input.trim()}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
+            className="bg-[#1f3a2c] text-[#f7f2e6] hover:bg-[#173022]"
           >
             Send
           </Button>

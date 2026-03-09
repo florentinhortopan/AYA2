@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seasonal Page Sunset Decision Tree</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="nav-menu">
+        <div class="nav-container">
+            <a href="index.html" class="nav-title">Seasonal Page Sunset Decision Tree</a>
+            <div class="nav-links">
+                <a href="index.html" class="active">Interactive Tool</a>
+                <a href="winter-sports-decision.html">Winter Sports Analysis</a>
+                <a href="analyze.html">Page Analysis Report</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <header>
+            <h1>Seasonal Page Sunset Decision Tree</h1>
+            <p class="subtitle">Interactive tool to determine the appropriate action for seasonal pages entering cooling period</p>
+        </header>
+
+        <div class="main-content">
+            <div class="decision-form">
+                <h2>Page Assessment</h2>
+                <form id="decisionForm">
+                    <div class="form-section">
+                        <h3>Legal & Compliance</h3>
+                        <div class="form-group">
+                            <label>
+                                <input type="radio" name="legalRemoval" value="yes" required>
+                                Legal removal required
+                            </label>
+                            <label>
+                                <input type="radio" name="legalRemoval" value="no" required>
+                                No legal removal required
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-section" id="strategicSection" style="display: none;">
+                        <h3>Strategic Factors</h3>
+                        <div class="form-group">
+                            <label>Frequency of Campaign Page Sunsets:</label>
+                            <select name="sunsetFrequency" id="sunsetFrequencySelect">
+                                <option value="">Select...</option>
+                                <option value="rare">Rare (few times per year)</option>
+                                <option value="occasional">Occasional (monthly or quarterly)</option>
+                                <option value="frequent">Frequent (weekly or bi-weekly)</option>
+                                <option value="very-frequent">Very Frequent (multiple per week)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Content Relevancy After Campaign Ends:</label>
+                            <select name="contentRelevancy" id="contentRelevancySelect">
+                                <option value="">Select...</option>
+                                <option value="high">High (content remains valuable/useful)</option>
+                                <option value="medium">Medium (some content still relevant)</option>
+                                <option value="low">Low (content becomes outdated quickly)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-section" id="recurringSection" style="display: none;">
+                        <h3>Campaign Type</h3>
+                        <div class="form-group">
+                            <label>
+                                <input type="radio" name="recurring" value="yes">
+                                Recurring theme (e.g., Olympics, Black Friday)
+                            </label>
+                            <label>
+                                <input type="radio" name="recurring" value="no">
+                                Non-recurring campaign
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-section" id="valueSection" style="display: none;">
+                        <h3>Page Value Assessment</h3>
+                        <div class="form-group">
+                            <label>Traffic Level:</label>
+                            <select name="traffic" id="trafficSelect">
+                                <option value="">Select...</option>
+                                <option value="high">High</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Backlinks:</label>
+                            <select name="backlinks" id="backlinksSelect">
+                                <option value="">Select...</option>
+                                <option value="high">High</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Conversions:</label>
+                            <select name="conversions" id="conversionsSelect">
+                                <option value="">Select...</option>
+                                <option value="high">High</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-section" id="hubSection" style="display: none;">
+                        <h3>Hub Information</h3>
+                        <div class="form-group">
+                            <label>
+                                <input type="radio" name="existingHub" value="yes">
+                                Existing hub URL exists
+                            </label>
+                            <label>
+                                <input type="radio" name="existingHub" value="no">
+                                No existing hub URL
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-section" id="intentSection" style="display: none;">
+                        <h3>Page Intent</h3>
+                        <div class="form-group">
+                            <label>
+                                <input type="radio" name="intent" value="product">
+                                Product intent (main focus on products)
+                            </label>
+                            <label>
+                                <input type="radio" name="intent" value="content">
+                                Content intent (main focus on content/blog)
+                            </label>
+                            <label>
+                                <input type="radio" name="intent" value="brand">
+                                Brand intent (main focus on brand/app/loyalty)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-section" id="relevantHubSection" style="display: none;">
+                        <h3>Relevant Hub/Category</h3>
+                        <div class="form-group">
+                            <label>
+                                <input type="radio" name="relevantHub" value="yes">
+                                Loosely relevant hub/category exists
+                            </label>
+                            <label>
+                                <input type="radio" name="relevantHub" value="no">
+                                No relevant hub/category
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-btn">Determine Outcome</button>
+                    <button type="button" class="reset-btn" onclick="resetForm()">Reset</button>
+                </form>
+            </div>
+
+            <div class="result-section" id="resultSection" style="display: none;">
+                <h2>Decision Outcome</h2>
+                <div id="outcome" class="outcome"></div>
+                <div id="details" class="details"></div>
+            </div>
+        </div>
+
+        <div class="flowchart-section">
+            <h2>Decision Flowchart</h2>
+            <div class="flowchart-container">
+                <div class="flowchart-node start">Seasonal page enters Cooling</div>
+                
+                <div class="flowchart-branch">
+                    <div class="flowchart-node decision">Legal removal required?</div>
+                    <div class="flowchart-options">
+                        <div class="flowchart-path yes">
+                            <div class="flowchart-node end">410/404 + custom 'campaign ended' 404<br/>Search + top links</div>
+                        </div>
+                        <div class="flowchart-path no">
+                            <div class="flowchart-node data">Assess: Sunset Frequency<br/>& Content Relevancy</div>
+                            <div class="flowchart-node decision">Recurring theme?</div>
+                            <div class="flowchart-options">
+                                <div class="flowchart-path yes">
+                                    <div class="flowchart-node decision">High value?<br/>(traffic/backlinks/conversions)</div>
+                                    <div class="flowchart-options">
+                                        <div class="flowchart-path yes">
+                                            <div class="flowchart-node decision">Existing hub URL?</div>
+                                            <div class="flowchart-options">
+                                                <div class="flowchart-path yes">
+                                                    <div class="flowchart-node redirect">301 redirect campaign URL<br/>to existing hub</div>
+                                                </div>
+                                                <div class="flowchart-path no">
+                                                    <div class="flowchart-node keep">Convert this URL into hub<br/>Simplified evergreen layout</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flowchart-path no">
+                                            <div class="flowchart-node decision">Existing hub URL?</div>
+                                            <div class="flowchart-options">
+                                                <div class="flowchart-path yes">
+                                                    <div class="flowchart-node redirect">301 redirect campaign URL<br/>to existing hub</div>
+                                                </div>
+                                                <div class="flowchart-path no">
+                                                    <div class="flowchart-node decision">Has backlinks<br/>worth preserving?</div>
+                                                    <div class="flowchart-options">
+                                                        <div class="flowchart-path yes">
+                                                            <div class="flowchart-node decision">Content Relevancy?</div>
+                                                            <div class="flowchart-options">
+                                                                <div class="flowchart-path yes">
+                                                                    <div class="flowchart-node keep">Convert this URL into hub<br/>Simplified evergreen layout</div>
+                                                                </div>
+                                                                <div class="flowchart-path no">
+                                                                    <div class="flowchart-node decision">Medium?</div>
+                                                                    <div class="flowchart-options">
+                                                                        <div class="flowchart-path yes">
+                                                                            <div class="flowchart-node nested">Nested Page / De-link<br/>Remove from primary nav, keep indexed<br/>Move deeper in site structure</div>
+                                                                        </div>
+                                                                        <div class="flowchart-path no">
+                                                                            <div class="flowchart-node archive">Keep Live but Not Prominently Linked<br/>Archive: noindex, remove from nav<br/>Preserve link equity</div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="flowchart-path no">
+                                                            <div class="flowchart-node keep">Convert this URL into hub<br/>Simplified evergreen layout</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flowchart-path no">
+                                    <div class="flowchart-node decision">Page value?<br/>(traffic/conversions/links)</div>
+                                    <div class="flowchart-options">
+                                        <div class="flowchart-path high-med">
+                                            <div class="flowchart-node data">Determine dominant intent<br/>(product vs content vs brand)</div>
+                                            <div class="flowchart-node decision">Main intent = Product?</div>
+                                            <div class="flowchart-options">
+                                                <div class="flowchart-path yes">
+                                                    <div class="flowchart-node redirect">301 to best-fit category/PLP</div>
+                                                </div>
+                                                <div class="flowchart-path no">
+                                                    <div class="flowchart-node decision">Main intent = Content?</div>
+                                                    <div class="flowchart-options">
+                                                        <div class="flowchart-path yes">
+                                                            <div class="flowchart-node redirect">301 to best-fit content hub</div>
+                                                        </div>
+                                                        <div class="flowchart-path no">
+                                                            <div class="flowchart-node redirect">301 to best-fit brand/app/loyalty page</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flowchart-path low">
+                                            <div class="flowchart-node decision">Any loosely relevant hub/category?</div>
+                                            <div class="flowchart-options">
+                                                <div class="flowchart-path yes">
+                                                    <div class="flowchart-node redirect">301 to that hub/category</div>
+                                                </div>
+                                                <div class="flowchart-path no">
+                                                    <div class="flowchart-node decision">Has backlinks<br/>worth preserving?</div>
+                                                    <div class="flowchart-options">
+                                                        <div class="flowchart-path yes">
+                                                            <div class="flowchart-node decision">Content Relevancy?</div>
+                                                            <div class="flowchart-options">
+                                                                <div class="flowchart-path yes">
+                                                                    <div class="flowchart-node decision">Page Value?</div>
+                                                                    <div class="flowchart-options">
+                                                                        <div class="flowchart-path yes">
+                                                                            <div class="flowchart-node nested">Nested Page / De-link<br/>Remove from primary nav, keep indexed<br/>Move deeper in site structure</div>
+                                                                        </div>
+                                                                        <div class="flowchart-path no">
+                                                                            <div class="flowchart-node archive">Keep Live but Not Prominently Linked<br/>Archive: noindex, remove from nav<br/>Preserve link equity</div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flowchart-path no">
+                                                                    <div class="flowchart-node decision">Medium?</div>
+                                                                    <div class="flowchart-options">
+                                                                        <div class="flowchart-path yes">
+                                                                            <div class="flowchart-node nested">Nested Page / De-link<br/>Remove from primary nav, keep indexed<br/>Move deeper in site structure</div>
+                                                                        </div>
+                                                                        <div class="flowchart-path no">
+                                                                            <div class="flowchart-node archive">Keep Live but Not Prominently Linked<br/>Archive: noindex, remove from nav<br/>Preserve link equity</div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="flowchart-path no">
+                                                            <div class="flowchart-node end">410/404 + custom 'campaign ended' 404<br/>Search + top links</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

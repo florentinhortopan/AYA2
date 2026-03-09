@@ -1,168 +1,92 @@
-# AYAYA2 - AAA Recruitment Platform
+# AYA2
 
-A comprehensive AI-powered platform for army recruitment, offering personalized career paths, training resources, financial guidance, and educational support.
+AYA2 is a Next.js app for AI-assisted workflows, content tooling, and segue-pill experimentation.
 
-## Features
+## Quick Start
 
-### For Unregistered Users (No Account Required)
-- 🤖 **AI Agent Interactions**: Chat with recruitment, training, financial, and educational assistants
-- 🎯 **Personalized Career Paths**: Get recommendations based on your interests
-- 💪 **Training Resources**: Access physical and mental training guidance
-- 💰 **Financial Information**: Learn about military benefits and financial planning
-- 📚 **Educational Resources**: Explore educational opportunities and training programs
+### 1) Prerequisites
 
-### For Registered Users
-- ✅ Everything above, plus:
-- 👥 **User-Generated Content**: Access community guides, reviews, tips, and stories
-- 📊 **Progress Tracking**: Track your training, career development, and achievements
-- 🏆 **Gamification**: Earn achievements and level up across different categories
-- 💬 **Community Features**: Engage with other users and share experiences
-- 📈 **Detailed Analytics**: Monitor your progress with detailed insights
+- Node.js `18+` (Node `20+` recommended)
+- npm
+- PostgreSQL database
 
-## Tech Stack
+### 2) Install dependencies
 
-- **Framework**: Next.js 14+ (App Router)
-- **Language**: TypeScript
-- **Database**: PostgreSQL (Vercel Postgres)
-- **Authentication**: NextAuth.js
-- **UI**: shadcn/ui + Tailwind CSS
-- **Deployment**: Vercel
-
-## Project Structure
-
-```
-/
-├── app/                    # Next.js App Router
-│   ├── api/               # API routes
-│   │   ├── agents/        # Agent interaction endpoints
-│   │   └── auth/          # Authentication endpoints
-│   ├── explore/           # Public exploration pages
-│   └── [routes]/          # Other app routes
-├── agents/                # Modular AI agent system
-│   ├── base.ts           # Base agent class
-│   ├── recruitment.ts    # Recruitment agent
-│   ├── training.ts       # Training agent
-│   ├── financial.ts      # Financial agent
-│   ├── educational.ts    # Educational agent
-│   └── index.ts          # Agent factory
-├── components/           # React components
-│   └── ui/              # shadcn/ui components
-├── lib/                 # Utility functions
-│   ├── db.ts           # Database client
-│   ├── auth.ts         # Auth configuration
-│   └── utils.ts        # General utilities
-├── prisma/             # Database schema
-│   └── schema.prisma   # Prisma schema
-└── types/              # TypeScript types
-    └── index.ts
-```
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+ 
-- PostgreSQL database (local or Vercel Postgres)
-- npm or yarn
-
-### Installation
-
-1. Clone the repository
-2. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
+### 3) Configure environment variables
+
+Create or edit `.env.local` (or `.env`) in the project root:
+
 ```bash
-cp .env.example .env
-# Edit .env with your configuration
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB_NAME?schema=public"
+DIRECT_URL="postgresql://USER:PASSWORD@HOST:5432/DB_NAME?schema=public"
+NEXTAUTH_SECRET="replace-with-random-secret"
+NEXTAUTH_URL="http://localhost:3000"
+OPENAI_API_KEY="sk-..."
 ```
 
-4. Set up the database:
-```bash
-# Generate Prisma client
-npx prisma generate
+Optional (only if using Google OAuth):
 
-# Run migrations
-npx prisma migrate dev
+```bash
+GOOGLE_CLIENT_ID="..."
+GOOGLE_CLIENT_SECRET="..."
 ```
 
-5. Run the development server:
+Generate a secret:
+
+```bash
+openssl rand -base64 32
+```
+
+### 4) Set up database
+
+For local development, either push schema or run migrations:
+
+```bash
+npm run db:generate
+npm run db:push
+```
+
+If you prefer migration flow:
+
+```bash
+npm run db:migrate
+```
+
+### 5) Run development server
+
 ```bash
 npm run dev
 ```
 
-6. Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open `http://localhost:3000`.
 
-## Database Setup
+## Common Commands
 
-### Local PostgreSQL
-
-Update your `.env` file:
-```
-DATABASE_URL="postgresql://user:password@localhost:5432/ayaya2_db?schema=public"
-DIRECT_URL="postgresql://user:password@localhost:5432/ayaya2_db?schema=public"
-```
-
-### Vercel Postgres
-
-1. Create a Postgres database in your Vercel dashboard
-2. Vercel will automatically set the connection strings as environment variables
-3. Run migrations:
 ```bash
-npx prisma migrate deploy
+npm run dev          # start local dev server
+npm run build        # production build (includes prisma generate)
+npm run start        # run production server
+npm run lint         # lint app
+npm run type-check   # TypeScript check
+npm run db:studio    # Prisma Studio
 ```
 
-## Deployment to Vercel
+## Job Finder Data Scripts
 
-1. Push your code to a Git repository (GitHub, GitLab, or Bitbucket)
-2. Import your project in Vercel
-3. Configure environment variables in Vercel dashboard
-4. Vercel will automatically detect Next.js and deploy
-
-### Required Environment Variables
-
-- `DATABASE_URL` - PostgreSQL connection string
-- `DIRECT_URL` - Direct PostgreSQL connection (for migrations)
-- `NEXTAUTH_SECRET` - Secret for NextAuth.js (generate with `openssl rand -base64 32`)
-- `NEXTAUTH_URL` - Your app URL (e.g., `https://your-app.vercel.app`)
-- `OPENAI_API_KEY` - OpenAI API key for AI agent responses (get from https://platform.openai.com/api-keys)
-- `GOOGLE_CLIENT_ID` - (Optional) For Google OAuth
-- `GOOGLE_CLIENT_SECRET` - (Optional) For Google OAuth
-
-## Agent System
-
-The platform uses a modular agent architecture:
-
-- **RecruitmentAgent**: Career path exploration and recommendations
-- **TrainingAgent**: Physical and mental training programs
-- **FinancialAgent**: Benefits and financial planning
-- **EducationalAgent**: Educational opportunities and skill development
-
-Each agent can be extended with actual AI integration (OpenAI, Anthropic, etc.) in the future.
-
-## Development
-
-### Type Checking
 ```bash
-npm run type-check
+npm run crawl:goarmy:jobs
+npm run ingest:goarmy:jobs
 ```
 
-### Database Management
+## Notes
+
+- This repo already includes `.env` and `.env.local` files locally, but contributors should create their own local values.
+- If Prisma types are out of sync after schema changes, run:
+
 ```bash
-# Generate Prisma Client after schema changes
 npm run db:generate
-
-# Run migrations
-npm run db:migrate
-
-# Open Prisma Studio
-npm run db:studio
 ```
-
-## License
-
-MIT
-
-# Last updated: Thu Nov 20 14:21:23 PST 2025

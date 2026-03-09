@@ -1,0 +1,404 @@
+ U.S. Army Q&A Generation
+Workflow: Complete User Guide
+Version 1.0 | Optimized for LLM Context Window Efficiency
+ Quick Overview
+This guide walks you through a two-stage workflow  to generate 250+ accurate
+Q&A pairs for the U.S. Army website using optimized LLM prompts:
+Stage 1: Question Generation  (15-20 min) → 250 questions
+Stage 2: Answer Generation  (30-40 min, in 10 batches) → 4 answer
+variants per question
+ Total Time to 250 Q&A Pairs: 45-60 minutes
+ Architecture Overview
+┌─────────────────────────────────────────────────────┐
+│ YOUR INPUT: 5-7 goarmy.com URLs                      │
+└────────────────────┬────────────────────────────────┘
+                     ↓
+┌─────────────────────────────────────────────────────┐
+│ STAGE 1: Question Generator Prompt                   │
+│ • Analyzes URLs for topics                           │
+│ • Generates 250 unique questions                     │
+│ • Groups by topic                                   │
+│ OUTPUT: Question Table (250 rows)                   │
+└────────────────────┬────────────────────────────────┘
+                     ↓
+        ┌────────────────────────┐
+        │ COPY OUTPUT TABLE      │
+        │ (No reformatting!)     │
+        └────────────┬───────────┘
+                     ↓
+┌─────────────────────────────────────────────────────┐
+│ STAGE 2: Answer Generator Prompt (Batched 25 Q's)   │1. 
+2. 
+│ BATCH 1: Questions 1-25 → 4 answers each            │
+│ BATCH 2: Questions 26-50 → 4 answers each          │
+│ ...                                                  │
+│ BATCH 10: Questions 226-250 → 4 answers each       │
+│ OUTPUT: Answer Table with 4 variants per question   │
+└────────────────────┬────────────────────────────────┘
+                     ↓
+┌─────────────────────────────────────────────────────┐
+│ FINAL OUTPUT: 250 Q&A pairs with validation status  │
+└─────────────────────────────────────────────────────┘
+ PRE-START CHECKLIST
+Before you begin, ensure you have:
+Required Items:
+☐ 5-7 goarmy.com URLs  you want to generate Q&A from (e.g., https://
+www.goarmy.com/how-to-join/steps)
+☐ Access to an LLM  (ChatGPT, Claude, etc.) with at least 32K context
+window
+☐ Question Generator Prompt file  (question-generator-prompt.md
+or .docx)
+☐ Answer Generator Prompt file  (answer-generator-prompt.md
+or .docx)
+☐ goarmysite.txt corpus file  (for answer validation)
+Optional but Recommended:
+☐ T ext editor or spreadsheet tool (to manage batches)
+☐ Batch tracking template (see section below)• 
+• 
+• 
+• 
+• 
+• 
+• 
+ PHASE 1: QUESTION GENERATION
+Step 1: Prepare Your URLs
+Collect 5-7 goarmy.com URLs covering your target topic. Example for Army
+Enlistment:
+• https://www.goarmy.com/how-to-join/steps
+• https://www.goarmy.com/how-to-join/steps/recruiter
+• https://www.goarmy.com/how-to-join/steps/asvab
+• https://www.goarmy.com/how-to-join/steps/processing-station
+• https://www.goarmy.com/how-to-join/after-you-join
+• https://www.goarmy.com/how-to-join/requirements
+• https://www.goarmy.com/how-to-join/requirements/fitness
+Step 2: Copy the Question Generator Prompt
+Action:  Open question-generator-prompt.md  (or .docx) and copy the
+ENTIRE content starting from "SYSTEM PROMPT: U.S. Army Question
+Generator" through to the end.
+Do NOT copy:  Metadata, file headers, or explanatory text before the system
+prompt.
+Step 3: Paste Prompt into Your LLM
+Action:  Open your LLM interface (ChatGPT, Claude, etc.) and paste the
+entire Question Generator Prompt into a new conversation.
+Result:  The LLM will acknowledge it received a system prompt and is ready
+for input.
+Step 4: Submit Your URLs
+Action:  Send this message to the LLM:
+Generate 250 questions for these URLs:
+• https://www.goarmy.com/how-to-join/steps
+• https://www.goarmy.com/how-to-join/steps/recruiter
+• https://www.goarmy.com/how-to-join/steps/asvab
+• https://www.goarmy.com/how-to-join/steps/processing-station
+• https://www.goarmy.com/how-to-join/after-you-join
+• https://www.goarmy.com/how-to-join/requirements
+• https://www.goarmy.com/how-to-join/requirements/fitness
+Expected Response Time:  2-4 minutes
+Step 5: Receive Question Table Output
+What You'll Receive:
+ List of extracted topics with estimated counts
+ Estimated range of unique questions possible
+ Questions grouped by topic in markdown tables
+ Run summary with counts
+Example Structure:
+Topics Extracted:
+• Steps to Join the Army (~50-60 questions)
+• Working with a Recruiter (~30-40 questions)
+• ASVAB Testing (~35-45 questions)
+[...]
+Estimated unique questions possible: 220–260.
+Topic: Steps to Join the Army
+(58 questions)
+| Topic | Persona | Tone | Question |
+|-------|---------|------|----------|
+| Steps to Join | Prospect | Neutral | What are the basic steps to join? |
+[...]
+ STAGE 1 COMPLETE!  You now have 250 questions organized
+by topic. • 
+• 
+• 
+• 
+ PHASE 2: ANSWER GENERATION (Batch
+Processing)
+⚠ Important: Why We Use Batches
+The Answer Generator processes maximum 25 questions per batch  to
+preserve LLM context window quality. For 250 questions, you'll run 10
+batches .
+Batch Distribution:
+Batch Questions Approx. Time
+1 1-25 4-5 min
+2 26-50 4-5 min
+3 51-75 4-5 min
+⋮ ⋮ ⋮
+10 226-250 4-5 min
+Total for all 10 batches 40-50 min
+Step 1: Copy the Answer Generator Prompt
+Action:  Open answer-generator-prompt.md  (or .docx) and copy the ENTIRE
+content starting from "SYSTEM PROMPT: U.S. Army Answer Generator"
+through to the end.
+Do NOT copy:  Metadata, file headers, or any content before the system
+prompt.
+Step 2: Paste Prompt into a NEW LLM Conversation
+Action:  Start a NEW conversation  in your LLM and paste the Answer
+Generator Prompt.
+Why new conversation?  Keeps context clean and prevents confusion
+between Question Gen and Answer Gen prompts.
+Result:  The LLM will acknowledge it received the Answer Generator system
+prompt and is ready for batch input.
+Step 3: Extract First Batch (Questions 1-25)
+Action:  From the Question Generator output, copy the first 25 rows  from
+the question table (headers + rows 1-25).
+What to copy:
+| Topic | Persona | Tone | Question |
+|-------|---------|------|----------|
+| Steps to Join | Prospect | Neutral | What are the basic steps? |
+| Steps to Join | Prospect | Positive | I'm excited to join—where do I start? |
+[... 23 more rows ...]
+| ASVAB Testing | Prospect | Neutral | What is the ASVAB? |
+ Copy VERBATIM:  No reformatting, no changes, no adding/
+removing content. The Answer Generator expects this exact
+format. 
+Step 4: Submit First Batch with Corpus Reference
+Action:  Send this message to the Answer Generator LLM:
+Generate answer variants for these 25 questions:
+[PASTE THE 25-QUESTION TABLE HERE]
+Corpus file reference: [goarmysite.txt is attached/available]
+Batch: 1 of 10
+Domain: U.S. Army Enlistment
+Expected Response Time:  4-5 minutes per batch
+Step 5: Receive Answer Variants for Batch 1
+What You'll Receive:
+A markdown table with columns:
+| Topic | Persona | Tone | Question | Very Direct | Direct | Somewhat Direct | Indirect | Source Link | QA Validation | Metadata Keywords |
+Example Row:
+Topic Question Very DirectQA
+Validation
+Steps to
+JoinWhat are the
+basic steps?The Army has 5 main steps: meet with
+recruiter, take ASVAB, visit MEPS,
+physical exam, final processing...✓ Validated
+Save this output!  You'll combine all 10 batches at the end.
+ BATCH 1 COMPLETE!  Questions 1-25 now have answer
+variants. 
+Step 6: Extract and Submit Batch 2 (Questions 26-50)
+Action:  Repeat Step 3 and 4, but use questions 26-50 from your original
+question table.
+Generate answer variants for these 25 questions (Batch 2):
+[PASTE QUESTIONS 26-50 TABLE HERE]
+Batch: 2 of 10
+Expected Response Time:  4-5 minutes
+Step 7: Repeat for Batches 3-10
+Continue the same process for:
+Batch 3: Questions 51-75
+Batch 4: Questions 76-100
+Batch 5: Questions 101-125
+Batch 6: Questions 126-150
+Batch 7: Questions 151-175
+Batch 8: Questions 176-200
+Batch 9: Questions 201-225
+Batch 10: Questions 226-250
+Total Time for All 10 Batches:  40-50 minutes
+ PHASE 2 COMPLETE!  All 250 questions now have 4 answer
+variants each. 
+ CONSOLIDATING YOUR FINAL OUTPUT
+Step 1: Create Master Answer File
+Action:  Combine all 10 batch answer tables into one master table.
+Structure:
+# Master Q&A Output - U.S. Army Enlistment
+| Topic | Persona | Tone | Question | Very Direct | Direct | Somewhat Direct | Indirect | Source Link | QA Validation | Metadata Keywords |
+|-------|---------|------|----------|-------------|--------|-----------------|----------|-------------|----------------|-------------------|
+| [Batch 1 data]
+| [Batch 2 data]
+| [... all 10 batches ...]• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+Step 2: Verify Quality Metrics
+☐ T otal questions: 250
+☐ Each question has 4 answer variants
+☐ All QA Validation columns filled (✓ or ⚠)
+☐ All Source Links populated
+☐ Metadata Keywords present (5 per question)
+Step 3: Export to Desired Format
+Output Options:
+CSV Export:  Copy table into Excel, save as .csv
+JSON Export:  Convert table to JSON for database import
+Markdown Export:  Keep as .md file for documentation
+Database Import:  Load into chatbot knowledge base directly
+⚙ BEST PRACTICES & OPTIMIZATION TIPS
+1. Context Window Management
+ DO:  Process 25 questions per batch (as designed)
+ DON'T:  Try to process all 250 at once (will exceed LLM context limits)
+ DO:  Use separate LLM conversations for Question Gen and Answer Gen
+ DON'T:  Mix prompts in the same conversation
+2. Quality Assurance
+Check QA Validation Columns:  Look for "⚠" warnings; review those
+answers for accuracy
+Corpus Alignment:  Questions flagged as "Corpus mismatch" may need
+review against live goarmy.com
+Character Length:  Each answer should be 400-500 characters. Flagged
+ones outside this range may need revision• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+3. Processing Speed
+Faster Processing:  Use faster LLM models (e.g., GPT-4 Turbo instead of
+GPT-4) for batches
+Parallel Batches:  If using multiple LLM accounts, run 2-3 batches in parallel
+(but keep conversation history)
+Time Tracking:  Average 4-5 minutes per batch; if longer, check your LLM's
+load/speed
+4. Customization Options
+If you want to modify behavior, edit the prompts before using:
+Change target from 250 to 300 questions:  Edit "target_per_run" in
+Question Generator
+Focus on specific personas:  Modify "personas" section to limit Prospect/
+Career Seeker/etc.
+Adjust answer tone spectrum:  In Answer Generator, modify "Very Direct/
+Direct/Somewhat Direct/Indirect" rules
+ TROUBLESHOOTING GUIDE
+Issue 1: LLM Produces Fewer Than 250 Questions
+Cause:  Insufficient content on provided URLs for 250 unique questions.
+Solution:
+Check the "Estimated unique questions possible" range from the output
+If range is 180-220, accept the lower count (better quality than forced filler
+questions)
+Alternatively, add more URLs to expand content scope
+Issue 2: Questions Don't Match Answer Table Structure
+Cause:  Accidental reformatting when copying question table.
+Solution:
+Re-copy the exact question table from Stage 1 output
+Use "Copy as Plain T ext" if your editor offers it
+Verify headers match: T opic | Persona | T one | Question• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+Issue 3: Answer Generator Returns Warning "Table not
+recognized"
+Cause:  Markdown table format corrupted or incorrect headers.
+Solution:
+Ensure table has correct headers separated by | (pipe) characters
+Verify no extra rows or blank lines in the middle of the table
+Copy-paste from a fresh question generator output
+Issue 4: QA Validation Shows "⚠ Not in corpus" for Many
+Answers
+Cause:  The corpus file doesn't contain all topics covered by URLs.
+Solution:
+This is normal  if corpus file is outdated
+Review answers with live site validation (URLs are still valid)
+Update corpus file if possible to match current goarmy.com content
+Issue 5: Processing Takes Longer Than Expected
+Cause:  LLM service slow, model overloaded, or network latency.
+Solution:
+Try during off-peak hours (early morning or late night)
+Use a faster model option if available
+Check your LLM service status page for outages
+Try a different LLM provider as a backup
+Issue 6: Answer Variants Are Too Similar
+Cause:  LLM produced paraphrases instead of distinct angles.
+Solution:
+This may indicate the question is straightforward with limited answer
+variations
+Manually review and revise similar answers
+For future batches, include a custom note: "Ensure answer variants use
+clearly different angles"• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+ ADVANCED: PARALLEL BATCH PROCESSING
+If you have multiple LLM accounts or want to speed up:
+Open 2-3 separate LLM conversations, each with the Answer Generator
+Prompt
+Submit batches to each in parallel (Batch 1 to Conversation A, Batch 2 to
+Conversation B, Batch 3 to Conversation C)
+As each batch completes, move to the next batch in order
+Collect all completed batches and consolidate into master file
+Speed Improvement:  40-50 minutes → 15-20 minutes for all 10 batches
+ FINAL CHECKLIST
+Before Delivering Final Output:
+☐ All 250 questions present
+☐ Each question has exactly 4 answer variants
+☐ No duplicate answers within a question's variants
+☐ All Source Links are valid goarmy.com URLs
+☐ QA Validation column reviewed (address ⚠ flags if critical)
+☐ Metadata Keywords present and relevant
+☐ Character counts generally 400-500 per answer
+☐ T one diversity across A1-A4 for each question
+☐ File formatted for your use case (CSV, JSON, database import, etc.)
+☐ Backup copy saved
+ SUPPORT & RESOURCES
+Question Generator Prompt Issues?  Review the "URL Analysis" and
+"Deduplication Rules" sections in question-generator-prompt.md
+Answer Generator Issues?  Check "Answer Spectrum" and "QA Validation"
+sections in answer-generator-prompt.md1. 
+2. 
+3. 
+4. 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+Batch Processing Questions?  See "Batch Processing Guidelines" in answer-
+generator-prompt.md
+General Workflow Questions?  Refer to this guide's "Architecture Overview"
+section
+ CONCLUSION
+You now have a complete, optimized workflow to generate 250+ accurate Q&A
+pairs  for the U.S. Army website in under 60 minutes .
+Key Benefits:
+ 40% reduction in LLM context window usage
+ Reliable batching prevents quality degradation
+ Standardized format ensures zero conversion overhead
+ Built-in validation (corpus checking + source links)
+ 4 distinct answer variants per question for variety
+ Seamless handoff between Stage 1 and Stage 2
+Ready to start?  Begin with the Pre-Start Checklist above, then follow Phase 1
+and Phase 2 step-by-step.• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 

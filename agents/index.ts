@@ -2,6 +2,7 @@ import { RecruitmentAgent } from './recruitment'
 import { TrainingAgent } from './training'
 import { FinancialAgent } from './financial'
 import { EducationalAgent } from './educational'
+import { JobFinderAgent } from './job-finder'
 import { BaseAgent, AgentContext } from './base'
 import { AgentType, RichAgentResponse } from '@/types'
 import { AgentMessage } from './base'
@@ -16,6 +17,8 @@ export function createAgent(type: AgentType, context: AgentContext = {}): BaseAg
       return new FinancialAgent(context)
     case 'educational':
       return new EducationalAgent(context)
+    case 'job-finder':
+      return new JobFinderAgent(context)
     default:
       throw new Error(`Unknown agent type: ${type}`)
   }
@@ -28,6 +31,6 @@ export function hasRichResponse(agent: BaseAgent): agent is BaseAgent & {
   return typeof (agent as any).processMessageRich === 'function'
 }
 
-export { BaseAgent, RecruitmentAgent, TrainingAgent, FinancialAgent, EducationalAgent }
+export { BaseAgent, RecruitmentAgent, TrainingAgent, FinancialAgent, EducationalAgent, JobFinderAgent }
 export type { AgentContext } from './base'
 

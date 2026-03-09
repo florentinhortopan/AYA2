@@ -11,7 +11,7 @@ export default function AgentPage({ params }: PageProps) {
   const agentType = params.type as AgentType
 
   // Validate agent type
-  const validTypes: AgentType[] = ['recruitment', 'training', 'financial', 'educational']
+  const validTypes: AgentType[] = ['recruitment', 'training', 'financial', 'educational', 'job-finder']
   if (!validTypes.includes(agentType)) {
     return (
       <main className="min-h-screen flex items-center justify-center">

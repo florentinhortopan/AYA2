@@ -1,0 +1,594 @@
+'use client'
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { RequireAuth } from '@/components/content/require-auth'
+import { PageHeader } from '@/components/content/page-header'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
+import { AnswerValidationStatus, ContentAnswer, ContentQuestion, RatingValue } from '@/types/content'
+
+export default function AnswersPage({ params }: { params: { projectId: string } }) {
+  const [answers, setAnswers] = useState<(ContentAnswer & { question?: { questionText: string } })[]>([])
+  const [questions, setQuestions] = useState<ContentQuestion[]>([])
+  const [loading, setLoading] = useState(true)
+  const [generationInput, setGenerationInput] = useState(
+    'Generate answer variants in a markdown table with columns: question, variant_level, answer, source_link.'
+  )
+  const [generationOutput, setGenerationOutput] = useState('')
+  const [generationError, setGenerationError] = useState('')
+  const [statusError, setStatusError] = useState('')
+  const [ratingError, setRatingError] = useState('')
+  const [editingAnswerId, setEditingAnswerId] = useState<string | null>(null)
+  const [editingAnswerText, setEditingAnswerText] = useState('')
+  const [editingError, setEditingError] = useState('')
+  const [savingAnswerId, setSavingAnswerId] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [selectedQuestionId, setSelectedQuestionId] = useState<string>('')
+  const [parsedRows, setParsedRows] = useState<Array<{
+    questionText?: string
+    variantLevel: string
+    answerText: string
+    sourceLink?: string
+  }>>([])
+  const [selectedAnswerIds, setSelectedAnswerIds] = useState<Set<string>>(new Set())
+  const [batchUpdating, setBatchUpdating] = useState(false)
+  // Unified status options - same for questions and answers
+  const answerStatusOptions: AnswerValidationStatus[] = [
+    'draft',
+    'pending',
+    'approved',
+    'rejected',
+    'published',
+    'valid',
+    'needs_review',
+    'invalid'
+  ]
+  const ratingOptions: RatingValue[] = [1, 2, 3, 4, 5]
+
+  const selectedQuestion = useMemo(
+    () => questions.find((question) => question.id === selectedQuestionId),
+    [questions, selectedQuestionId]
+  )
+
+  const loadAnswers = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/content-tool/projects/${params.projectId}/answers`)
+      if (response.ok) {
+        const data = await response.json()
+        setAnswers(data.answers || [])
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [params.projectId])
+
+  const loadQuestions = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/content-tool/projects/${params.projectId}/questions`)
+      if (response.ok) {
+        const data = await response.json()
+        setQuestions(data.questions || [])
+      }
+    } catch (error) {
+      setQuestions([])
+    }
+  }, [params.projectId])
+
+  useEffect(() => {
+    loadAnswers()
+    loadQuestions()
+  }, [loadAnswers, loadQuestions])
+
+  const handleStatusChange = async (answerId: string, nextStatus: AnswerValidationStatus) => {
+    setStatusError('')
+    const previous = answers.find((answer) => answer.id === answerId)
+    if (!previous || previous.validationStatus === nextStatus) {
+      return
+    }
+
+    setAnswers((current) =>
+      current.map((answer) =>
+        answer.id === answerId ? { ...answer, validationStatus: nextStatus } : answer
+      )
+    )
+
+    try {
+      const response = await fetch(`/api/content-tool/answers/${answerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ validationStatus: nextStatus })
+      })
+
+      if (!response.ok) {
+        throw new Error('Unable to update status.')
+      }
+    } catch (error) {
+      setAnswers((current) =>
+        current.map((answer) =>
+          answer.id === answerId ? { ...answer, validationStatus: previous.validationStatus } : answer
+        )
+      )
+      setStatusError('Unable to update status. Please try again.')
+    }
+  }
+
+  const handleRatingChange = async (answerId: string, nextRating: RatingValue) => {
+    setRatingError('')
+    const previous = answers.find((answer) => answer.id === answerId)
+    if (!previous || previous.ratingValue === nextRating) {
+      return
+    }
+
+    setAnswers((current) =>
+      current.map((answer) =>
+        answer.id === answerId ? { ...answer, ratingValue: nextRating } : answer
+      )
+    )
+
+    try {
+      const response = await fetch(`/api/content-tool/answers/${answerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ratingValue: nextRating })
+      })
+
+      if (!response.ok) {
+        throw new Error('Unable to update rating.')
+      }
+    } catch (error) {
+      setAnswers((current) =>
+        current.map((answer) =>
+          answer.id === answerId ? { ...answer, ratingValue: previous.ratingValue } : answer
+        )
+      )
+      setRatingError('Unable to update rating. Please try again.')
+    }
+  }
+
+  const startEditing = (answer: ContentAnswer) => {
+    setEditingError('')
+    setEditingAnswerId(answer.id)
+    setEditingAnswerText(answer.answerText)
+  }
+
+  const cancelEditing = () => {
+    setEditingError('')
+    setEditingAnswerId(null)
+    setEditingAnswerText('')
+  }
+
+  const saveAnswerText = async (answerId: string) => {
+    if (savingAnswerId) {
+      return
+    }
+
+    const nextText = editingAnswerText.trim()
+    if (!nextText) {
+      setEditingError('Answer text is required.')
+      return
+    }
+
+    setSavingAnswerId(answerId)
+    setEditingError('')
+
+    try {
+      const response = await fetch(`/api/content-tool/answers/${answerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answerText: nextText })
+      })
+
+      if (!response.ok) {
+        throw new Error('Unable to update answer.')
+      }
+
+      setAnswers((current) =>
+        current.map((answer) =>
+          answer.id === answerId ? { ...answer, answerText: nextText } : answer
+        )
+      )
+      cancelEditing()
+    } catch (error) {
+      setEditingError('Unable to save changes. Please try again.')
+    } finally {
+      setSavingAnswerId(null)
+    }
+  }
+
+  const handleGenerate = async () => {
+    if (generating) {
+      return
+    }
+
+    setGenerating(true)
+    setGenerationError('')
+    setGenerationOutput('')
+    setParsedRows([])
+
+    try {
+      const response = await fetch('/api/content-tool/prompts/answers/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: params.projectId,
+          questionId: selectedQuestionId || undefined,
+          userMessage: generationInput
+        })
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        setGenerationError(data.error || 'Generation failed.')
+        return
+      }
+
+      setGenerationOutput(data.output || '')
+      setParsedRows(data.parsedAnswers || [])
+      if (data.createdCount > 0) {
+        await loadAnswers()
+      }
+    } catch (error) {
+      setGenerationError('Generation failed.')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const handleSelectAnswer = (answerId: string, checked: boolean) => {
+    setSelectedAnswerIds((prev) => {
+      const next = new Set(prev)
+      if (checked) {
+        next.add(answerId)
+      } else {
+        next.delete(answerId)
+      }
+      return next
+    })
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedAnswerIds(new Set(answers.map((a) => a.id)))
+    } else {
+      setSelectedAnswerIds(new Set())
+    }
+  }
+
+  const handleBatchStatusChange = async (status: AnswerValidationStatus) => {
+    if (selectedAnswerIds.size === 0 || batchUpdating) {
+      return
+    }
+
+    setBatchUpdating(true)
+    setStatusError('')
+
+    const previousStatuses = new Map(
+      answers
+        .filter((a) => selectedAnswerIds.has(a.id))
+        .map((a) => [a.id, a.validationStatus])
+    )
+
+    // Optimistic update
+    setAnswers((current) =>
+      current.map((answer) =>
+        selectedAnswerIds.has(answer.id)
+          ? { ...answer, validationStatus: status }
+          : answer
+      )
+    )
+
+    try {
+      const response = await fetch('/api/content-tool/answers/batch', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          answerIds: Array.from(selectedAnswerIds),
+          validationStatus: status
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Unable to update status.')
+      }
+
+      // Clear selection after successful update
+      setSelectedAnswerIds(new Set())
+      await loadAnswers()
+    } catch (error) {
+      // Revert optimistic update
+      setAnswers((current) =>
+        current.map((answer) => {
+          const previousStatus = previousStatuses.get(answer.id)
+          return previousStatus && selectedAnswerIds.has(answer.id)
+            ? { ...answer, validationStatus: previousStatus }
+            : answer
+        })
+      )
+      setStatusError('Unable to update status. Please try again.')
+    } finally {
+      setBatchUpdating(false)
+    }
+  }
+
+  const isAllSelected = answers.length > 0 && selectedAnswerIds.size === answers.length
+  const isSomeSelected = selectedAnswerIds.size > 0 && selectedAnswerIds.size < answers.length
+
+  return (
+    <RequireAuth>
+      <main className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-16">
+          <PageHeader
+            title="Answers"
+            description="Review answer variants, ratings, and validations."
+            actions={(
+              <Button
+                variant="outline"
+                onClick={handleGenerate}
+                disabled={generating || !selectedQuestionId}
+              >
+                {generating ? 'Generating...' : 'Generate Answers'}
+              </Button>
+            )}
+          />
+
+          <div className="border border-border rounded-lg p-4 mb-6 space-y-3">
+            <div>
+              <p className="text-sm font-medium">Generation Instructions</p>
+              <p className="text-xs text-muted-foreground">
+                Select a question to generate answers using the project prompt and guideline.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Question</p>
+              <Select value={selectedQuestionId} onValueChange={setSelectedQuestionId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a question to generate answers" />
+                </SelectTrigger>
+                <SelectContent>
+                  {questions.map((question) => (
+                    <SelectItem key={question.id} value={question.id}>
+                      {question.questionText}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedQuestion && (
+                <p className="text-xs text-muted-foreground">
+                  Topic: {selectedQuestion.topic} · Persona: {selectedQuestion.persona || '—'} · Tone: {selectedQuestion.tone || '—'}
+                </p>
+              )}
+              {questions.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No questions available yet. Generate questions first.
+                </p>
+              )}
+            </div>
+            <textarea
+              className="min-h-[140px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              value={generationInput}
+              onChange={(event) => setGenerationInput(event.target.value)}
+            />
+            {generationError && (
+              <p className="text-sm text-red-500">{generationError}</p>
+            )}
+            {parsedRows.length > 0 && (
+              <div className="rounded-md border border-border">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted text-muted-foreground">
+                      <tr>
+                        <th className="text-left p-2">Question</th>
+                        <th className="text-left p-2">Variant</th>
+                        <th className="text-left p-2">Answer</th>
+                        <th className="text-left p-2">Source Link</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedRows.map((row, index) => (
+                        <tr key={`${row.answerText}-${index}`} className="border-t border-border">
+                          <td className="p-2">{row.questionText || '—'}</td>
+                          <td className="p-2">{row.variantLevel}</td>
+                          <td className="p-2">{row.answerText}</td>
+                          <td className="p-2">{row.sourceLink || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            {generationOutput && (
+              <div className="rounded-md border border-border bg-muted/40 p-3 text-xs whitespace-pre-wrap">
+                {generationOutput}
+              </div>
+            )}
+          </div>
+
+          {loading ? (
+            <p className="text-muted-foreground">Loading answers...</p>
+          ) : (
+            <div className="space-y-4">
+              {/* Batch Action Bar */}
+              {selectedAnswerIds.size > 0 && (
+                <div className="border border-border rounded-lg p-4 bg-muted/50 flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">
+                      {selectedAnswerIds.size} answer{selectedAnswerIds.size !== 1 ? 's' : ''} selected
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Select
+                      value=""
+                      onValueChange={(value) => handleBatchStatusChange(value as AnswerValidationStatus)}
+                      disabled={batchUpdating}
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Change status to..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {answerStatusOptions.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            Set to {status}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedAnswerIds(new Set())}
+                      disabled={batchUpdating}
+                    >
+                      Clear Selection
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {statusError && (
+                <p className="text-sm text-red-500">{statusError}</p>
+              )}
+              {ratingError && (
+                <p className="text-sm text-red-500">{ratingError}</p>
+              )}
+              
+              {/* Select All Bar */}
+              {answers.length > 0 && (
+                <div className="border border-border rounded-lg p-3 bg-muted/30 flex items-center gap-3">
+                  <Checkbox
+                    checked={isAllSelected}
+                    indeterminate={isSomeSelected}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    Select all ({answers.length} answers)
+                  </span>
+                </div>
+              )}
+
+              {answers.map((answer) => (
+                <div key={answer.id} className="border border-border rounded-lg p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={selectedAnswerIds.has(answer.id)}
+                        onChange={(e) => handleSelectAnswer(answer.id, e.target.checked)}
+                      />
+                      <Badge variant="secondary">{answer.variantLevel.replace('_', ' ')}</Badge>
+                      <div className="min-w-[140px]">
+                        <Select
+                          value={answer.validationStatus}
+                          onValueChange={(value) =>
+                            handleStatusChange(answer.id, value as AnswerValidationStatus)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(answerStatusOptions.includes(answer.validationStatus)
+                              ? answerStatusOptions
+                              : [...answerStatusOptions, answer.validationStatus]
+                            ).map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {status}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                      <div className="min-w-[120px]">
+                        <Select
+                          value={
+                            answer.ratingValue ?? answer.ratingDefault
+                              ? String(answer.ratingValue ?? answer.ratingDefault)
+                              : ''
+                          }
+                          onValueChange={(value) => handleRatingChange(answer.id, Number(value) as RatingValue)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Rating" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ratingOptions.map((rating) => (
+                              <SelectItem key={rating} value={String(rating)}>
+                                {rating}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {editingAnswerId === answer.id ? (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => saveAnswerText(answer.id)}
+                            disabled={savingAnswerId === answer.id}
+                          >
+                            {savingAnswerId === answer.id ? 'Saving...' : 'Save'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={cancelEditing}
+                            disabled={savingAnswerId === answer.id}
+                          >
+                            Cancel
+                          </Button>
+                        </>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => startEditing(answer)}>
+                          Edit
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  {answer.question?.questionText && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Question: {answer.question.questionText}
+                    </p>
+                  )}
+                  {!answer.question?.questionText && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Question: <Link className="underline" href={`/content/${params.projectId}/questions`}>View question list</Link>
+                    </p>
+                  )}
+                  {editingAnswerId === answer.id ? (
+                    <div className="mt-3 space-y-2">
+                      <textarea
+                        className="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        value={editingAnswerText}
+                        onChange={(event) => setEditingAnswerText(event.target.value)}
+                      />
+                      {editingError && (
+                        <p className="text-xs text-red-500">{editingError}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-sm">{answer.answerText}</p>
+                  )}
+                  {answer.sourceLink && (
+                    <a className="text-sm text-blue-500 hover:underline mt-2 inline-block" href={answer.sourceLink}>
+                      {answer.sourceLink}
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-6">
+            <Link href={`/content/${params.projectId}`}>
+              <Button variant="outline">Back to Workspace</Button>
+            </Link>
+          </div>
+        </div>
+      </main>
+    </RequireAuth>
+  )
+}
