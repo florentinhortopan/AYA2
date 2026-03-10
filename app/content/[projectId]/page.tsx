@@ -15,7 +15,8 @@ const sections = [
   { title: 'Guidelines', href: '/content/guidelines', description: 'Edit guideline content and versions.' },
   { title: 'Batch', href: 'batch', description: 'Run and monitor batch generation.' },
   { title: 'Validation', href: 'validate', description: 'Check URLs and corpus validation.' },
-  { title: 'Publish', href: 'publish', description: 'Approve and publish content.' }
+  { title: 'Publish', href: 'publish', description: 'Approve and publish content.' },
+  { title: 'Immersive', href: 'immersive', description: 'Launch the full-page immersive chatbot experience.' }
 ]
 
 export default function ProjectWorkspacePage({ params }: { params: { projectId: string } }) {

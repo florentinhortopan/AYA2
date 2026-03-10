@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import { buildFallbackPayload, parseImmersiveScenePayload } from '@/lib/content/immersive/scene-orchestrator'
+import { collectImmersiveCards } from '@/lib/content/immersive/data-adapters'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,65 +24,53 @@ interface ChatMessage {
   content: string
 }
 
-interface ImmersiveUpdate {
-  setTitle?: string
-  setSummary?: string
-  setAudience?: string
-  setTone?: string
-  addGoals?: string[]
-  updateSectionStatus?: Array<{
-    id: string
-    status: 'draft' | 'in_review' | 'ready'
-    notes?: string
-  }>
+interface ImmersiveRequest {
+  message?: string
+  history?: ChatMessage[]
+  state?: WorkspaceState
+  sttEnabled?: boolean
+  ttsEnabled?: boolean
 }
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || ''
 })
 
-function fallbackResponse(message: string): { reply: string; updates: ImmersiveUpdate } {
-  const lower = message.toLowerCase()
-  const updates: ImmersiveUpdate = {}
-
-  if (lower.includes('tone')) {
-    updates.setTone = 'confident'
-  }
-  if (lower.includes('summary') || lower.includes('positioning')) {
-    updates.setSummary = 'Clear value-first messaging for first-time visitors.'
-  }
-  if (lower.includes('goal')) {
-    updates.addGoals = ['Increase engagement on primary call-to-action']
-  }
-  if (lower.includes('publish') || lower.includes('ready')) {
-    updates.updateSectionStatus = [{ id: 'publish', status: 'ready', notes: 'Ready for release check.' }]
-  }
-
-  return {
-    reply:
-      "I updated the workspace based on your request. You can keep guiding me with messages like 'set tone to bold', 'add a goal for conversions', or 'mark publish as ready'.",
-    updates
-  }
-}
-
 export async function POST(
   request: NextRequest,
   { params }: { params: { projectId: string } }
 ) {
   try {
-    const body = await request.json()
+    const body = (await request.json()) as ImmersiveRequest
     const {
       message,
       history = [],
-      state
-    }: { message?: string; history?: ChatMessage[]; state?: WorkspaceState } = body
+      state,
+      sttEnabled = false,
+      ttsEnabled = false
+    } = body
 
     if (!message || !state) {
       return NextResponse.json({ error: 'Message and state are required' }, { status: 400 })
     }
 
+    const cards = await collectImmersiveCards({
+      projectId: params.projectId,
+      message,
+      history
+    })
+
+    const fallbackPayload = buildFallbackPayload({
+      message,
+      cards,
+      sttEnabled,
+      ttsEnabled,
+      reply:
+        "I updated the immersive workspace. Tell me what to compare, what story to show, or ask me to move toward application guidance."
+    })
+
     if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json(fallbackResponse(message))
+      return NextResponse.json(fallbackPayload)
     }
 
     const shortHistory = history.slice(-8).map((entry) => ({
@@ -95,23 +85,45 @@ export async function POST(
       messages: [
         {
           role: 'system',
-          content: `You are a workspace copilot for content teams.
+          content: `You are an immersive full-page chatbot orchestrator.
 Return only JSON with this shape:
 {
-  "reply": "short assistant response to user",
-  "updates": {
-    "setTitle": "optional string",
-    "setSummary": "optional string",
-    "setAudience": "optional string",
-    "setTone": "optional string",
-    "addGoals": ["optional", "string", "array"],
-    "updateSectionStatus": [
-      { "id": "strategy|questions|answers|publish", "status": "draft|in_review|ready", "notes": "optional" }
-    ]
+  "assistantReply": "short assistant response to user",
+  "sceneDirectives": [
+    {
+      "id": "string",
+      "action": "hero_swap|panel_add|panel_remove|emphasis|cta_state|focus_shift",
+      "target": "string",
+      "transition": "fade|slide|parallax|none",
+      "intensity": 0.0,
+      "reason": "string"
+    }
+  ],
+  "contentCards": [
+    {
+      "id": "string",
+      "type": "rag|job|video|cta|insight",
+      "title": "string",
+      "body": "string",
+      "sourceUrl": "optional url",
+      "thumbnailUrl": "optional url",
+      "metadata": {}
+    }
+  ],
+  "voiceDirectives": {
+    "speak": true,
+    "priority": "low|normal|high",
+    "mode": "none|stt|stt_tts"
+  },
+  "telemetry": {
+    "journey": "discover|compare|convert",
+    "confidence": 0.0,
+    "sourceAttributionCount": 0
   }
 }
-Only propose updates that are explicitly useful from the user message.
-Keep reply concise and practical.`
+Use at most 6 content cards.
+Keep reply concise and practical.
+Never invent source URLs; only use provided cards.`
         },
         {
           role: 'user',
@@ -119,7 +131,10 @@ Keep reply concise and practical.`
             projectId: params.projectId,
             message,
             history: shortHistory,
-            currentState: state
+            currentState: state,
+            candidateCards: fallbackPayload.contentCards,
+            defaultSceneDirectives: fallbackPayload.sceneDirectives,
+            voicePreference: { sttEnabled, ttsEnabled }
           })
         }
       ]
@@ -127,18 +142,16 @@ Keep reply concise and practical.`
 
     const content = response.choices[0]?.message?.content
     if (!content) {
-      return NextResponse.json(fallbackResponse(message))
+      return NextResponse.json(fallbackPayload)
     }
 
-    const parsed = JSON.parse(content) as {
-      reply?: string
-      updates?: ImmersiveUpdate
+    const parsedRaw = JSON.parse(content) as unknown
+    const parsed = parseImmersiveScenePayload(parsedRaw)
+    if (!parsed) {
+      return NextResponse.json(fallbackPayload)
     }
 
-    return NextResponse.json({
-      reply: parsed.reply || 'I made a few updates to the workspace.',
-      updates: parsed.updates || {}
-    })
+    return NextResponse.json(parsed)
   } catch (error) {
     console.error('Immersive chat error:', error)
     return NextResponse.json({ error: 'Failed to process immersive chat' }, { status: 500 })
