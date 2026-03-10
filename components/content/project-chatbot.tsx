@@ -821,8 +821,8 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
         <Card className="w-[360px] max-h-[90vh] shadow-xl border-[#d9d0bc] bg-[#f3efe3] mb-3 flex flex-col">
           <div className="flex items-center justify-between border-b border-[#ddd5c0] px-4 py-2.5">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-[#1f1f1f]">Project Sandbox Assistant</p>
-              <p className="text-xs text-[#6a6558]">{projectName}</p>
+              <p className="text-sm font-semibold text-[#1f1f1f]">Immersive Workspace Copilot</p>
+              <p className="text-xs text-[#6a6558]">{projectName} · updates this page live</p>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setOpen(false)} className="text-[#2f2f2f] hover:bg-[#e8e0cc]">
               ✕
@@ -1278,7 +1278,7 @@ export function ProjectChatbot({ projectId = '', showPillsFeature = false }: Pro
       )}
       {!open && (
         <Button className="shadow-lg" onClick={() => setOpen(true)}>
-          Chat
+          Immersive Chat
         </Button>
       )}
     </div>
