@@ -3,7 +3,27 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 
-type SpeechRecognitionCtor = new () => SpeechRecognition
+interface SpeechRecognitionResultLike {
+  isFinal: boolean
+  0: { transcript?: string }
+}
+
+interface SpeechRecognitionEventLike {
+  results: ArrayLike<SpeechRecognitionResultLike>
+}
+
+interface SpeechRecognitionLike {
+  lang: string
+  interimResults: boolean
+  continuous: boolean
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null
+  onerror: (() => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+}
+
+type SpeechRecognitionCtor = new () => SpeechRecognitionLike
 
 declare global {
   interface Window {
@@ -30,7 +50,7 @@ export function VoiceControls({
   const [sttEnabled, setSttEnabled] = useState(false)
   const [ttsEnabled, setTtsEnabled] = useState(false)
   const [listening, setListening] = useState(false)
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
 
   useEffect(() => {
     onSettingsChange({ sttEnabled, ttsEnabled })
@@ -65,7 +85,7 @@ export function VoiceControls({
     recognition.interimResults = true
     recognition.continuous = false
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: SpeechRecognitionEventLike) => {
       const latest = event.results[event.results.length - 1]
       const transcript = latest[0]?.transcript?.trim()
       if (latest.isFinal && transcript) {
