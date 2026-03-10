@@ -47,6 +47,12 @@ const logImmersiveEvent = (name: string, payload: Record<string, unknown>) => {
   console.info('[ImmersiveTelemetry]', name, payload)
 }
 
+const isImmersiveErrorResponse = (value: unknown): value is { error: string } => {
+  if (!value || typeof value !== 'object') return false
+  const maybeError = value as { error?: unknown }
+  return typeof maybeError.error === 'string'
+}
+
 export default function ImmersiveProjectPage({ params }: { params: { projectId: string } }) {
   const [projectName, setProjectName] = useState('Immersive Project')
   const [messages, setMessages] = useState<ImmersiveChatMessage[]>([
@@ -95,23 +101,24 @@ export default function ImmersiveProjectPage({ params }: { params: { projectId: 
           ...settings
         })
       })
-      const data = (await response.json()) as ImmersiveScenePayload | { error?: string }
-      if (!response.ok || 'error' in data) {
-        throw new Error('error' in data ? data.error : 'Failed immersive request')
+      const data = (await response.json()) as unknown
+      if (!response.ok || isImmersiveErrorResponse(data)) {
+        throw new Error(isImmersiveErrorResponse(data) ? data.error : 'Failed immersive request')
       }
+      const payload = data as ImmersiveScenePayload
 
-      setCards(data.contentCards || [])
-      setDirectives(data.sceneDirectives || [])
-      setLatestAssistantText(data.assistantReply)
+      setCards(payload.contentCards || [])
+      setDirectives(payload.sceneDirectives || [])
+      setLatestAssistantText(payload.assistantReply)
       setMessages((current) => [
         ...current,
-        { role: 'assistant', content: data.assistantReply, timestamp: new Date().toISOString() }
+        { role: 'assistant', content: payload.assistantReply, timestamp: new Date().toISOString() }
       ])
 
       logImmersiveEvent('scene_rendered', {
-        journey: data.telemetry.journey,
-        cardCount: data.contentCards.length,
-        confidence: data.telemetry.confidence
+        journey: payload.telemetry.journey,
+        cardCount: payload.contentCards.length,
+        confidence: payload.telemetry.confidence
       })
     } catch (error) {
       setMessages((current) => [
