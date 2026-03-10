@@ -30,6 +30,9 @@ export function Navbar() {
                   <Link href="/content" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
                     Content
                   </Link>
+                  <Link href="/immersive" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
+                    Immersive
+                  </Link>
                   {/* TODO: Uncomment when /community route is created */}
                   {/* <Link href="/community" className="text-sm font-medium text-foreground hover:text-gold transition-colors">
                     Community
