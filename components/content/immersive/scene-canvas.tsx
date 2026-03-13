@@ -22,7 +22,7 @@ export function SceneCanvas({ cards, directives, onCardClick }: SceneCanvasProps
   const panelDirective = directives.find((item) => item.action === 'panel_add')
   const ctaDirective = directives.find((item) => item.action === 'cta_state')
   const sortedCards = [...cards].sort((a, b) => {
-    const typeOrder: Record<string, number> = { insight: 0, rag: 1, video: 2, job: 3, cta: 4 }
+    const typeOrder: Record<string, number> = { insight: 0, rag: 1, image: 2, table: 3, video: 4, job: 5, cta: 6 }
     return (typeOrder[a.type] || 99) - (typeOrder[b.type] || 99)
   })
 
@@ -58,6 +58,45 @@ export function SceneCanvas({ cards, directives, onCardClick }: SceneCanvasProps
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
               />
+            ) : null}
+
+            {card.type === 'image' && card.sourceUrl ? (
+              <div className="mt-3 overflow-hidden rounded-xl border border-white/20 bg-black/20">
+                <img
+                  src={card.sourceUrl}
+                  alt={card.title}
+                  loading="lazy"
+                  className="h-52 w-full object-cover"
+                />
+                {card.body ? <p className="px-3 py-2 text-xs text-white/80">{card.body}</p> : null}
+              </div>
+            ) : null}
+
+            {card.type === 'table' && card.table ? (
+              <div className="mt-3 overflow-x-auto rounded-xl border border-white/20">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-white/10">
+                    <tr>
+                      {card.table.headers.map((header) => (
+                        <th key={header} className="px-3 py-2 font-semibold text-white/90">
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {card.table.rows.map((row, rowIndex) => (
+                      <tr key={`${card.id}-row-${rowIndex}`} className="border-t border-white/10">
+                        {row.map((cell, cellIndex) => (
+                          <td key={`${card.id}-cell-${rowIndex}-${cellIndex}`} className="px-3 py-2 text-white/85">
+                            {cell}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : null}
 
             <div className="mt-3 flex items-center gap-2">

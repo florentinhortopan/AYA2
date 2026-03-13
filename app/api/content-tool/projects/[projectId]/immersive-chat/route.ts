@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import { buildFallbackPayload, parseImmersiveScenePayload } from '@/lib/content/immersive/scene-orchestrator'
+import {
+  buildFallbackPayload,
+  ImmersiveCard,
+  parseImmersiveScenePayload
+} from '@/lib/content/immersive/scene-orchestrator'
 import { collectImmersiveCards } from '@/lib/content/immersive/data-adapters'
+import { prisma } from '@/lib/db'
+import { extractMarkdownTables } from '@/lib/content/markdown-table'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,6 +38,173 @@ interface ImmersiveRequest {
   ttsEnabled?: boolean
 }
 
+const DEFAULT_QUESTION_STATUSES = ['approved']
+const DEFAULT_ANSWER_STATUSES = ['approved', 'published', 'valid']
+
+const STOP_WORDS = new Set([
+  'a', 'an', 'the', 'and', 'or', 'but', 'if', 'then', 'than', 'to', 'of', 'for', 'on', 'in', 'at', 'by',
+  'is', 'are', 'was', 'were', 'be', 'been', 'being', 'with', 'from', 'as', 'it', 'this', 'that', 'these',
+  'those', 'i', 'you', 'we', 'they', 'he', 'she', 'my', 'your', 'our', 'their', 'me', 'us', 'them', 'do',
+  'does', 'did', 'can', 'could', 'should', 'would', 'will', 'may', 'might', 'about', 'into', 'what', 'how',
+  'why', 'when', 'where', 'which', 'who'
+])
+
+const normalize = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const tokenize = (value: string) =>
+  normalize(value)
+    .split(' ')
+    .filter((token) => token.length > 2 && !STOP_WORDS.has(token))
+
+const scoreOverlap = (queryTokens: string[], text: string) => {
+  const textTokens = new Set(tokenize(text))
+  let score = 0
+  for (const token of queryTokens) {
+    if (textTokens.has(token)) score += 1
+  }
+  return score
+}
+
+const buildSearchText = (
+  questionText: string,
+  topic?: string | null,
+  persona?: string | null,
+  tone?: string | null,
+  answers?: Array<{ answerText: string; keywords: string[] }>
+) => {
+  const answerText = answers?.map((a) => a.answerText).join(' ') || ''
+  const answerKeywords = answers?.flatMap((a) => a.keywords).join(' ') || ''
+  return [questionText, topic, persona, tone, answerText, answerKeywords].filter(Boolean).join(' ')
+}
+
+const truncate = (value: string, max = 320) => {
+  if (value.length <= max) return value
+  return `${value.slice(0, max - 1).trim()}...`
+}
+
+type QaMatch = {
+  projectId: string
+  projectName: string
+  questionId: string
+  questionText: string
+  answerId: string
+  answerText: string
+  sourceUrl: string | null
+  score: number
+}
+
+async function findBestQaMatch(projectId: string, message: string, history: ChatMessage[]): Promise<QaMatch | null> {
+  const queryTokens = tokenize(
+    [...history.filter((h) => h.role === 'user').map((h) => h.content).slice(-4), message].join(' ')
+  )
+  if (queryTokens.length === 0) return null
+
+  const fetchQuestions = async (where: { projectId?: string }) =>
+    prisma.qaQuestion.findMany({
+      where: {
+        ...where,
+        status: { in: DEFAULT_QUESTION_STATUSES as any }
+      },
+      include: {
+        project: { select: { id: true, name: true } },
+        answers: {
+          where: { validationStatus: { in: DEFAULT_ANSWER_STATUSES as any } },
+          orderBy: { updatedAt: 'desc' }
+        }
+      },
+      take: where.projectId ? 300 : 1200
+    })
+
+  const scoreQuestions = (questions: Awaited<ReturnType<typeof fetchQuestions>>) =>
+    questions
+    .map((question) => ({
+      question,
+      score: scoreOverlap(
+        queryTokens,
+        buildSearchText(
+          question.questionText,
+          question.topic,
+          question.persona,
+          question.tone,
+          question.answers.map((answer) => ({
+            answerText: answer.answerText,
+            keywords: answer.keywords
+          }))
+        )
+      )
+    }))
+    .sort((a, b) => b.score - a.score)
+
+  // First prefer current project.
+  const scopedQuestions = await fetchQuestions({ projectId })
+  let scored = scoreQuestions(scopedQuestions)
+  let best = scored.find((item) => item.score > 0 && item.question.answers.length > 0)
+
+  // Then fall back to all projects as testing ground.
+  if (!best) {
+    const allQuestions = await fetchQuestions({})
+    scored = scoreQuestions(allQuestions)
+    best = scored.find((item) => item.score > 0 && item.question.answers.length > 0)
+  }
+
+  if (!best) return null
+
+  const answer = best.question.answers[0]
+  return {
+    projectId: best.question.project?.id || projectId,
+    projectName: best.question.project?.name || 'Current Project',
+    questionId: best.question.id,
+    questionText: best.question.questionText,
+    answerId: answer.id,
+    answerText: answer.answerText,
+    sourceUrl: answer.sourceLink || null,
+    score: best.score
+  }
+}
+
+function buildQaDrivenCards(match: QaMatch | null) {
+  if (!match) return []
+
+  const cards: ImmersiveCard[] = []
+  cards.push({
+    id: `qa-answer-${match.answerId}`,
+    type: 'insight',
+    title: `Q&A Match: ${match.questionText}`,
+    body: truncate(match.answerText, 380),
+    sourceUrl: match.sourceUrl || undefined,
+    metadata: {
+      project: match.projectName,
+      score: match.score
+    }
+  })
+
+  const tables = extractMarkdownTables(match.answerText).slice(0, 2)
+  tables.forEach((table, index) => {
+    cards.push({
+      id: `qa-table-${match.answerId}-${index}`,
+      type: 'table',
+      title: `${match.projectName} - Structured Data`,
+      body: 'Extracted table view from the matched answer.',
+      sourceUrl: match.sourceUrl || undefined,
+      table: {
+        headers: table.headers,
+        rows: table.rows
+      },
+      metadata: {
+        columns: table.headers.length,
+        rows: table.rows.length
+      }
+    })
+  })
+
+  return cards
+}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || ''
 })
@@ -59,14 +232,19 @@ export async function POST(
       message,
       history
     })
+    const qaMatch = await findBestQaMatch(params.projectId, message, history)
+    const qaCards = buildQaDrivenCards(qaMatch)
+    const candidateCards = [...qaCards, ...cards]
+    const qaReply = qaMatch
+      ? qaMatch.answerText
+      : "I couldn't find a strong Q&A match yet. Try a more specific question, or seed more approved Q&A entries."
 
     const fallbackPayload = buildFallbackPayload({
       message,
-      cards,
+      cards: candidateCards,
       sttEnabled,
       ttsEnabled,
-      reply:
-        "I updated the immersive workspace. Tell me what to compare, what story to show, or ask me to move toward application guidance."
+      reply: qaReply
     })
 
     if (!process.env.OPENAI_API_KEY) {
@@ -102,7 +280,7 @@ Return only JSON with this shape:
   "contentCards": [
     {
       "id": "string",
-      "type": "rag|job|video|cta|insight",
+      "type": "rag|job|video|cta|insight|table|image",
       "title": "string",
       "body": "string",
       "sourceUrl": "optional url",
@@ -132,9 +310,17 @@ Never invent source URLs; only use provided cards.`
             message,
             history: shortHistory,
             currentState: state,
-            candidateCards: fallbackPayload.contentCards,
+            candidateCards: candidateCards.slice(0, 8),
             defaultSceneDirectives: fallbackPayload.sceneDirectives,
-            voicePreference: { sttEnabled, ttsEnabled }
+            voicePreference: { sttEnabled, ttsEnabled },
+            qaReply,
+            qaMatch: qaMatch
+              ? {
+                  projectName: qaMatch.projectName,
+                  questionText: qaMatch.questionText,
+                  sourceUrl: qaMatch.sourceUrl
+                }
+              : null
           })
         }
       ]
@@ -151,7 +337,16 @@ Never invent source URLs; only use provided cards.`
       return NextResponse.json(fallbackPayload)
     }
 
-    return NextResponse.json(parsed)
+    // Keep conversational response grounded in Q&A while canvas remains rich/multimodal.
+    const mergedCards = [...qaCards, ...parsed.contentCards]
+      .filter((card, index, array) => array.findIndex((c) => c.id === card.id) === index)
+      .slice(0, 8)
+
+    return NextResponse.json({
+      ...parsed,
+      assistantReply: qaReply,
+      contentCards: mergedCards
+    })
   } catch (error) {
     console.error('Immersive chat error:', error)
     return NextResponse.json({ error: 'Failed to process immersive chat' }, { status: 500 })

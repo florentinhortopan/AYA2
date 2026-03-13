@@ -11,12 +11,18 @@ export const sceneDirectiveSchema = z.object({
 
 export const immersiveCardSchema = z.object({
   id: z.string().min(1),
-  type: z.enum(['rag', 'job', 'video', 'cta', 'insight']),
+  type: z.enum(['rag', 'job', 'video', 'cta', 'insight', 'table', 'image']),
   title: z.string().min(1),
   body: z.string().min(1),
   sourceUrl: z.string().url().optional(),
   thumbnailUrl: z.string().url().optional(),
-  metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional()
+  metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
+  table: z
+    .object({
+      headers: z.array(z.string()).min(1),
+      rows: z.array(z.array(z.string()))
+    })
+    .optional()
 })
 
 export const voiceDirectivesSchema = z.object({

@@ -4,6 +4,10 @@ import { resolve } from 'node:path'
 
 const ROOT_URL = 'https://www.goarmy.com/'
 const CAREERS_URL = 'https://www.goarmy.com/careers-and-jobs'
+const BROWSE_JOBS_URL = 'https://www.goarmy.com/careers-and-jobs/browse-jobs'
+const BROWSE_JOBS_FILTERED_URL =
+  'https://www.goarmy.com/careers-and-jobs/browse-jobs?category=aviation,science-medicine,ground-forces,signal-intelligence,support-logistics,mechanics-engineering'
+const CMT_JOBS_ENDPOINT = 'https://www.goarmy.com/bin/aemservlet/cmtjobs.en.json'
 const ALLOWED_HOSTS = new Set(['www.goarmy.com', 'goarmy.com'])
 const DEFAULT_MAX_PAGES = 180
 
@@ -44,6 +48,7 @@ const TARGET_LABELS = [
 ]
 
 const JOB_PATH_KEYWORDS = [
+  '/browse-jobs',
   '/careers-and-jobs',
   '/special-operations',
   '/army-cyber',
@@ -70,6 +75,22 @@ type CrawledPage = {
   youtubeLinks: string[]
   links: CrawlLink[]
   componentBlocks: ScrapedComponentBlock[]
+}
+
+type CmtJob = {
+  id?: string
+  moscode?: string
+  mos_title?: string
+  mos_description_short?: string
+  category?: string
+  group?: string
+  path?: string
+  english_url?: string
+  bonus_status?: string | boolean
+  bonus_amount?: number | string
+  position_type?: string
+  component?: string[]
+  hours?: string[]
 }
 
 type ScrapedComponentBlock = {
@@ -328,6 +349,7 @@ const shouldEnqueue = (url: string, labelMatches: string[], linkText: string): b
   const lowerPath = new URL(url).pathname.toLowerCase()
   const lowerText = linkText.toLowerCase()
 
+  if (lowerPath.startsWith('/careers-and-jobs')) return true
   if (JOB_PATH_KEYWORDS.some((keyword) => lowerPath.includes(keyword))) return true
   if (labelMatches.length > 0) return true
   return TARGET_LABELS.some((label) => lowerText.includes(label.toLowerCase()))
@@ -359,8 +381,70 @@ const buildCoverageReport = (pages: CrawledPage[]): CoverageReport => {
   }
 }
 
+const buildCanonicalJobUrl = (job: CmtJob): string | null => {
+  if (job.english_url) {
+    return toAbsoluteUrl(job.english_url, ROOT_URL)
+  }
+  if (!job.category || !job.group || !job.path) return null
+  return toAbsoluteUrl(`/careers-and-jobs/${job.category}/${job.group}/${job.path}`, ROOT_URL)
+}
+
+const buildCmtJobPages = async (): Promise<CrawledPage[]> => {
+  try {
+    const res = await fetch(CMT_JOBS_ENDPOINT, {
+      headers: {
+        'user-agent': 'AYA-JobFinder-Crawler/1.0 (+https://aya-2-tau.vercel.app)'
+      }
+    })
+    if (!res.ok) {
+      console.error(`Failed to fetch CMT jobs endpoint (${res.status}).`)
+      return []
+    }
+
+    const payload = (await res.json()) as CmtJob[]
+    if (!Array.isArray(payload)) return []
+
+    const pages: CrawledPage[] = []
+    for (const job of payload) {
+      const url = buildCanonicalJobUrl(job)
+      const title = normalizeText(job.mos_title || job.moscode || '')
+      if (!url || !title) continue
+
+      const details = [
+        job.mos_description_short,
+        job.position_type,
+        job.category?.replace(/-/g, ' '),
+        job.group?.replace(/-/g, ' '),
+        Array.isArray(job.component) ? `Component: ${job.component.join(', ')}` : '',
+        Array.isArray(job.hours) ? `Hours: ${job.hours.join(', ')}` : '',
+        job.bonus_status === true || String(job.bonus_status).toLowerCase() === 'true'
+          ? `Bonus eligible${job.bonus_amount ? ` up to ${job.bonus_amount}` : ''}`
+          : ''
+      ]
+        .filter(Boolean)
+        .join('. ')
+
+      pages.push({
+        url,
+        title: `${title}${job.moscode ? ` (${job.moscode})` : ''}`,
+        textExcerpt: normalizeText(details).slice(0, 1500),
+        matchedLabels: matchLabels(`${title} ${details} ${job.category || ''} ${job.group || ''}`),
+        images: [],
+        youtubeLinks: [],
+        links: [],
+        componentBlocks: []
+      })
+    }
+
+    return pages
+  } catch (error) {
+    console.error('Failed to ingest CMT jobs feed:', error)
+    return []
+  }
+}
+
 async function crawlJobsScope(maxPages: number) {
-  const queue = [ROOT_URL, CAREERS_URL]
+  const queue = [ROOT_URL, CAREERS_URL, BROWSE_JOBS_URL, BROWSE_JOBS_FILTERED_URL]
   const visited = new Set<string>()
   const pages: CrawledPage[] = []
 
@@ -409,20 +493,32 @@ async function crawlJobsScope(maxPages: number) {
     }
   }
 
-  const coverage = buildCoverageReport(pages)
+  const cmtJobPages = await buildCmtJobPages()
+  const mergedPageMap = new Map<string, CrawledPage>()
+  for (const page of pages) mergedPageMap.set(page.url, page)
+  for (const page of cmtJobPages) {
+    if (mergedPageMap.has(page.url)) continue
+    mergedPageMap.set(page.url, page)
+  }
+  const mergedPages = [...mergedPageMap.values()]
+  const coverage = buildCoverageReport(mergedPages)
 
   return {
     generatedAt: new Date().toISOString(),
     seedUrl: ROOT_URL,
     crawlConfig: {
       maxPages,
-      queueSeed: [ROOT_URL, CAREERS_URL],
+      queueSeed: [ROOT_URL, CAREERS_URL, BROWSE_JOBS_URL, BROWSE_JOBS_FILTERED_URL],
       pathKeywords: JOB_PATH_KEYWORDS
     },
     scopedLabels: TARGET_LABELS,
-    crawledPageCount: pages.length,
+    crawledPageCount: mergedPages.length,
+    crawlStats: {
+      htmlPages: pages.length,
+      cmtJobs: cmtJobPages.length
+    },
     coverage,
-    pages
+    pages: mergedPages
   }
 }
 

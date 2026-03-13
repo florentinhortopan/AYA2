@@ -17,7 +17,7 @@ interface SpeechRecognitionLike {
   interimResults: boolean
   continuous: boolean
   onresult: ((event: SpeechRecognitionEventLike) => void) | null
-  onerror: (() => void) | null
+  onerror: ((event: { error?: string }) => void) | null
   onend: (() => void) | null
   start: () => void
   stop: () => void
@@ -50,7 +50,9 @@ export function VoiceControls({
   const [sttEnabled, setSttEnabled] = useState(false)
   const [ttsEnabled, setTtsEnabled] = useState(false)
   const [listening, setListening] = useState(false)
+  const [sttError, setSttError] = useState<string | null>(null)
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
+  const manualStopRef = useRef(false)
 
   useEffect(() => {
     onSettingsChange({ sttEnabled, ttsEnabled })
@@ -72,18 +74,32 @@ export function VoiceControls({
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.cancel()
       }
+      manualStopRef.current = true
       recognitionRef.current?.stop()
     }
   }, [])
 
+  useEffect(() => {
+    if (!sttEnabled && listening) {
+      manualStopRef.current = true
+      recognitionRef.current?.stop()
+      setListening(false)
+      onVoiceEvent?.('voice_stopped')
+    }
+  }, [listening, onVoiceEvent, sttEnabled])
+
   const startListening = () => {
     if (!sttEnabled || listening) return
+    setSttError(null)
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!Recognition) return
+    if (!Recognition) {
+      setSttError('Speech recognition is not supported in this browser.')
+      return
+    }
     const recognition = new Recognition()
     recognition.lang = 'en-US'
     recognition.interimResults = true
-    recognition.continuous = false
+    recognition.continuous = true
 
     recognition.onresult = (event: SpeechRecognitionEventLike) => {
       const latest = event.results[event.results.length - 1]
@@ -93,21 +109,41 @@ export function VoiceControls({
       }
     }
 
-    recognition.onerror = () => {
+    recognition.onerror = (event) => {
+      if (event?.error === 'not-allowed' || event?.error === 'service-not-allowed') {
+        setSttError('Microphone permission denied. Allow microphone access and try again.')
+      } else if (event?.error && event.error !== 'no-speech') {
+        setSttError(`Voice input error: ${event.error}`)
+      }
       setListening(false)
+      onVoiceEvent?.('voice_stopped')
     }
 
     recognition.onend = () => {
+      // Keep mic active until user explicitly stops.
+      if (!manualStopRef.current && sttEnabled) {
+        try {
+          recognition.start()
+          setListening(true)
+          return
+        } catch {
+          // Fall back to stopped state.
+        }
+      }
+
       setListening(false)
+      onVoiceEvent?.('voice_stopped')
     }
 
     recognitionRef.current = recognition
+    manualStopRef.current = false
     setListening(true)
     onVoiceEvent?.('voice_started')
     recognition.start()
   }
 
   const stopListening = () => {
+    manualStopRef.current = true
     recognitionRef.current?.stop()
     setListening(false)
     onVoiceEvent?.('voice_stopped')
@@ -137,6 +173,7 @@ export function VoiceControls({
       >
         {listening ? 'Stop Mic' : 'Push To Talk'}
       </Button>
+      {sttError ? <p className="text-xs text-red-500">{sttError}</p> : null}
     </div>
   )
 }

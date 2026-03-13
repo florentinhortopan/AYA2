@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { searchScrapedPages } from '@/lib/job-finder/scraped-data'
 import { ImmersiveCard } from '@/lib/content/immersive/scene-orchestrator'
+import { deriveSlugFromUrl } from '@/lib/job-finder/page-categorizer'
 
 interface AdapterParams {
   projectId: string
@@ -29,6 +30,27 @@ const scoreByOverlap = (queryTokens: string[], text: string): number => {
     if (textTokens.has(token)) score += 1
   }
   return score
+}
+
+const scoreMediaRecord = (queryTokens: string[], metadata: {
+  title?: string | null
+  pageTitle?: string | null
+  pageSlug?: string | null
+  section?: string | null
+  topicHints?: string[]
+  textExcerpt?: string | null
+}) => {
+  const searchable = [
+    metadata.title,
+    metadata.pageTitle,
+    metadata.pageSlug,
+    metadata.section,
+    metadata.textExcerpt,
+    ...(metadata.topicHints || [])
+  ]
+    .filter(Boolean)
+    .join(' ')
+  return scoreByOverlap(queryTokens, searchable)
 }
 
 const toYouTubeEmbedUrl = (url: string): string | null => {
@@ -102,7 +124,10 @@ const buildRagAndDbVideoCards = async (
   const dbVideoCards: ImmersiveCard[] = ranked.flatMap(({ question }) =>
     question.answers.flatMap((answer) =>
       answer.mediaAssets
-        .filter((asset) => String(asset.mediaType).toLowerCase().includes('youtube'))
+        .filter((asset) => {
+          const mediaType = String(asset.mediaType).toLowerCase()
+          return mediaType.includes('youtube') || mediaType.includes('video')
+        })
         .map((asset, index) => ({
           id: `video-db-${asset.id}-${index}`,
           type: 'video' as const,
@@ -116,6 +141,90 @@ const buildRagAndDbVideoCards = async (
   )
 
   return { ragCards, dbVideoCards }
+}
+
+const buildKnowledgeMediaCards = async (
+  projectId: string,
+  queryTokens: string[]
+): Promise<{ imageCards: ImmersiveCard[]; mediaVideoCards: ImmersiveCard[] }> => {
+  const pages = await prisma.knowledgeSourcePage.findMany({
+    where: {
+      projectId,
+      status: { in: ['processed', 'indexed', 'published'] }
+    },
+    include: {
+      mediaAssets: true
+    },
+    take: 150
+  })
+
+  const rankedMedia = pages.flatMap((page) =>
+    page.mediaAssets
+      .map((asset) => {
+        const data = (asset.data || {}) as Record<string, unknown>
+        const topicHints = Array.isArray(data.topicHints)
+          ? data.topicHints.map((value) => String(value))
+          : []
+        const score = scoreMediaRecord(queryTokens, {
+          title: asset.title,
+          pageTitle: page.title,
+          pageSlug: page.slug || deriveSlugFromUrl(page.externalUrl),
+          section: page.section,
+          topicHints,
+          textExcerpt: page.textContent
+        })
+        return { page, asset, score }
+      })
+      .filter((item) => item.score > 0)
+  )
+
+  rankedMedia.sort((a, b) => b.score - a.score)
+
+  const imageCards: ImmersiveCard[] = []
+  const mediaVideoCards: ImmersiveCard[] = []
+  const seenSource = new Set<string>()
+
+  for (const item of rankedMedia) {
+    const mediaType = String(item.asset.mediaType).toLowerCase()
+    const sourceUrl = item.asset.sourceUrl
+    if (!sourceUrl || seenSource.has(sourceUrl)) continue
+    seenSource.add(sourceUrl)
+
+    if (mediaType.includes('image')) {
+      imageCards.push({
+        id: `media-image-${item.asset.id}`,
+        type: 'image',
+        title: item.asset.title || item.page.title || 'GoArmy image',
+        body: item.asset.description || 'Visual context from source page.',
+        sourceUrl,
+        thumbnailUrl: item.asset.thumbnailUrl || sourceUrl,
+        metadata: {
+          score: item.score,
+          section: item.page.section || '',
+          pageSlug: item.page.slug || ''
+        }
+      })
+    } else if (mediaType.includes('video') || mediaType.includes('youtube')) {
+      mediaVideoCards.push({
+        id: `media-video-${item.asset.id}`,
+        type: 'video',
+        title: item.asset.title || item.page.title || 'GoArmy video',
+        body: item.asset.description || 'Video reference from source page.',
+        sourceUrl: toYouTubeEmbedUrl(sourceUrl) || sourceUrl,
+        thumbnailUrl: item.asset.thumbnailUrl || undefined,
+        metadata: {
+          score: item.score,
+          section: item.page.section || '',
+          pageSlug: item.page.slug || ''
+        }
+      })
+    }
+  }
+
+  return {
+    imageCards: imageCards.slice(0, 8),
+    mediaVideoCards: mediaVideoCards.slice(0, 6)
+  }
 }
 
 const buildScrapedJobAndVideoCards = async (message: string): Promise<{
@@ -156,8 +265,9 @@ export async function collectImmersiveCards({
     [...history.filter((h) => h.role === 'user').map((h) => h.content).slice(-4), message].join(' ')
   )
 
-  const [{ ragCards, dbVideoCards }, { jobCards, scrapedVideoCards }] = await Promise.all([
+  const [{ ragCards, dbVideoCards }, { imageCards, mediaVideoCards }, { jobCards, scrapedVideoCards }] = await Promise.all([
     buildRagAndDbVideoCards(projectId, queryTokens),
+    buildKnowledgeMediaCards(projectId, queryTokens),
     buildScrapedJobAndVideoCards(message)
   ])
 
@@ -169,5 +279,21 @@ export async function collectImmersiveCards({
     sourceUrl: 'https://www.goarmy.com/how-to-join.html'
   }
 
-  return [...ragCards, ...jobCards, ...dbVideoCards, ...scrapedVideoCards, ctaCard]
+  const rankedSupporting = [...ragCards, ...jobCards].slice(0, 6)
+  const rankedVideos = [...mediaVideoCards, ...dbVideoCards, ...scrapedVideoCards]
+  const rankedImages = imageCards
+
+  // Diversity cap per turn:
+  // - max 2 images
+  // - max 1 video
+  // - max 2 support cards (rag/job/insight)
+  // - always one CTA card appended
+  const selectedCards = [
+    ...rankedSupporting.slice(0, 2),
+    ...rankedImages.slice(0, 2),
+    ...rankedVideos.slice(0, 1),
+    ctaCard
+  ]
+
+  return selectedCards
 }
