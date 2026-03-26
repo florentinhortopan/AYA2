@@ -8,8 +8,21 @@ const nextConfig = {
   },
   // Optimize for Vercel deployment
   images: {
-    domains: [],
-    remotePatterns: [],
+    domains: ['www.goarmy.com', 'goarmy.com', 'offload.goarmy.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'www.goarmy.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'goarmy.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'offload.goarmy.com',
+      },
+    ],
   },
 }
 
