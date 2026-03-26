@@ -39,6 +39,9 @@ export default function CampaignsPage() {
                 <Link href="/campaigns/field-tested/v2">
                   <Button variant="outline">Open Iteration v2</Button>
                 </Link>
+                <Link href="/campaigns/field-tested/v4">
+                  <Button variant="outline">Open Iteration v4</Button>
+                </Link>
               </CardContent>
             </Card>
           ))}

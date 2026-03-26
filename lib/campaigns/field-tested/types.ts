@@ -1,4 +1,4 @@
-export type FieldTestedVariant = 'v1' | 'v2' | 'v3'
+export type FieldTestedVariant = 'v1' | 'v2' | 'v3' | 'v4'
 
 export type AudienceLens = 'prospect' | 'parent' | 'influencer'
 

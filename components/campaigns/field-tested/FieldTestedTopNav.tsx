@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils'
 const iterations = [
   { id: 'v1', href: '/campaigns/field-tested/v1', label: 'Version 1' },
   { id: 'v2', href: '/campaigns/field-tested/v2', label: 'Version 2' },
-  { id: 'v3', href: '/campaigns/field-tested/v3', label: 'Version 3' }
+  { id: 'v3', href: '/campaigns/field-tested/v3', label: 'Version 3' },
+  { id: 'v4', href: '/campaigns/field-tested/v4', label: 'Version 4' }
 ]
 
 export function FieldTestedTopNav() {
