@@ -173,6 +173,31 @@ GOOGLE_CLIENT_SECRET = (if using Google OAuth)
 
 ---
 
+## Automatic Migrations and Seeding on Vercel
+
+The `buildCommand` in `vercel.json` runs the following sequence on every Vercel deploy (production and previews):
+
+```
+prisma generate
+prisma migrate deploy
+npx tsx prisma/seed.ts
+next build
+```
+
+`prisma migrate deploy` applies any new migrations in `prisma/migrations/`. The seed step at `prisma/seed.ts` is **idempotent** — it upserts reference catalogs by stable keys (e.g. `ContentTestActivity.slug`, `ContentTestCriterion.key`) and does not delete or duplicate operational data.
+
+### Bootstrapping the first admin
+
+Set `CONTENT_TESTING_ADMIN_EMAIL` in Vercel environment variables to an existing user's email. On the next deploy the seed script promotes that user to `ADMIN` (required to manage the prompt bank in `/content/testing/prompt-bank`).
+
+### Local seeding
+
+```bash
+npm run db:seed
+```
+
+---
+
 ## Troubleshooting
 
 ### Connection Issues

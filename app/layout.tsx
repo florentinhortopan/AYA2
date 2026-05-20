@@ -4,6 +4,7 @@ import { SessionProvider } from "next-auth/react"
 import { Providers } from "./providers"
 import { Navbar } from "@/components/layout/navbar"
 import { FloatingJobFinderWidget } from "@/components/floating-job-finder-widget"
+import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -25,6 +26,7 @@ export default function RootLayout({
           <Navbar />
           {children}
           <FloatingJobFinderWidget />
+          <Toaster />
         </Providers>
       </body>
     </html>

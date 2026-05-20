@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { RequireAuth } from '@/components/content/require-auth'
 import { PageHeader } from '@/components/content/page-header'
+import { ContentSubNav } from '@/components/content/sub-nav'
 import { ContentProject } from '@/types/content'
 
 const statusStyles: Record<string, string> = {
@@ -40,26 +41,13 @@ export default function ContentPage() {
   return (
     <RequireAuth>
       <main className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-16">
+        <div className="container mx-auto px-4 py-12">
+          <ContentSubNav />
           <PageHeader
-            title="Content"
+            title="Q&A Projects"
             description="Manage Q&A generation projects, prompts, and guidelines."
             actions={(
               <div className="flex items-center gap-2">
-                <Link href="/content/segue-pills/list">
-                  <Button variant="outline" className="border-primary text-primary hover:bg-primary/10">
-                    🧪 Pill Research
-                  </Button>
-                </Link>
-                <Link href="/content/segue-pills">
-                  <Button variant="outline">New Pill Research</Button>
-                </Link>
-                <Link href="/content/prompts">
-                  <Button variant="outline">Prompts</Button>
-                </Link>
-                <Link href="/content/guidelines">
-                  <Button variant="outline">Guidelines</Button>
-                </Link>
                 <Link href="/content/new">
                   <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
                     New Project

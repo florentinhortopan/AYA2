@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { RequireAuth } from '@/components/content/require-auth'
 import { PageHeader } from '@/components/content/page-header'
+import { ContentSubNav } from '@/components/content/sub-nav'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -144,7 +145,8 @@ export default function GuidelinesPage() {
   return (
     <RequireAuth>
       <main className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-16">
+        <div className="container mx-auto px-4 py-12">
+          <ContentSubNav />
           <PageHeader
             title="Guidelines"
             description="Manage guideline files and versions."

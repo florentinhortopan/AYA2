@@ -12,14 +12,15 @@ datasource db {
 }
 
 model User {
-  id                  String              @id @default(cuid())
-  email               String?             @unique
+  id                  String               @id @default(cuid())
+  email               String?              @unique
   name                String?
   image               String?
-  password            String?             @db.Text // Hashed password for credentials auth
+  password            String?              @db.Text // Hashed password for credentials auth
   emailVerified       DateTime?
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  role                UserRole             @default(MEMBER)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
   accounts            Account[]
   sessions            Session[]
   profile             Profile?
@@ -32,10 +33,10 @@ model User {
   activities          UserActivity[]
   insightsHistory     InsightsHistory[]
   qaProjects          QaProject[]
-  qaQuestionsEdited   QaQuestion[]        @relation("QaQuestionEditor")
-  qaQuestionsRated    QaQuestion[]        @relation("QaQuestionRater")
-  qaAnswersEdited     QaAnswer[]          @relation("QaAnswerEditor")
-  qaAnswersRated      QaAnswer[]          @relation("QaAnswerRater")
+  qaQuestionsEdited   QaQuestion[]         @relation("QaQuestionEditor")
+  qaQuestionsRated    QaQuestion[]         @relation("QaQuestionRater")
+  qaAnswersEdited     QaAnswer[]           @relation("QaAnswerEditor")
+  qaAnswersRated      QaAnswer[]           @relation("QaAnswerRater")
   contentPrompts      ContentPrompt[]
   contentGuidelines   ContentGuideline[]
   corpusFiles         CorpusFile[]
@@ -43,6 +44,13 @@ model User {
   seguePillResearches SeguePillResearch[]
   segueCampaignGoals  SegueCampaignGoal[]
   segueTestSessions   SegueTestSession[]
+  contentTestRounds   ContentTestRound[]
+  contentTestSessions ContentTestSession[]
+}
+
+enum UserRole {
+  ADMIN
+  MEMBER
 }
 
 model Account {
@@ -237,11 +245,11 @@ model QaProject {
   updatedAt           DateTime  @updatedAt
   archivedAt          DateTime?
 
-  corpusFile     CorpusFile?       @relation(fields: [corpusFileId], references: [id])
-  questionPrompt ContentPrompt?    @relation("QuestionPrompt", fields: [questionPromptId], references: [id])
-  answerPrompt   ContentPrompt?    @relation("AnswerPrompt", fields: [answerPromptId], references: [id])
-  guideline      ContentGuideline? @relation(fields: [guidelineId], references: [id])
-  createdBy      User?             @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  corpusFile     CorpusFile?           @relation(fields: [corpusFileId], references: [id])
+  questionPrompt ContentPrompt?        @relation("QuestionPrompt", fields: [questionPromptId], references: [id])
+  answerPrompt   ContentPrompt?        @relation("AnswerPrompt", fields: [answerPromptId], references: [id])
+  guideline      ContentGuideline?     @relation(fields: [guidelineId], references: [id])
+  createdBy      User?                 @relation(fields: [createdById], references: [id], onDelete: SetNull)
   questions      QaQuestion[]
   sourcePages    KnowledgeSourcePage[]
   batchJobs      ContentBatchJob[]
@@ -315,19 +323,19 @@ model QaAnswer {
 }
 
 model KnowledgeSourcePage {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   projectId   String?
   externalUrl String
   title       String?
   slug        String?
   section     String?
-  status      String   @default("discovered") // discovered, crawled, processed, indexed, archived
-  rawHtml     String?  @db.Text
-  textContent String?  @db.Text
+  status      String    @default("discovered") // discovered, crawled, processed, indexed, archived
+  rawHtml     String?   @db.Text
+  textContent String?   @db.Text
   checksum    String?
   scrapedAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   project     QaProject?             @relation(fields: [projectId], references: [id], onDelete: SetNull)
   chunks      KnowledgeSourceChunk[]
@@ -359,17 +367,17 @@ model KnowledgeSourceChunk {
 
 model KnowledgeSourceMedia {
   id           String   @id @default(cuid())
-  pageId        String
-  mediaType     String // image, youtube, chart_json, embed, file
-  sourceUrl     String
-  title         String?
-  description   String?
-  thumbnailUrl  String?
-  provider      String?
-  data          Json?
-  sortOrder     Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  pageId       String
+  mediaType    String // image, youtube, chart_json, embed, file
+  sourceUrl    String
+  title        String?
+  description  String?
+  thumbnailUrl String?
+  provider     String?
+  data         Json?
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   page KnowledgeSourcePage @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
@@ -591,4 +599,462 @@ model SegueTestSession {
   @@index([researchId])
   @@index([testCase])
   @@index([createdAt])
+}
+
+// =====================================================================
+// Content Testing Session Assistant
+// Implements the Army Answers Moderator Guide as a structured, app-driven
+// content testing flow with raw + aggregated capture for moderators.
+// =====================================================================
+
+enum ContentTestRoundStatus {
+  PLANNED
+  ACTIVE
+  CLOSED
+  ARCHIVED
+}
+
+enum ContentTestSessionStatus {
+  DRAFT
+  IN_PROGRESS
+  PAUSED
+  COMPLETE
+  ARCHIVED
+}
+
+enum ContentTestParticipantType {
+  INTERNAL_TESTER
+  PROSPECT_LIKE
+  PARENT_GUARDIAN
+  EDUCATOR
+  INFLUENCER
+  RECRUITER
+  CONTENT_REVIEWER
+  STAKEHOLDER
+  OTHER
+}
+
+enum ContentTestEnvironment {
+  PROTOTYPE
+  STAGING
+  PRODUCTION
+  TRANSCRIPT_REVIEW
+  STATIC_RESPONSE_REVIEW
+  OTHER
+}
+
+enum ContentTestSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum ContentTestReadiness {
+  READY
+  MOSTLY_READY
+  NEEDS_ITERATION
+  NOT_READY
+}
+
+enum ContentTestActionRecommendation {
+  KEEP
+  EDIT
+  REWRITE
+  REPLACE_QUOTE
+  ADD_CONTENT
+  REMOVE_CONTENT
+  ESCALATE_FOR_REVIEW
+  VALIDATE_WITH_SME
+  ADD_RECRUITER_REFERRAL
+  ADD_OFFICIAL_SOURCE_REFERENCE
+  ADD_NEXT_STEP
+  SIMPLIFY_LANGUAGE
+  MAKE_MORE_AUTHENTIC
+  REDUCE_MARKETING_LANGUAGE
+  OTHER
+}
+
+enum ContentTestQuoteAction {
+  KEEP
+  LIGHT_EDIT
+  REWRITE
+  REPLACE
+  REMOVE
+  ESCALATE
+}
+
+enum ContentTestTrinary {
+  YES
+  NO
+  PARTIALLY
+}
+
+enum ContentTestLevel {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum ContentTestUseCaseCategory {
+  CORE_PROSPECT
+  INFLUENCER_SUPPORTER
+  QUOTE_EVALUATION
+  BRAND_VOICE
+  ACCURACY_COMPLETENESS
+  AMBIGUOUS_EDGE_CASE
+  OUT_OF_SCOPE
+  SENSITIVE
+  ADVERSARIAL
+  WARM_UP
+  WRAP_UP
+  OTHER
+}
+
+enum ContentTestTopicArea {
+  JOINING
+  BASIC_TRAINING
+  DAILY_LIFE
+  JOBS
+  CAREERS
+  BENEFITS
+  EDUCATION
+  FAMILY
+  SAFETY
+  ELIGIBILITY
+  MEDICAL
+  LEGAL
+  DEPLOYMENT
+  CULTURE
+  MENTAL_HEALTH
+  HARASSMENT_OR_MISCONDUCT
+  RECRUITER_PROCESS
+  OTHER
+}
+
+enum ContentTestIssueType {
+  ACCURACY
+  CONTENT_GAP
+  TONE
+  BRAND_SAFETY
+  QUOTE_QUALITY
+  CLARITY
+  COMPLETENESS
+  NEXT_STEP
+  SENSITIVITY_HANDLING
+  OUT_OF_SCOPE_HANDLING
+  AUTHENTICITY
+  TRUST
+  READABILITY
+  OVERPROMISING
+  MARKETING_SPEAK
+  POLICY_RISK
+  PRIVACY_RISK
+  OTHER
+}
+
+enum ContentTestIssueStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  WONT_FIX
+}
+
+enum ContentTestIssuePriority {
+  QUICK_WIN
+  PHASE_1
+  PHASE_2
+  BACKLOG
+}
+
+enum ContentTestPromptSource {
+  PARTICIPANT
+  MODERATOR
+  OBSERVER
+  PREDEFINED
+}
+
+// ---- Reference catalogs (seeded; idempotent) ----
+
+model ContentTestActivity {
+  id                String                     @id @default(cuid())
+  slug              String                     @unique
+  order             Int                        @unique
+  title             String
+  objective         String                     @db.Text
+  script            String?                    @db.Text
+  instructions      String?                    @db.Text
+  useCaseCategory   ContentTestUseCaseCategory
+  requiredCriteria  String[]
+  capturesPrompts   Boolean                    @default(true)
+  isSensitive       Boolean                    @default(false)
+  isAdversarial     Boolean                    @default(false)
+  followUpQuestions Json?
+  warmupQuestions   Json?
+  wrapUpQuestions   Json?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+
+  promptBank        ContentTestPromptBankItem[]
+  promptEvaluations ContentTestPromptEval[]
+}
+
+model ContentTestCriterion {
+  id             String   @id @default(cuid())
+  key            String   @unique
+  label          String
+  definition     String   @db.Text
+  order          Int      @unique
+  alwaysRequired Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model ContentTestPromptBankItem {
+  id           String                @id @default(cuid())
+  activitySlug String
+  activity     ContentTestActivity   @relation(fields: [activitySlug], references: [slug], onDelete: Cascade)
+  promptText   String                @db.Text
+  topicArea    ContentTestTopicArea?
+  notes        String?               @db.Text
+  isArchived   Boolean               @default(false)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  @@index([activitySlug])
+  @@index([topicArea])
+}
+
+// ---- Operational tables ----
+
+model ContentTestRound {
+  id                 String                 @id @default(cuid())
+  name               String
+  description        String?                @db.Text
+  status             ContentTestRoundStatus @default(PLANNED)
+  defaultEnvironment ContentTestEnvironment @default(STAGING)
+  ownerId            String?
+  owner              User?                  @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  startsAt           DateTime?
+  endsAt             DateTime?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  sessions ContentTestSession[]
+
+  @@index([status])
+}
+
+model ContentTestSession {
+  id                  String                     @id @default(cuid())
+  roundId             String?
+  round               ContentTestRound?          @relation(fields: [roundId], references: [id], onDelete: SetNull)
+  moderatorId         String?
+  moderator           User?                      @relation(fields: [moderatorId], references: [id], onDelete: SetNull)
+  observerIds         String[]
+  participantId       String
+  participantType     ContentTestParticipantType @default(INTERNAL_TESTER)
+  participantNotes    String?                    @db.Text
+  environment         ContentTestEnvironment     @default(STAGING)
+  status              ContentTestSessionStatus   @default(DRAFT)
+  recordingPermission Boolean                    @default(false)
+  consentConfirmed    Boolean                    @default(false)
+  activityProgress    Json?
+  sessionObjective    String?                    @db.Text
+  knownLimitations    String?                    @db.Text
+  accessibilityNotes  String?                    @db.Text
+  startedAt           DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+
+  promptEvaluations ContentTestPromptEval[]
+  warmupAnswers     ContentTestWarmupAnswer[]
+  issues            ContentTestIssue[]
+  summary           ContentTestSummary?
+  inviteTokens      ContentTestInviteToken[]
+
+  @@index([roundId])
+  @@index([status])
+  @@index([participantType])
+}
+
+model ContentTestPromptEval {
+  id                     String                     @id @default(cuid())
+  sessionId              String
+  session                ContentTestSession         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  activitySlug           String
+  activity               ContentTestActivity        @relation(fields: [activitySlug], references: [slug])
+  promptNumber           Int
+  promptText             String                     @db.Text
+  promptSource           ContentTestPromptSource    @default(PREDEFINED)
+  useCaseCategory        ContentTestUseCaseCategory
+  topicArea              ContentTestTopicArea?
+  responseSummary        String?                    @db.Text
+  fullResponse           String?                    @db.Text
+  responseUrl            String?
+  responseVersion        String?
+  participantReaction    String?                    @db.Text
+  keyParticipantQuote    String?                    @db.Text
+  quoteIncluded          Boolean                    @default(false)
+  nextStepIncluded       Boolean                    @default(false)
+  influencerType         String?
+  outOfScopeCategory     String?
+  sensitiveTopicCategory String?
+  misuseType             String?
+  followUpAnswers        Json?
+  toneDescription        String?                    @db.Text
+  observerNotes          String?                    @db.Text
+  moderatorNotes         String?                    @db.Text
+  overallReadiness       ContentTestReadiness?
+  completedAt            DateTime?
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+
+  scores             ContentTestScore[]
+  issues             ContentTestIssue[]
+  quoteEvaluation    ContentTestQuoteEval?
+  nextStepEvaluation ContentTestNextStepEval?
+
+  @@unique([sessionId, activitySlug, promptNumber])
+  @@index([sessionId])
+  @@index([activitySlug])
+  @@index([topicArea])
+}
+
+model ContentTestScore {
+  id           String                @id @default(cuid())
+  promptEvalId String
+  promptEval   ContentTestPromptEval @relation(fields: [promptEvalId], references: [id], onDelete: Cascade)
+  criterionKey String
+  value        Int
+  notes        String?               @db.Text
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  @@unique([promptEvalId, criterionKey])
+  @@index([criterionKey])
+}
+
+model ContentTestIssue {
+  id                        String                          @id @default(cuid())
+  sessionId                 String
+  session                   ContentTestSession              @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  promptEvalId              String?
+  promptEval                ContentTestPromptEval?          @relation(fields: [promptEvalId], references: [id], onDelete: Cascade)
+  issueType                 ContentTestIssueType
+  severity                  ContentTestSeverity             @default(MEDIUM)
+  description               String                          @db.Text
+  evidenceResponse          String?                         @db.Text
+  evidenceParticipant       String?                         @db.Text
+  recommendedAction         ContentTestActionRecommendation @default(EDIT)
+  suggestedRevision         String?                         @db.Text
+  owner                     String?
+  priority                  ContentTestIssuePriority        @default(PHASE_1)
+  status                    ContentTestIssueStatus          @default(OPEN)
+  requiresSme               Boolean                         @default(false)
+  requiresOfficialSource    Boolean                         @default(false)
+  requiresRecruiterReferral Boolean                         @default(false)
+  createdAt                 DateTime                        @default(now())
+  updatedAt                 DateTime                        @updatedAt
+
+  @@index([sessionId])
+  @@index([severity])
+  @@index([issueType])
+  @@index([status])
+}
+
+model ContentTestQuoteEval {
+  id                    String                 @id @default(cuid())
+  promptEvalId          String                 @unique
+  promptEval            ContentTestPromptEval  @relation(fields: [promptEvalId], references: [id], onDelete: Cascade)
+  quoteText             String?                @db.Text
+  quoteSource           String?
+  quoteType             String?
+  authenticity          ContentTestTrinary?
+  value                 ContentTestTrinary?
+  brandSafety           ContentTestTrinary?
+  contextSufficient     ContentTestTrinary?
+  marketingSpeak        Boolean                @default(false)
+  preservesSoldierVoice ContentTestTrinary?
+  sensitiveInfo         ContentTestTrinary?
+  actionRecommendation  ContentTestQuoteAction @default(KEEP)
+  suggestedEdit         String?                @db.Text
+  needsSmeReview        Boolean                @default(false)
+  notes                 String?                @db.Text
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+}
+
+model ContentTestNextStepEval {
+  id                    String                @id @default(cuid())
+  promptEvalId          String                @unique
+  promptEval            ContentTestPromptEval @relation(fields: [promptEvalId], references: [id], onDelete: Cascade)
+  nextStepNeeded        Boolean               @default(true)
+  nextStepProvided      Boolean               @default(false)
+  nextStepType          String?
+  clarity               ContentTestTrinary?
+  appropriateness       ContentTestTrinary?
+  overRecruiterReliance Boolean               @default(false)
+  suggestion            String?               @db.Text
+  notes                 String?               @db.Text
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+}
+
+model ContentTestWarmupAnswer {
+  id          String             @id @default(cuid())
+  sessionId   String
+  session     ContentTestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  questionKey String
+  answer      String?            @db.Text
+  keyQuote    String?            @db.Text
+  themeTags   String[]
+  notes       String?            @db.Text
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([sessionId, questionKey])
+  @@index([sessionId])
+}
+
+model ContentTestSummary {
+  id                              String                @id @default(cuid())
+  sessionId                       String                @unique
+  session                         ContentTestSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  overallHelpfulness              String?               @db.Text
+  strongestContentMoment          String?               @db.Text
+  weakestContentMoment            String?               @db.Text
+  mostConcerningResponse          String?               @db.Text
+  mostAuthenticResponse           String?               @db.Text
+  mostObviousContentGap           String?               @db.Text
+  repeatedTheme                   String?               @db.Text
+  riskyResponse                   String?               @db.Text
+  marketingSpeakExamples          String?               @db.Text
+  expectedTopics                  String?               @db.Text
+  contentGaps                     String?               @db.Text
+  prospectImprovementIdeas        String?               @db.Text
+  influencerImprovementIdeas      String?               @db.Text
+  topImprovement                  String?               @db.Text
+  otherComments                   String?               @db.Text
+  participantTrustLevel           ContentTestLevel?
+  participantPerceivedHelpfulness ContentTestLevel?
+  overallContentReadiness         ContentTestReadiness?
+  topRecommendations              Json?
+  additionalNotes                 String?               @db.Text
+  completedAt                     DateTime?
+  createdAt                       DateTime              @default(now())
+  updatedAt                       DateTime              @updatedAt
+}
+
+model ContentTestInviteToken {
+  id        String             @id @default(cuid())
+  token     String             @unique
+  sessionId String
+  session   ContentTestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  expiresAt DateTime?
+  usedAt    DateTime?
+  createdAt DateTime           @default(now())
+
+  @@index([sessionId])
 }

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { PageHeader } from '@/components/content/page-header'
+import { ContentSubNav } from '@/components/content/sub-nav'
 
 const statusStyles: Record<string, string> = {
   draft: 'bg-muted text-muted-foreground',
@@ -89,7 +90,8 @@ export default function PillResearchListPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-16">
+      <div className="container mx-auto px-4 py-12">
+        <ContentSubNav />
         <PageHeader
           title="Pill Research Projects"
           description="View and manage all segue pill research sessions. Each research project is linked to a Q&A project for testing."
