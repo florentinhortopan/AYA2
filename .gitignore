@@ -37,3 +37,6 @@ next-env.d.ts
 # Keep migrations in version control
 # /prisma/migrations
 
+# moderator guide source docs and working notes (not tracked)
+/mod-guide/
+
