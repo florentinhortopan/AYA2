@@ -11,6 +11,7 @@ export async function GET() {
 
     const [activities, criteria] = await Promise.all([
       prisma.contentTestActivity.findMany({
+        where: { isActive: true },
         orderBy: { order: 'asc' },
         include: {
           promptBank: {

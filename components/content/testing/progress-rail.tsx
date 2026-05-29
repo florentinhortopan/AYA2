@@ -11,6 +11,7 @@ interface Step {
   order: number
   isSensitive?: boolean
   isAdversarial?: boolean
+  useCaseCategory?: string
 }
 
 interface Props {
@@ -20,12 +21,36 @@ interface Props {
   onSelect: (slug: string) => void
 }
 
+type StepGroup = 'session' | 'core' | 'edge'
+
+const GROUP_LABELS: Record<StepGroup, string> = {
+  session: 'Session',
+  core: 'Core Activities',
+  edge: 'Edge / Adversarial',
+}
+
+function groupOf(step: Step): StepGroup {
+  switch (step.useCaseCategory) {
+    case 'CORE_PROSPECT':
+      return 'core'
+    case 'AMBIGUOUS_EDGE_CASE':
+    case 'OUT_OF_SCOPE':
+    case 'SENSITIVE':
+    case 'ADVERSARIAL':
+      return 'edge'
+    default:
+      return 'session'
+  }
+}
+
 export function ProgressRail({ steps, active, statuses, onSelect }: Props) {
   return (
     <ul className="space-y-1 text-sm">
-      {steps.map((s) => {
+      {steps.map((s, i) => {
         const status = statuses[s.slug] ?? 'not_started'
         const isActive = s.slug === active
+        const group = groupOf(s)
+        const showHeader = i === 0 || groupOf(steps[i - 1]) !== group
         const Icon =
           status === 'complete'
             ? CheckCircle2
@@ -36,6 +61,11 @@ export function ProgressRail({ steps, active, statuses, onSelect }: Props) {
             : Circle
         return (
           <li key={s.slug}>
+            {showHeader && (
+              <div className="px-2 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground first:pt-0">
+                {GROUP_LABELS[group]}
+              </div>
+            )}
             <button
               type="button"
               onClick={() => onSelect(s.slug)}

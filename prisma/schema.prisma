@@ -789,6 +789,7 @@ model ContentTestActivity {
   capturesPrompts   Boolean                    @default(true)
   isSensitive       Boolean                    @default(false)
   isAdversarial     Boolean                    @default(false)
+  isActive          Boolean                    @default(true)
   followUpQuestions Json?
   warmupQuestions   Json?
   wrapUpQuestions   Json?
@@ -797,6 +798,8 @@ model ContentTestActivity {
 
   promptBank        ContentTestPromptBankItem[]
   promptEvaluations ContentTestPromptEval[]
+
+  @@index([isActive])
 }
 
 model ContentTestCriterion {

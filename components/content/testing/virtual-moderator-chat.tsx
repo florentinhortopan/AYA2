@@ -214,6 +214,7 @@ export function VirtualModeratorChat({ activities, session: initialSession }: Pr
               order: a.order,
               isSensitive: a.isSensitive,
               isAdversarial: a.isAdversarial,
+              useCaseCategory: a.useCaseCategory,
             }))}
             active={activeSlug}
             statuses={statuses}

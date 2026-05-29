@@ -25,6 +25,20 @@ async function seedContentTestingCatalog() {
   }
 
   console.log('[seed] Content Testing — activities…')
+  const catalogSlugs = new Set(ACTIVITIES.map((a) => a.slug))
+
+  // `order` is unique. Before re-applying canonical orders, bump every existing
+  // activity into a temporary high range so renumbering never collides.
+  const existingActivities = await prisma.contentTestActivity.findMany({
+    select: { id: true, slug: true, order: true },
+  })
+  for (const e of existingActivities) {
+    await prisma.contentTestActivity.update({
+      where: { id: e.id },
+      data: { order: e.order + 100000 },
+    })
+  }
+
   for (const a of ACTIVITIES) {
     const followUp: Prisma.InputJsonValue | typeof Prisma.JsonNull = a.followUpQuestions
       ? (a.followUpQuestions as unknown as Prisma.InputJsonValue)
@@ -50,6 +64,7 @@ async function seedContentTestingCatalog() {
         capturesPrompts: a.capturesPrompts,
         isSensitive: !!a.isSensitive,
         isAdversarial: !!a.isAdversarial,
+        isActive: true,
         followUpQuestions: followUp,
         warmupQuestions: warmup,
         wrapUpQuestions: wrapUp,
@@ -65,11 +80,28 @@ async function seedContentTestingCatalog() {
         capturesPrompts: a.capturesPrompts,
         isSensitive: !!a.isSensitive,
         isAdversarial: !!a.isAdversarial,
+        isActive: true,
         followUpQuestions: followUp,
         warmupQuestions: warmup,
         wrapUpQuestions: wrapUp,
       },
     })
+  }
+
+  // Retire activities no longer in the catalog without deleting historical data:
+  // deactivate them and archive their prompt-bank items. Their bumped (high)
+  // order values are left in place so they never collide with active entries.
+  const retired = existingActivities.filter((e) => !catalogSlugs.has(e.slug))
+  for (const r of retired) {
+    await prisma.contentTestActivity.update({
+      where: { slug: r.slug },
+      data: { isActive: false },
+    })
+    await prisma.contentTestPromptBankItem.updateMany({
+      where: { activitySlug: r.slug },
+      data: { isArchived: true },
+    })
+    console.log(`[seed] Retired activity "${r.slug}" (isActive=false, prompt bank archived)`)
   }
 
   console.log('[seed] Content Testing — prompt bank…')

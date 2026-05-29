@@ -46,11 +46,11 @@ User `role` is stored on the `User` model (`UserRole { ADMIN, MEMBER }`). The se
 
 A three-pane "Virtual Moderator" experience.
 
-- **Left rail**: 15-step progress (Setup → Intro & Consent → Warm-up → Activities 1–9 → Wrap-up → Session Summary → Review & Complete) with not-started / in-progress / complete / needs-review states.
+- **Left rail**: 14-step progress, grouped into Session / Core Activities / Edge & Adversarial (Setup → Intro & Consent → Warm-up → Core 1–4 → Edge 5–8 → Wrap-up → Session Summary → Review & Complete) with not-started / in-progress / complete / needs-review states.
 - **Center**: contextual activity body
   - Setup, Intro & Consent: confirm metadata, read script, capture consent + recording flag.
   - Warm-up & Wrap-up: structured question/answer cards.
-  - Core activities 1–9: predefined prompt chips + free-text prompt entry → expandable prompt evaluation cards with tabs (Response, Scores, Issues, Quote, Next step). Autosaves every ~1.2s.
+  - Core (1–4) and Edge (5–8) activities: predefined prompt chips + free-text prompt entry → expandable prompt evaluation cards with tabs (Response, Scores, Issues, Quote, Next step). Autosaves every ~1.2s. The Quote tab is optional, used only when a response includes a quote.
   - Session Summary: moderator-level summary capture (trust / helpfulness / readiness, top recommendations).
   - Review & Complete: checklist + "Mark session complete".
 - **Right rail (xl+)**: required scoring criteria for the current activity, activity objective, sensitive/adversarial tone reminders.
@@ -83,27 +83,28 @@ Rules:
 
 ## 6. Activity catalog
 
-The seeded catalog (`lib/content-testing/catalog.ts`) contains 15 activities matching the moderator guide:
+The seeded catalog (`lib/content-testing/catalog.ts`) contains 14 activities matching the revised moderator guide. Testing is organized into two question categories — **Core Use Cases** (4 topics) and **Edge / Out-of-Scope** (4 adversarial/misuse activities) — for a target session length of 25–30 minutes.
 
 | Order | Slug | Type | Captures prompts | Required criteria |
 | ---: | --- | --- | :---: | --- |
 | 1 | setup | Setup | – | – |
 | 2 | introduction-and-consent | Intro & Consent | – | – |
 | 3 | warm-up | Warm-up | – | – |
-| 4 | common-prospect-questions | Core | ✓ | 11 core |
-| 5 | influencer-supporter-questions | Core | ✓ | 11 core |
-| 6 | quote-and-soldier-perspective | Quote | ✓ | 11 core + quote_usefulness |
-| 7 | brand-voice-and-tone | Brand voice | ✓ | 11 core |
-| 8 | accuracy-and-completeness | Accuracy | ✓ | 11 core |
-| 9 | ambiguous-questions | Edge | ✓ | 11 core |
-| 10 | out-of-scope-questions | Out-of-scope | ✓ | 11 core |
-| 11 | sensitive-content | Sensitive | ✓ | 11 core + sensitivity_handling |
-| 12 | adversarial-prompts | Adversarial | ✓ | 11 core + sensitivity_handling |
-| 13 | wrap-up | Wrap-up | – | – |
-| 14 | session-summary | Summary | – | – |
-| 15 | review-and-complete | Close | – | – |
+| 4 | core-joining-the-army | Core: Joining the Army | ✓ | 11 core |
+| 5 | core-culture-lifestyle | Core: Army Culture & Lifestyle | ✓ | 11 core |
+| 6 | core-jobs-careers | Core: Jobs & Career Paths | ✓ | 11 core |
+| 7 | core-benefits | Core: Short-/Long-term Benefits | ✓ | 11 core |
+| 8 | ambiguous-questions | Edge: Ambiguous | ✓ | 11 core |
+| 9 | out-of-scope-questions | Edge: Out-of-scope / High-specificity | ✓ | 11 core |
+| 10 | sensitive-content | Edge: Sensitive | ✓ | 11 core + sensitivity_handling |
+| 11 | adversarial-prompts | Edge: Misuse / "Break the Bot" | ✓ | 11 core + sensitivity_handling |
+| 12 | wrap-up | Wrap-up | – | – |
+| 13 | session-summary | Summary | – | – |
+| 14 | review-and-complete | Close | – | – |
 
 Core criteria (11): relevance, completeness, accuracy, clarity, readability, authenticity, trustworthiness, brand_voice, brand_safety, next_best_action, overall_readiness.
+
+Quote evaluation and Next-Best-Action evaluation are optional, captured per prompt when a response includes a quote or should provide a next step — there is no longer a dedicated influencer/supporter or quote activity. Retired activities (`common-prospect-questions`, `influencer-supporter-questions`, `quote-and-soldier-perspective`, `brand-voice-and-tone`, `accuracy-and-completeness`) are deactivated via `ContentTestActivity.isActive = false` by the seed (non-destructive), so historical session data is preserved while they no longer appear in the run flow or prompt bank.
 
 ## 7. Data model
 
