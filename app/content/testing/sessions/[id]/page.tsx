@@ -22,7 +22,7 @@ import {
   SESSION_STATUS_STYLES,
   TOPIC_AREA_LABELS,
 } from '@/types/content-testing'
-import { Download } from 'lucide-react'
+import { Download, ClipboardList } from 'lucide-react'
 
 interface SessionDetail {
   id: string
@@ -126,6 +126,16 @@ export default function SessionDetailPage() {
                 <Button variant="outline" asChild>
                   <a href={`/api/content-testing/export?type=raw&sessionId=${data.id}&format=json`}>
                     <Download className="mr-2 h-4 w-4" /> JSON
+                  </a>
+                </Button>
+                <Button variant="outline" asChild>
+                  <a href={`/api/content-testing/export?type=intake&sessionId=${data.id}&format=md`}>
+                    <ClipboardList className="mr-2 h-4 w-4" /> Intake mask (MD)
+                  </a>
+                </Button>
+                <Button variant="outline" asChild>
+                  <a href={`/api/content-testing/export?type=intake&sessionId=${data.id}&format=csv`}>
+                    <ClipboardList className="mr-2 h-4 w-4" /> Intake mask (CSV)
                   </a>
                 </Button>
               </div>

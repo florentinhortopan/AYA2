@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/db'
 import { requireAuthed, handleApiError } from '@/lib/content-testing/authz'
 import {
   fetchRawPromptEvals,
@@ -8,6 +9,11 @@ import {
   toCsv,
   backlogCsvColumns,
 } from '@/lib/content-testing/exports'
+import {
+  buildIntakeMaskMarkdown,
+  buildIntakeMaskCsv,
+  type IntakeMaskSession,
+} from '@/lib/content-testing/intake-mask'
 import { buildAggregations } from '@/lib/content-testing/aggregations'
 
 export const dynamic = 'force-dynamic'
@@ -21,6 +27,44 @@ export async function GET(req: NextRequest) {
     const type = (url.searchParams.get('type') ?? 'raw').toLowerCase()
     const roundId = url.searchParams.get('roundId')
     const sessionId = url.searchParams.get('sessionId')
+
+    if (type === 'intake') {
+      let session: IntakeMaskSession | null = null
+      if (sessionId) {
+        session = (await prisma.contentTestSession.findUnique({
+          where: { id: sessionId },
+          select: {
+            id: true,
+            participantId: true,
+            participantType: true,
+            environment: true,
+            recordingPermission: true,
+            sessionObjective: true,
+            startedAt: true,
+            createdAt: true,
+            round: { select: { name: true } },
+            moderator: { select: { name: true, email: true } },
+          },
+        })) as unknown as IntakeMaskSession | null
+      }
+      const stamp = new Date().toISOString().slice(0, 10)
+      const slug = session ? `${session.participantId}-${stamp}` : `blank-${stamp}`
+      if (format === 'csv') {
+        return new NextResponse(buildIntakeMaskCsv(session), {
+          headers: {
+            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Disposition': `attachment; filename="intake-mask-${slug}.csv"`,
+          },
+        })
+      }
+      // default: markdown
+      return new NextResponse(buildIntakeMaskMarkdown(session), {
+        headers: {
+          'Content-Type': 'text/markdown; charset=utf-8',
+          'Content-Disposition': `attachment; filename="intake-mask-${slug}.md"`,
+        },
+      })
+    }
 
     if (type === 'raw') {
       const rows = await fetchRawPromptEvals({ roundId, sessionId })
