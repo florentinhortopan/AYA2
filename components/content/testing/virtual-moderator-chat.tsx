@@ -40,6 +40,7 @@ import {
   Save,
   Sparkles,
   ListChecks,
+  Trash2,
 } from 'lucide-react'
 
 interface Activity {
@@ -905,10 +906,34 @@ function CoreActivity({
     await onMarkInProgress()
   }
 
+  const removePrompt = async (id: string) => {
+    if (!window.confirm('Remove this prompt and all its scores, issues, and notes? This cannot be undone.')) return
+    const r = await fetch(`/api/content-testing/prompt-evals/${id}`, { method: 'DELETE' })
+    if (!r.ok) {
+      toast({ title: 'Could not remove prompt', variant: 'destructive' })
+      return
+    }
+    if (activePromptId === id) setActivePromptId(null)
+    await refresh()
+  }
+
   const completed = evals.filter((e) => e.completedAt).length
+  const incomplete = evals.length - completed
   const allRequiredMet = (pe: PromptEval) => {
     const scoredKeys = new Set(pe.scores.map((s) => s.criterionKey))
     return activity.requiredCriteria.every((k) => scoredKeys.has(k))
+  }
+
+  const handleMarkActivityComplete = async () => {
+    if (
+      incomplete > 0 &&
+      !window.confirm(
+        `${incomplete} prompt${incomplete === 1 ? ' is' : 's are'} not fully scored. Mark this activity complete and continue anyway?`
+      )
+    ) {
+      return
+    }
+    await onComplete()
   }
 
   return (
@@ -972,8 +997,7 @@ function CoreActivity({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onComplete()}
-              disabled={evals.length === 0 || evals.some((e) => !e.completedAt)}
+              onClick={handleMarkActivityComplete}
             >
               <ListChecks className="mr-2 h-4 w-4" /> Mark activity complete
             </Button>
@@ -989,6 +1013,7 @@ function CoreActivity({
           isOpen={activePromptId === pe.id}
           onToggle={() => setActivePromptId(activePromptId === pe.id ? null : pe.id)}
           onAnyChange={refresh}
+          onDelete={() => removePrompt(pe.id)}
           allRequiredMet={allRequiredMet(pe)}
         />
       ))}
@@ -1021,6 +1046,7 @@ function PromptEvalCard({
   isOpen,
   onToggle,
   onAnyChange,
+  onDelete,
   allRequiredMet,
 }: {
   activity: Activity
@@ -1028,6 +1054,7 @@ function PromptEvalCard({
   isOpen: boolean
   onToggle: () => void
   onAnyChange: () => Promise<void> | void
+  onDelete: () => void | Promise<void>
   allRequiredMet: boolean
 }) {
   const { toast } = useToast()
@@ -1169,27 +1196,39 @@ function PromptEvalCard({
 
   return (
     <Card className="border-border/50">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full text-left p-4 flex items-start gap-3 hover:bg-muted/20 transition-colors"
-      >
-        <Badge variant="outline" className="text-xs mt-0.5">#{promptEval.promptNumber}</Badge>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium leading-snug">{promptEval.promptText}</div>
-          <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-            <span>{promptEval.scores.length} / {activity.requiredCriteria.length} required scores</span>
-            {promptEval.issues.length > 0 && <span>· {promptEval.issues.length} issues</span>}
-            {promptEval.completedAt && (
-              <span className="text-green-500 inline-flex items-center gap-1">
-                · <CheckCircle2 className="h-3 w-3" /> complete
-              </span>
-            )}
-            {savingTag && <span className="inline-flex items-center gap-1">· <Loader2 className="h-3 w-3 animate-spin" /> saving</span>}
-            {!savingTag && savedAt && <span>· saved {formatRelative(savedAt)}</span>}
+      <div className="flex items-start">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex-1 min-w-0 text-left p-4 flex items-start gap-3 hover:bg-muted/20 transition-colors"
+        >
+          <Badge variant="outline" className="text-xs mt-0.5">#{promptEval.promptNumber}</Badge>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium leading-snug">{promptEval.promptText}</div>
+            <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+              <span>{promptEval.scores.length} / {activity.requiredCriteria.length} required scores</span>
+              {promptEval.issues.length > 0 && <span>· {promptEval.issues.length} issues</span>}
+              {promptEval.completedAt && (
+                <span className="text-green-500 inline-flex items-center gap-1">
+                  · <CheckCircle2 className="h-3 w-3" /> complete
+                </span>
+              )}
+              {savingTag && <span className="inline-flex items-center gap-1">· <Loader2 className="h-3 w-3 animate-spin" /> saving</span>}
+              {!savingTag && savedAt && <span>· saved {formatRelative(savedAt)}</span>}
+            </div>
           </div>
-        </div>
-      </button>
+        </button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => onDelete()}
+          aria-label="Remove prompt"
+          className="m-2 shrink-0 text-muted-foreground hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
 
       {isOpen && (
         <CardContent className="border-t border-border/30 pt-4 space-y-4">
