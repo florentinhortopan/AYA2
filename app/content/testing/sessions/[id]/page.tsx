@@ -129,6 +129,11 @@ export default function SessionDetailPage() {
                   </a>
                 </Button>
                 <Button variant="outline" asChild>
+                  <a href={`/api/content-testing/export?type=intake&sessionId=${data.id}&format=xlsx`}>
+                    <ClipboardList className="mr-2 h-4 w-4" /> Intake mask (XLSX)
+                  </a>
+                </Button>
+                <Button variant="outline" asChild>
                   <a href={`/api/content-testing/export?type=intake&sessionId=${data.id}&format=md`}>
                     <ClipboardList className="mr-2 h-4 w-4" /> Intake mask (MD)
                   </a>

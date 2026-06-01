@@ -79,6 +79,11 @@ export default function SessionsListPage() {
             actions={(
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" asChild>
+                  <a href="/api/content-testing/export?type=intake&format=xlsx">
+                    <ClipboardList className="mr-2 h-4 w-4" /> Blank intake mask (XLSX)
+                  </a>
+                </Button>
+                <Button variant="outline" asChild>
                   <a href="/api/content-testing/export?type=intake&format=md">
                     <ClipboardList className="mr-2 h-4 w-4" /> Blank intake mask (MD)
                   </a>

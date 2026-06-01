@@ -252,9 +252,52 @@ export function intakeMaskCsvColumns(): string[] {
   ]
 }
 
-export function buildIntakeMaskCsv(session: IntakeMaskSession | null): string {
-  const columns = intakeMaskCsvColumns()
-  const meta = {
+/** Human-friendly column headers for spreadsheet output. */
+export const INTAKE_COLUMN_LABELS: Record<string, string> = {
+  session_id: 'Session ID',
+  date: 'Date',
+  moderator: 'Moderator',
+  note_taker: 'Note-taker',
+  participant_id: 'Participant ID',
+  participant_type: 'Participant Type',
+  testing_round: 'Testing Round',
+  environment: 'Environment',
+  recording_available: 'Recording?',
+  category: 'Category',
+  activity_slug: 'Activity Slug',
+  activity_title: 'Activity',
+  prompt_number: '#',
+  prompt_text: 'Prompt Asked',
+  prompt_source: 'Source',
+  topic_area: 'Topic',
+  response_summary: 'Response Summary',
+  ...Object.fromEntries(CRITERIA.map((c) => [c.key, CRITERION_LABELS[c.key] ?? c.label])),
+  quote_included: 'Quote Included?',
+  next_step_included: 'Next Step Included?',
+  next_step_type: 'Next Step Type',
+  issue_type: 'Issue Type',
+  issue_severity: 'Issue Severity',
+  issue_note: 'Issue Note',
+  participant_reaction: 'Participant Reaction',
+  key_quote: 'Key Quote',
+  notes: 'Notes',
+}
+
+/** Option lists used for spreadsheet dropdown validation and the markdown legend. */
+export const INTAKE_VALIDATION = {
+  criteriaKeys: CRITERIA.map((c) => c.key),
+  scoreValues: ['1', '2', '3', '4', '5'],
+  yesNo: ['Yes', 'No'],
+  promptSources: PROMPT_SOURCES,
+  severities: SEVERITIES.map((s) => s.toUpperCase()),
+  issueTypes: Object.keys(ISSUE_TYPE_LABELS),
+  topicAreas: Object.keys(TOPIC_AREA_LABELS),
+  nextStepTypes: NEXT_STEP_TYPES,
+  scoringScale: SCORING_SCALE,
+}
+
+function intakeMeta(session: IntakeMaskSession | null): Record<string, string> {
+  return {
     session_id: session?.id ?? '',
     date: session ? sessionDate(session) : '',
     moderator: session?.moderator?.name ?? session?.moderator?.email ?? '',
@@ -267,7 +310,15 @@ export function buildIntakeMaskCsv(session: IntakeMaskSession | null): string {
     environment: session ? ENVIRONMENT_LABELS[session.environment] ?? session.environment : '',
     recording_available: session ? (session.recordingPermission ? 'Yes' : 'No') : '',
   }
+}
 
+/**
+ * One scaffolded row per prompt across every capturing activity. Predefined
+ * prompts seed a starting script; additional blank rows let the note-taker
+ * record improvised prompts. Shared by the CSV and XLSX exports.
+ */
+export function buildIntakeMaskRows(session: IntakeMaskSession | null): Record<string, unknown>[] {
+  const meta = intakeMeta(session)
   const rows: Record<string, unknown>[] = []
   for (const a of capturingActivities()) {
     const base = {
@@ -278,7 +329,6 @@ export function buildIntakeMaskCsv(session: IntakeMaskSession | null): string {
     }
     const predefined = a.promptBank ?? []
     let n = 1
-    // Seed rows from predefined prompts so the note-taker has a starting script.
     for (const p of predefined) {
       rows.push({
         ...base,
@@ -288,12 +338,33 @@ export function buildIntakeMaskCsv(session: IntakeMaskSession | null): string {
         topic_area: p.topicArea ?? '',
       })
     }
-    // Plus blank rows for prompts the tester improvises.
     for (let i = 0; i < BLANK_ROWS_PER_ACTIVITY; i++) {
       rows.push({ ...base, prompt_number: n++ })
     }
   }
+  return rows
+}
 
+/** Key/value pairs for the spreadsheet "Session Info" sheet. */
+export function intakeMaskMetaPairs(session: IntakeMaskSession | null): Array<[string, string]> {
+  const meta = intakeMeta(session)
+  return [
+    ['Session ID', meta.session_id],
+    ['Date', meta.date],
+    ['Moderator', meta.moderator],
+    ['Note-taker', meta.note_taker],
+    ['Participant ID', meta.participant_id],
+    ['Participant Type', meta.participant_type],
+    ['Testing Round', meta.testing_round],
+    ['Environment', meta.environment],
+    ['Recording available?', meta.recording_available],
+    ['Session objective', session?.sessionObjective ?? ''],
+  ]
+}
+
+export function buildIntakeMaskCsv(session: IntakeMaskSession | null): string {
+  const columns = intakeMaskCsvColumns()
+  const rows = buildIntakeMaskRows(session)
   const header = columns.map(escapeCsvCell).join(',')
   const body = rows.map((r) => columns.map((c) => escapeCsvCell(r[c])).join(',')).join('\n')
   return `${header}\n${body}\n`

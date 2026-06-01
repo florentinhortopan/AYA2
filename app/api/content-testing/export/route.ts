@@ -12,6 +12,11 @@ import {
 import {
   buildIntakeMaskMarkdown,
   buildIntakeMaskCsv,
+  buildIntakeMaskRows,
+  intakeMaskCsvColumns,
+  intakeMaskMetaPairs,
+  INTAKE_COLUMN_LABELS,
+  INTAKE_VALIDATION,
   type IntakeMaskSession,
 } from '@/lib/content-testing/intake-mask'
 import { buildAggregations } from '@/lib/content-testing/aggregations'
@@ -54,6 +59,15 @@ export async function GET(req: NextRequest) {
           headers: {
             'Content-Type': 'text/csv; charset=utf-8',
             'Content-Disposition': `attachment; filename="intake-mask-${slug}.csv"`,
+          },
+        })
+      }
+      if (format === 'xlsx') {
+        const buf = await buildIntakeMaskXlsx(session)
+        return new NextResponse(buf as unknown as BodyInit, {
+          headers: {
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename="intake-mask-${slug}.xlsx"`,
           },
         })
       }
@@ -261,4 +275,78 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     return handleApiError(err)
   }
+}
+
+async function buildIntakeMaskXlsx(session: IntakeMaskSession | null) {
+  const { default: ExcelJS } = await import('exceljs')
+  const wb = new ExcelJS.Workbook()
+  wb.creator = 'Army Answers Content Testing'
+  wb.created = new Date()
+
+  // Session Info sheet — metadata, scoring scale, and enum reference.
+  const info = wb.addWorksheet('Session Info')
+  info.columns = [{ width: 26 }, { width: 70 }]
+  info.addRow(['Field', 'Value']).font = { bold: true }
+  for (const [label, value] of intakeMaskMetaPairs(session)) info.addRow([label, value])
+  info.addRow([])
+  info.addRow(['Scoring scale', INTAKE_VALIDATION.scoringScale]).getCell(1).font = { bold: true }
+  info.addRow([])
+  info.addRow(['Reference', '']).getCell(1).font = { bold: true }
+  info.addRow(['Criteria', INTAKE_VALIDATION.criteriaKeys.join(', ')])
+  info.addRow(['Severities', INTAKE_VALIDATION.severities.join(', ')])
+  info.addRow(['Issue types', INTAKE_VALIDATION.issueTypes.join(', ')])
+  info.addRow(['Topic areas', INTAKE_VALIDATION.topicAreas.join(', ')])
+  info.addRow(['Next step types', INTAKE_VALIDATION.nextStepTypes.join(', ')])
+  info.getColumn(2).alignment = { wrapText: true, vertical: 'top' }
+
+  // Prompts scaffold sheet — one row per prompt for every activity, ready to fill.
+  const columns = intakeMaskCsvColumns()
+  const rows = buildIntakeMaskRows(session)
+  const sheet = wb.addWorksheet('Prompts')
+  const headerRow = sheet.addRow(columns.map((c) => INTAKE_COLUMN_LABELS[c] ?? c))
+  headerRow.font = { bold: true }
+  for (const r of rows) sheet.addRow(columns.map((c) => (r as Record<string, unknown>)[c] ?? ''))
+  sheet.views = [{ state: 'frozen', ySplit: 1 }]
+  sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columns.length } }
+
+  const wide = new Set([
+    'prompt_text',
+    'response_summary',
+    'participant_reaction',
+    'key_quote',
+    'notes',
+    'issue_note',
+  ])
+  columns.forEach((c, i) => {
+    const col = sheet.getColumn(i + 1)
+    col.width = wide.has(c) ? 32 : Math.max(10, Math.min(24, (INTAKE_COLUMN_LABELS[c] ?? c).length + 4))
+    if (wide.has(c)) col.alignment = { wrapText: true, vertical: 'top' }
+  })
+
+  // Dropdown validation on each fillable cell so note-takers fill consistently.
+  const lastRow = rows.length + 1
+  const applyList = (colKey: string, list: string[]) => {
+    const idx = columns.indexOf(colKey)
+    if (idx < 0) return
+    const joined = list.join(',')
+    if (joined.length > 250) return
+    const letter = sheet.getColumn(idx + 1).letter
+    for (let r = 2; r <= lastRow; r++) {
+      sheet.getCell(`${letter}${r}`).dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: [`"${joined}"`],
+      }
+    }
+  }
+  for (const key of INTAKE_VALIDATION.criteriaKeys) applyList(key, INTAKE_VALIDATION.scoreValues)
+  applyList('prompt_source', INTAKE_VALIDATION.promptSources)
+  applyList('topic_area', INTAKE_VALIDATION.topicAreas)
+  applyList('issue_type', INTAKE_VALIDATION.issueTypes)
+  applyList('issue_severity', INTAKE_VALIDATION.severities)
+  applyList('next_step_type', INTAKE_VALIDATION.nextStepTypes)
+  applyList('quote_included', INTAKE_VALIDATION.yesNo)
+  applyList('next_step_included', INTAKE_VALIDATION.yesNo)
+
+  return wb.xlsx.writeBuffer()
 }
