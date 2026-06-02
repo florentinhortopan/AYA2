@@ -20,7 +20,7 @@ import {
   SESSION_STATUS_LABELS,
   SESSION_STATUS_STYLES,
 } from '@/types/content-testing'
-import { ClipboardList } from 'lucide-react'
+import { ClipboardList, Presentation } from 'lucide-react'
 
 interface Round {
   id: string
@@ -78,6 +78,11 @@ export default function SessionsListPage() {
             description="All content testing sessions across rounds."
             actions={(
               <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" asChild>
+                  <Link href="/content/testing/script">
+                    <Presentation className="mr-2 h-4 w-4" /> Interviewer script
+                  </Link>
+                </Button>
                 <Button variant="outline" asChild>
                   <a href="/api/content-testing/export?type=intake&format=xlsx">
                     <ClipboardList className="mr-2 h-4 w-4" /> Blank intake mask (XLSX)

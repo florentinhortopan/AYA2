@@ -22,7 +22,7 @@ import {
   SESSION_STATUS_STYLES,
   TOPIC_AREA_LABELS,
 } from '@/types/content-testing'
-import { Download, ClipboardList } from 'lucide-react'
+import { Download, ClipboardList, Presentation } from 'lucide-react'
 
 interface SessionDetail {
   id: string
@@ -114,18 +114,23 @@ export default function SessionDetailPage() {
                   </Link>
                 )}
                 <Button variant="outline" asChild>
+                  <Link href={`/content/testing/script?sessionId=${data.id}`}>
+                    <Presentation className="mr-2 h-4 w-4" /> Interviewer script
+                  </Link>
+                </Button>
+                <Button variant="outline" asChild>
                   <a href={`/api/content-testing/export?type=raw&sessionId=${data.id}&format=csv`}>
-                    <Download className="mr-2 h-4 w-4" /> CSV
+                    <Download className="mr-2 h-4 w-4" /> Raw data (CSV)
                   </a>
                 </Button>
                 <Button variant="outline" asChild>
                   <a href={`/api/content-testing/export?type=raw&sessionId=${data.id}&format=xlsx`}>
-                    <Download className="mr-2 h-4 w-4" /> XLSX
+                    <Download className="mr-2 h-4 w-4" /> Raw data (XLSX)
                   </a>
                 </Button>
                 <Button variant="outline" asChild>
                   <a href={`/api/content-testing/export?type=raw&sessionId=${data.id}&format=json`}>
-                    <Download className="mr-2 h-4 w-4" /> JSON
+                    <Download className="mr-2 h-4 w-4" /> Raw data (JSON)
                   </a>
                 </Button>
                 <Button variant="outline" asChild>

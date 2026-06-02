@@ -13,11 +13,12 @@ import {
   buildIntakeMaskMarkdown,
   buildIntakeMaskCsv,
   buildIntakeMaskRows,
-  intakeMaskCsvColumns,
+  intakeMaskColumns,
+  intakeColumnLabels,
   intakeMaskMetaPairs,
-  INTAKE_COLUMN_LABELS,
-  INTAKE_VALIDATION,
+  intakeValidation,
   type IntakeMaskSession,
+  type IntakeCatalog,
 } from '@/lib/content-testing/intake-mask'
 import { buildAggregations } from '@/lib/content-testing/aggregations'
 
@@ -52,10 +53,11 @@ export async function GET(req: NextRequest) {
           },
         })) as unknown as IntakeMaskSession | null
       }
+      const catalog = await fetchIntakeCatalog()
       const stamp = new Date().toISOString().slice(0, 10)
       const slug = session ? `${session.participantId}-${stamp}` : `blank-${stamp}`
       if (format === 'csv') {
-        return new NextResponse(buildIntakeMaskCsv(session), {
+        return new NextResponse(buildIntakeMaskCsv(session, catalog), {
           headers: {
             'Content-Type': 'text/csv; charset=utf-8',
             'Content-Disposition': `attachment; filename="intake-mask-${slug}.csv"`,
@@ -63,7 +65,7 @@ export async function GET(req: NextRequest) {
         })
       }
       if (format === 'xlsx') {
-        const buf = await buildIntakeMaskXlsx(session)
+        const buf = await buildIntakeMaskXlsx(session, catalog)
         return new NextResponse(buf as unknown as BodyInit, {
           headers: {
             'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -72,7 +74,7 @@ export async function GET(req: NextRequest) {
         })
       }
       // default: markdown
-      return new NextResponse(buildIntakeMaskMarkdown(session), {
+      return new NextResponse(buildIntakeMaskMarkdown(session, catalog), {
         headers: {
           'Content-Type': 'text/markdown; charset=utf-8',
           'Content-Disposition': `attachment; filename="intake-mask-${slug}.md"`,
@@ -277,8 +279,58 @@ export async function GET(req: NextRequest) {
   }
 }
 
-async function buildIntakeMaskXlsx(session: IntakeMaskSession | null) {
+/**
+ * Build the intake-mask catalog from the LIVE database so the generated files
+ * always reflect the activities currently configured for sessions. Only active
+ * activities and non-archived prompts are included, matching the moderator UI.
+ */
+async function fetchIntakeCatalog(): Promise<IntakeCatalog> {
+  const [activities, criteria] = await Promise.all([
+    prisma.contentTestActivity.findMany({
+      where: { isActive: true },
+      orderBy: { order: 'asc' },
+      include: {
+        promptBank: {
+          where: { isArchived: false },
+          orderBy: { createdAt: 'asc' },
+          select: { promptText: true, topicArea: true },
+        },
+      },
+    }),
+    prisma.contentTestCriterion.findMany({
+      orderBy: { order: 'asc' },
+      select: { key: true, label: true },
+    }),
+  ])
+
+  return {
+    activities: activities.map((a) => ({
+      slug: a.slug,
+      order: a.order,
+      title: a.title,
+      objective: a.objective,
+      useCaseCategory: a.useCaseCategory as string,
+      capturesPrompts: a.capturesPrompts,
+      isSensitive: a.isSensitive,
+      isAdversarial: a.isAdversarial,
+      followUpQuestions: (a.followUpQuestions as string[] | null) ?? null,
+      warmupQuestions:
+        (a.warmupQuestions as Array<{ key: string; question: string }> | null) ?? null,
+      wrapUpQuestions:
+        (a.wrapUpQuestions as Array<{ key: string; question: string }> | null) ?? null,
+      promptBank: a.promptBank.map((p) => ({
+        promptText: p.promptText,
+        topicArea: (p.topicArea as string | null) ?? null,
+      })),
+    })),
+    criteria: criteria.map((c) => ({ key: c.key, label: c.label })),
+  }
+}
+
+async function buildIntakeMaskXlsx(session: IntakeMaskSession | null, catalog: IntakeCatalog) {
   const { default: ExcelJS } = await import('exceljs')
+  const validation = intakeValidation(catalog)
+  const labels = intakeColumnLabels(catalog)
   const wb = new ExcelJS.Workbook()
   wb.creator = 'Army Answers Content Testing'
   wb.created = new Date()
@@ -289,21 +341,21 @@ async function buildIntakeMaskXlsx(session: IntakeMaskSession | null) {
   info.addRow(['Field', 'Value']).font = { bold: true }
   for (const [label, value] of intakeMaskMetaPairs(session)) info.addRow([label, value])
   info.addRow([])
-  info.addRow(['Scoring scale', INTAKE_VALIDATION.scoringScale]).getCell(1).font = { bold: true }
+  info.addRow(['Scoring scale', validation.scoringScale]).getCell(1).font = { bold: true }
   info.addRow([])
   info.addRow(['Reference', '']).getCell(1).font = { bold: true }
-  info.addRow(['Criteria', INTAKE_VALIDATION.criteriaKeys.join(', ')])
-  info.addRow(['Severities', INTAKE_VALIDATION.severities.join(', ')])
-  info.addRow(['Issue types', INTAKE_VALIDATION.issueTypes.join(', ')])
-  info.addRow(['Topic areas', INTAKE_VALIDATION.topicAreas.join(', ')])
-  info.addRow(['Next step types', INTAKE_VALIDATION.nextStepTypes.join(', ')])
+  info.addRow(['Criteria', validation.criteriaKeys.join(', ')])
+  info.addRow(['Severities', validation.severities.join(', ')])
+  info.addRow(['Issue types', validation.issueTypes.join(', ')])
+  info.addRow(['Topic areas', validation.topicAreas.join(', ')])
+  info.addRow(['Next step types', validation.nextStepTypes.join(', ')])
   info.getColumn(2).alignment = { wrapText: true, vertical: 'top' }
 
   // Prompts scaffold sheet — one row per prompt for every activity, ready to fill.
-  const columns = intakeMaskCsvColumns()
-  const rows = buildIntakeMaskRows(session)
+  const columns = intakeMaskColumns(catalog)
+  const rows = buildIntakeMaskRows(session, catalog)
   const sheet = wb.addWorksheet('Prompts')
-  const headerRow = sheet.addRow(columns.map((c) => INTAKE_COLUMN_LABELS[c] ?? c))
+  const headerRow = sheet.addRow(columns.map((c) => labels[c] ?? c))
   headerRow.font = { bold: true }
   for (const r of rows) sheet.addRow(columns.map((c) => (r as Record<string, unknown>)[c] ?? ''))
   sheet.views = [{ state: 'frozen', ySplit: 1 }]
@@ -319,7 +371,7 @@ async function buildIntakeMaskXlsx(session: IntakeMaskSession | null) {
   ])
   columns.forEach((c, i) => {
     const col = sheet.getColumn(i + 1)
-    col.width = wide.has(c) ? 32 : Math.max(10, Math.min(24, (INTAKE_COLUMN_LABELS[c] ?? c).length + 4))
+    col.width = wide.has(c) ? 32 : Math.max(10, Math.min(24, (labels[c] ?? c).length + 4))
     if (wide.has(c)) col.alignment = { wrapText: true, vertical: 'top' }
   })
 
@@ -339,14 +391,14 @@ async function buildIntakeMaskXlsx(session: IntakeMaskSession | null) {
       }
     }
   }
-  for (const key of INTAKE_VALIDATION.criteriaKeys) applyList(key, INTAKE_VALIDATION.scoreValues)
-  applyList('prompt_source', INTAKE_VALIDATION.promptSources)
-  applyList('topic_area', INTAKE_VALIDATION.topicAreas)
-  applyList('issue_type', INTAKE_VALIDATION.issueTypes)
-  applyList('issue_severity', INTAKE_VALIDATION.severities)
-  applyList('next_step_type', INTAKE_VALIDATION.nextStepTypes)
-  applyList('quote_included', INTAKE_VALIDATION.yesNo)
-  applyList('next_step_included', INTAKE_VALIDATION.yesNo)
+  for (const key of validation.criteriaKeys) applyList(key, validation.scoreValues)
+  applyList('prompt_source', validation.promptSources)
+  applyList('topic_area', validation.topicAreas)
+  applyList('issue_type', validation.issueTypes)
+  applyList('issue_severity', validation.severities)
+  applyList('next_step_type', validation.nextStepTypes)
+  applyList('quote_included', validation.yesNo)
+  applyList('next_step_included', validation.yesNo)
 
   return wb.xlsx.writeBuffer()
 }
