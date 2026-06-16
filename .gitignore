@@ -40,3 +40,6 @@ next-env.d.ts
 # moderator guide source docs and working notes (not tracked)
 /mod-guide/
 
+# research source docs and interview transcripts (not tracked)
+/QA/
+

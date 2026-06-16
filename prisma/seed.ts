@@ -1,5 +1,8 @@
+import { loadEnvConfig } from '@next/env'
 import { PrismaClient, Prisma } from '@prisma/client'
 import { ACTIVITIES, CRITERIA } from '../lib/content-testing/catalog'
+
+loadEnvConfig(process.cwd())
 
 const prisma = new PrismaClient()
 
