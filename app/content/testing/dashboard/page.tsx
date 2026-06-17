@@ -26,7 +26,7 @@ import {
   SEVERITY_STYLES,
   TOPIC_AREA_LABELS,
 } from '@/types/content-testing'
-import { Download, FilePlus2, MessageSquareWarning, ListChecks } from 'lucide-react'
+import { Download, FilePlus2, MessageSquareWarning, ListChecks, Presentation } from 'lucide-react'
 
 interface AggResponse {
   totals: { promptEvals: number; sessions: number; criticalIssues: number; highIssues: number }
@@ -150,6 +150,12 @@ export default function ContentTestingDashboardPage() {
                   <Button variant="outline">
                     <ListChecks className="mr-2 h-4 w-4" />
                     Backlog
+                  </Button>
+                </Link>
+                <Link href="/content/testing/insights-deck">
+                  <Button variant="outline">
+                    <Presentation className="mr-2 h-4 w-4" />
+                    Insights Deck
                   </Button>
                 </Link>
               </div>
