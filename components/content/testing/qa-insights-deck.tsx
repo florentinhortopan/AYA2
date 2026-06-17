@@ -384,7 +384,7 @@ function SlideContent({ slide, showEvidence }: { slide: QaInsightsSlide; showEvi
         )}
       </div>
 
-      <div className="min-h-0 shrink overflow-hidden">
+      <div className={cn('min-h-0 shrink overflow-hidden', slide.section === 'Themes' && 'pt-3 lg:pt-4')}>
         <div className="flex h-full min-h-0 flex-col justify-center gap-3 overflow-hidden">
           {slide.visual === 'hero' && <HeroSignal slide={slide} />}
           {slide.visual === 'executiveSummary' && slide.bullets && (
@@ -511,21 +511,13 @@ function ThemeDetailWithEvidence({
   evidence: QaEvidenceItem[]
 }) {
   const theme = themes[0]
-  const Icon = ICONS[0]
 
   if (!theme) return null
 
   return (
     <div className="grid min-h-0 gap-3 lg:grid-cols-[1.08fr_0.92fr]">
       <div className="deck-reveal rounded-3xl border border-white/10 bg-white/[0.045] p-4 backdrop-blur">
-        <div className="mb-3 flex items-center justify-between">
-          <Badge variant="outline" className="border-primary/30 bg-primary/10 text-gold">
-            {theme.label}
-          </Badge>
-          <Icon className="h-5 w-5 text-gold" />
-        </div>
-        <h3 className="text-xl font-semibold tracking-tight">{theme.title}</h3>
-        <div className="mt-3 space-y-2.5">
+        <div className="space-y-2.5">
           <ThemeRow label="Finding" text={theme.finding} />
           <ThemeRow label="Implication" text={theme.implication} />
           <ThemeRow label="Recommendation" text={theme.recommendation} />
