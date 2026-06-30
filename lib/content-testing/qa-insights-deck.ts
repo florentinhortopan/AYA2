@@ -29,6 +29,8 @@ export type QaInsightsVisual =
   | 'themeData'
   | 'themeCards'
   | 'contentGapMap'
+  | 'contentGapAnalysis'
+  | 'deepDiveMatrix'
   | 'riskMatrix'
   | 'answerModel'
   | 'roadmap'
@@ -36,6 +38,7 @@ export type QaInsightsVisual =
 
 export interface QaEvidenceItem {
   participant?: string
+  title?: string
   quote: string
   context?: string
 }
@@ -80,6 +83,24 @@ export interface QaRiskItem {
   recommendation: string
 }
 
+export interface QaDeepDiveExample {
+  label: string
+  prompt: string
+  answer?: string
+  evidence: string
+  takeaway: string
+  screenshots: string
+}
+
+export interface QaDeepDive {
+  type: 'Validation' | 'Enhancement'
+  goal: string
+  examples: QaDeepDiveExample[]
+  screenshots: string[]
+  issueRecall: string[]
+  presenterNotes: string[]
+}
+
 export interface QaInsightsSlide {
   id: string
   section: QaInsightsSection
@@ -98,6 +119,7 @@ export interface QaInsightsSlide {
   risks?: QaRiskItem[]
   roadmap?: QaRoadmapColumn[]
   recommendations?: string[]
+  deepDive?: QaDeepDive
 }
 
 type QaRoundIssue = {

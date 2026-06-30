@@ -158,6 +158,12 @@ export default function ContentTestingDashboardPage() {
                     Insights Deck
                   </Button>
                 </Link>
+                <Link href="/content/testing/insights-deck-v2-light">
+                  <Button variant="outline">
+                    <Presentation className="mr-2 h-4 w-4" />
+                    V2 Light Deck
+                  </Button>
+                </Link>
               </div>
             )}
           />

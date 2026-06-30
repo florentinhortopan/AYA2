@@ -70,10 +70,18 @@ function shouldShowEvidenceByDefault(slide: QaInsightsSlide) {
   return Boolean(slide.evidence?.length) && (slide.visual === 'themeCards' || slide.visual === 'evidenceGrid')
 }
 
-export function QaInsightsDeck() {
-  const slides = QA_INSIGHTS_SLIDES
+export function QaInsightsDeck({
+  slides = QA_INSIGHTS_SLIDES,
+  summary = QA_INSIGHTS_SUMMARY,
+  storageKey = 'qa-insights-deck-index',
+  deckLabel = 'QA Insights Deck',
+}: {
+  slides?: QaInsightsSlide[]
+  summary?: string
+  storageKey?: string
+  deckLabel?: string
+}) {
   const total = slides.length
-  const storageKey = 'qa-insights-deck-index'
 
   const [index, setIndex] = useState(0)
   const [showEvidence, setShowEvidence] = useState(false)
@@ -209,14 +217,14 @@ export function QaInsightsDeck() {
 
   const summaryText = useMemo(() => {
     return [
-      'Army Answers QA Insights Deck',
+      deckLabel,
       '',
-      QA_INSIGHTS_SUMMARY,
+      summary,
       '',
       'Current slide:',
       `${index + 1}. ${slide.title}`,
     ].join('\n')
-  }, [index, slide.title])
+  }, [deckLabel, index, slide.title, summary])
 
   const copySummary = useCallback(async () => {
     try {
@@ -249,7 +257,7 @@ export function QaInsightsDeck() {
             {slide.section}
           </Badge>
           <span className="truncate text-sm text-stone-400">
-            QA Insights Deck · {index + 1} of {total}
+            {deckLabel} · {index + 1} of {total}
           </span>
         </div>
 
@@ -347,6 +355,150 @@ export function QaInsightsDeck() {
   )
 }
 
+export function QaInsightsDeckPrint({
+  slides = QA_INSIGHTS_SLIDES,
+  deckLabel = 'QA Insights Deck',
+}: {
+  slides?: QaInsightsSlide[]
+  deckLabel?: string
+}) {
+  return (
+    <div className="min-h-screen bg-[#070806] px-4 py-6 text-stone-50 print:bg-[#070806] print:p-0">
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @page {
+              size: 16in 9in;
+              margin: 0;
+            }
+
+            @media print {
+              body > nav,
+              body nav.border-b,
+              body nav[class*="border-b"] {
+                display: none !important;
+              }
+
+              html,
+              body {
+                width: 16in;
+                min-height: 9in;
+                background: #070806 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+
+              .deck-print-toolbar {
+                display: none !important;
+              }
+
+              .deck-print-slide {
+                width: 16in !important;
+                height: 9in !important;
+                margin: 0 !important;
+                break-after: page;
+                page-break-after: always;
+                box-shadow: none !important;
+              }
+
+              .deck-print-slide:last-child {
+                break-after: auto;
+                page-break-after: auto;
+              }
+            }
+          `,
+        }}
+      />
+
+      <div className="deck-print-toolbar mx-auto mb-6 flex max-w-7xl items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gold">Print export</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">{deckLabel}</h1>
+          <p className="mt-1 text-sm text-stone-400">
+            Use Cmd+P, choose landscape if prompted, then Save as PDF. Each slide is rendered as its own page.
+          </p>
+        </div>
+        <Button onClick={() => window.print()} className="bg-gold text-primary-foreground hover:bg-primary/85">
+          Print / Save PDF
+        </Button>
+      </div>
+
+      <div className="mx-auto grid max-w-7xl gap-8 print:block print:max-w-none print:gap-0">
+        {slides.map((slide, index) => (
+          <section
+            key={slide.id}
+            className="deck-print-slide relative mx-auto flex aspect-video w-full overflow-hidden rounded-3xl bg-[#070806] text-stone-50 shadow-2xl shadow-black/35 print:rounded-none"
+          >
+            <BriefingBackdrop />
+            <div className="relative z-10 flex h-full min-h-0 w-full flex-col">
+              <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-black/25 px-6 py-2.5">
+                <Badge variant="outline" className={cn('shrink-0', SECTION_STYLES[slide.section])}>
+                  {slide.section}
+                </Badge>
+                <span className="text-xs text-stone-500">
+                  {index + 1} / {slides.length}
+                </span>
+              </div>
+              <div className="min-h-0 flex-1 px-10 py-5">
+                <SlideContent slide={slide} showEvidence />
+              </div>
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function QaInsightsDeckFigmaExport({
+  slides = QA_INSIGHTS_SLIDES,
+}: {
+  slides?: QaInsightsSlide[]
+}) {
+  return (
+    <main className="min-h-screen bg-[#070806] p-0 text-stone-50">
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            html,
+            body {
+              background: #070806 !important;
+            }
+
+            body > nav,
+            body nav.border-b,
+            body nav[class*="border-b"] {
+              display: none !important;
+            }
+
+            .figma-deck-frame {
+              width: 1600px;
+              height: 900px;
+            }
+          `,
+        }}
+      />
+
+      <div className="flex flex-col items-start gap-0 bg-[#070806]">
+        {slides.map((slide) => (
+          <section
+            key={slide.id}
+            data-figma-frame
+            data-slide-id={slide.id}
+            data-slide-title={slide.title}
+            className="figma-deck-frame relative flex shrink-0 overflow-hidden bg-[#070806] text-stone-50"
+          >
+            <BriefingBackdrop />
+            <div className="relative z-10 h-full min-h-0 w-full px-16 py-12">
+              <SlideContent slide={slide} showEvidence />
+            </div>
+          </section>
+        ))}
+      </div>
+    </main>
+  )
+}
+
 function BriefingBackdrop() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
@@ -360,6 +512,8 @@ function BriefingBackdrop() {
 
 function SlideContent({ slide, showEvidence }: { slide: QaInsightsSlide; showEvidence: boolean }) {
   const hasCompactStatsBullets = slide.id === 'what-we-did' && Boolean(slide.stats && slide.bullets)
+  const hasThemeStats = slide.visual === 'themeCards' && Boolean(slide.themes && slide.stats && !slide.evidence)
+  const hasTopBulletPanel = slide.id === 'context-goal-method' && Boolean(slide.bullets)
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col justify-start gap-3 overflow-hidden pt-5 lg:pt-6">
@@ -393,15 +547,21 @@ function SlideContent({ slide, showEvidence }: { slide: QaInsightsSlide; showEvi
           {hasCompactStatsBullets && slide.stats && slide.bullets && (
             <CompactStatsBullets stats={slide.stats} bullets={slide.bullets} />
           )}
+          {hasTopBulletPanel && slide.bullets && <OpeningContextCards bullets={slide.bullets} />}
           {!hasCompactStatsBullets &&
             slide.stats &&
+            !hasTopBulletPanel &&
+            !hasThemeStats &&
             slide.visual !== 'hero' &&
             slide.visual !== 'executiveSummary' &&
             slide.visual !== 'contentGapMap' && (
             <StatsGrid stats={slide.stats} />
           )}
+          {hasTopBulletPanel && slide.stats && <OpeningStatsStrip stats={slide.stats} />}
+          {hasTopBulletPanel && slide.themeSignals && <OpeningSentimentChart signals={slide.themeSignals} />}
           {!hasCompactStatsBullets &&
             slide.bullets &&
+            !hasTopBulletPanel &&
             slide.visual !== 'executiveSummary' &&
             slide.visual !== 'contentGapMap' && <BulletPanel bullets={slide.bullets} />}
           {slide.visual === 'themeIndex' && slide.themes && <ThemeIndex themes={slide.themes} />}
@@ -411,13 +571,22 @@ function SlideContent({ slide, showEvidence }: { slide: QaInsightsSlide; showEvi
           {slide.visual === 'contentGapMap' && slide.bullets && slide.evidence && (
             <ContentGapMap bullets={slide.bullets} evidence={slide.evidence} />
           )}
+          {slide.visual === 'contentGapAnalysis' && slide.risks && (
+            <ContentGapAnalysisChart risks={slide.risks} />
+          )}
+          {slide.visual === 'deepDiveMatrix' && slide.deepDive && (
+            <DeepDiveMatrix deepDive={slide.deepDive} />
+          )}
           {slide.visual === 'themeCards' && slide.themes && slide.evidence && showEvidence && (
             <ThemeDetailWithEvidence themes={slide.themes} evidence={slide.evidence} />
           )}
-          {slide.visual !== 'themeIndex' && !(slide.visual === 'themeCards' && slide.evidence && showEvidence) && slide.themes && (
+          {hasThemeStats && slide.themes && slide.stats && (
+            <ThemeFindingWithMetrics themes={slide.themes} stats={slide.stats} />
+          )}
+          {slide.visual !== 'themeIndex' && !hasThemeStats && !(slide.visual === 'themeCards' && slide.evidence && showEvidence) && slide.themes && (
             <ThemeGrid themes={slide.themes} />
           )}
-          {slide.risks && <RiskMatrix risks={slide.risks} />}
+          {slide.risks && slide.visual !== 'contentGapAnalysis' && <RiskMatrix risks={slide.risks} />}
           {slide.recommendations && slide.visual === 'answerModel' && (
             <AnswerModel recommendations={slide.recommendations} />
           )}
@@ -666,6 +835,173 @@ function ContentGapMap({
   )
 }
 
+function ContentGapAnalysisChart({ risks }: { risks: QaRiskItem[] }) {
+  const total = risks.length
+  const criticalCount = risks.filter((risk) => risk.severity === 'Critical').length
+  const highCount = risks.filter((risk) => risk.severity === 'High').length
+  const bars = [
+    { label: 'Critical', value: criticalCount, tone: 'bg-red-300' },
+    { label: 'High', value: highCount, tone: 'bg-gold' },
+  ]
+
+  return (
+    <div className="grid min-h-0 gap-3 lg:grid-cols-[0.7fr_1.3fr]">
+      <div className="grid min-h-0 content-start gap-2.5">
+        <div className="deck-reveal rounded-2xl border border-primary/20 bg-primary/10 p-2.5">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">Gap severity</p>
+              <p className="mt-0.5 text-[10px] leading-3 text-stone-400">
+                8 highest-priority discrepancies from the GoArmy.com content gap analysis.
+              </p>
+            </div>
+            <BarChart3 className="h-4 w-4 shrink-0 text-gold" />
+          </div>
+          <div className="space-y-2">
+            {bars.map((bar) => {
+              const pct = total > 0 ? Math.round((bar.value / total) * 100) : 0
+
+              return (
+                <div key={bar.label}>
+                  <div className="mb-1 flex items-center justify-between gap-3">
+                    <span className="text-xs font-semibold text-stone-100">{bar.label}</span>
+                    <span className="text-base font-semibold text-gold">{bar.value}/{total}</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                    <div className={cn('h-full rounded-full', bar.tone)} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        <div className="deck-reveal rounded-2xl border border-white/10 bg-black/25 p-2.5">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gold">Coverage baseline</p>
+          <p className="mt-1.5 text-xs leading-4 text-stone-200">
+            GoArmy.com already covers Explore / Why the Army, Army Life, Careers & Jobs, Benefits, and How to Join.
+          </p>
+          <p className="mt-1.5 text-[11px] leading-4 text-stone-400">
+            The documented gap is retrieval, prioritization, citation, and answer structure, not simply missing site content.
+          </p>
+        </div>
+      </div>
+
+      <div className="deck-reveal rounded-3xl border border-white/10 bg-white/[0.045] p-3 backdrop-blur">
+        <div className="grid gap-2 sm:grid-cols-2">
+          {risks.map((risk, index) => (
+            <div key={risk.area} className="rounded-2xl border border-white/10 bg-black/20 p-2.5 lg:p-3">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold leading-tight text-stone-100 xl:text-[13px]">
+                  {index + 1}. {risk.area}
+                </p>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'shrink-0 border-white/15 px-1.5 py-0 text-[9px]',
+                    risk.severity === 'Critical' ? 'bg-red-400/15 text-red-100' : 'bg-gold/15 text-gold'
+                  )}
+                >
+                  {risk.severity}
+                </Badge>
+              </div>
+              <p className="overflow-hidden text-[11px] leading-4 text-stone-300 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:3] xl:text-xs xl:leading-4">
+                {risk.issue}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DeepDiveMatrix({ deepDive }: { deepDive: NonNullable<QaInsightsSlide['deepDive']> }) {
+  return (
+    <div className="grid min-h-0 gap-2 lg:grid-cols-[1.42fr_0.58fr]">
+      <div className="deck-reveal rounded-3xl border border-white/10 bg-white/[0.045] p-2.5 backdrop-blur">
+        <div className="mb-1.5 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-gold">{deepDive.type} matrix</p>
+            <p className="mt-0.5 text-[11px] leading-3.5 text-stone-400">{deepDive.goal}</p>
+          </div>
+          <Layers3 className="h-4 w-4 shrink-0 text-gold" />
+        </div>
+
+        <div className="grid gap-1">
+          <div className="grid grid-cols-[1.08fr_0.8fr_0.86fr_0.44fr] gap-1.5 rounded-2xl border border-white/10 bg-black/30 px-2 py-1.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-gold">
+            <span>Example Q/A</span>
+            <span>Evidence</span>
+            <span>Why it matters</span>
+            <span>Screenshot</span>
+          </div>
+
+          {deepDive.examples.map((example) => (
+            <div
+              key={`${example.label}-${example.prompt}`}
+              className="grid grid-cols-[1.08fr_0.8fr_0.86fr_0.44fr] gap-1.5 rounded-2xl border border-white/10 bg-black/20 p-1.5"
+            >
+              <div>
+                <p className="text-[11px] font-semibold text-stone-50">{example.label}</p>
+                <div className="mt-1 space-y-1">
+                  <p className="text-[9px] leading-3 text-stone-300">
+                    <span className="font-semibold uppercase tracking-[0.14em] text-gold">Q: </span>
+                    {example.prompt}
+                  </p>
+                  {example.answer && (
+                    <p className="text-[9px] leading-3 text-stone-400">
+                      <span className="font-semibold uppercase tracking-[0.14em] text-gold">A: </span>
+                      {example.answer}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <p className="text-[10px] leading-3.5 text-stone-200">{example.evidence}</p>
+              <p className="text-[10px] leading-3.5 text-stone-300">{example.takeaway}</p>
+              <p className="text-[8px] font-semibold uppercase leading-3 tracking-[0.1em] text-gold">{example.screenshots}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid min-h-0 content-start gap-2">
+        <DeepDiveSideCard title="Screenshots to use" items={deepDive.screenshots} icon="screens" />
+        <DeepDiveSideCard title="Issue recall" items={deepDive.issueRecall} icon="issues" />
+        <DeepDiveSideCard title="Presenter notes" items={deepDive.presenterNotes} icon="notes" />
+      </div>
+    </div>
+  )
+}
+
+function DeepDiveSideCard({
+  title,
+  items,
+  icon,
+}: {
+  title: string
+  items: string[]
+  icon: 'screens' | 'issues' | 'notes'
+}) {
+  const Icon = icon === 'screens' ? FileText : icon === 'issues' ? AlertTriangle : MessageSquareQuote
+
+  return (
+    <div className="deck-reveal rounded-2xl border border-primary/20 bg-primary/10 p-2">
+      <div className="mb-1.5 flex items-center justify-between gap-3">
+        <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-gold">{title}</p>
+        <Icon className="h-3.5 w-3.5 shrink-0 text-gold" />
+      </div>
+      <div className="space-y-1">
+        {items.map((item) => (
+          <div key={item} className="flex gap-1.5 rounded-xl border border-white/10 bg-black/20 p-1.5">
+            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+            <p className="text-[9px] leading-3 text-stone-300">{item}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function IssueClusterChart({ clusters }: { clusters: QaThemeIssueCluster[] }) {
   const rootRef = useRef<HTMLDivElement>(null)
   const total = clusters.reduce((sum, cluster) => sum + cluster.value, 0)
@@ -864,11 +1200,11 @@ function HeroSignal({ slide }: { slide: QaInsightsSlide }) {
 
 function StatsGrid({ stats }: { stats: QaInsightStat[] }) {
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+    <div className={cn('grid gap-3', stats.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2 xl:grid-cols-4')}>
       {stats.map((stat) => (
         <div
           key={`${stat.label}-${stat.value}`}
-          className="deck-reveal rounded-2xl border border-white/10 bg-white/[0.045] p-4 backdrop-blur"
+          className={cn('deck-reveal rounded-2xl border border-white/10 bg-white/[0.045] backdrop-blur', stats.length === 3 ? 'p-3' : 'p-4')}
         >
           <div className="text-xs font-medium uppercase tracking-[0.24em] text-stone-500">{stat.label}</div>
           <div className="mt-2 text-3xl font-semibold tracking-tight text-gold">{stat.value}</div>
@@ -882,7 +1218,7 @@ function StatsGrid({ stats }: { stats: QaInsightStat[] }) {
 function BulletPanel({ bullets }: { bullets: string[] }) {
   return (
     <div className="deck-reveal rounded-3xl border border-white/10 bg-black/25 p-4">
-      <div className="grid gap-2.5 md:grid-cols-2">
+      <div className={cn('grid gap-2.5', bullets.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2')}>
         {bullets.map((bullet) => (
           <div key={bullet} className="flex gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-3">
             <div className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
@@ -890,6 +1226,78 @@ function BulletPanel({ bullets }: { bullets: string[] }) {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function OpeningSentimentChart({ signals }: { signals: QaThemeSignal[] }) {
+  return (
+    <div className="deck-reveal rounded-3xl border border-primary/20 bg-primary/10 p-2.5">
+      <div className="mb-2 flex items-center justify-between gap-3 px-2">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gold">General sentiment</p>
+          <p className="mt-0.5 text-[11px] leading-4 text-stone-400">
+            Qualitative summary from participant records. Readiness is used as an expectations-met proxy, not a 1-5 rating.
+          </p>
+        </div>
+        <BarChart3 className="h-5 w-5 shrink-0 text-gold" />
+      </div>
+      <div className="grid gap-2 md:grid-cols-3">
+        {signals.map((signal) => {
+          const pct = signal.total > 0 ? Math.round((signal.value / signal.total) * 100) : 0
+
+          return (
+            <div key={signal.label} className="rounded-2xl border border-white/10 bg-black/20 p-2">
+              <div className="grid grid-cols-[64px_1fr] items-center gap-3">
+                <span className="text-left text-2xl font-semibold text-gold">{pct}%</span>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-stone-400">{signal.label}</p>
+              </div>
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div className={DATA_BAR_FILL_CLASS} style={{ width: `${pct}%` }} />
+              </div>
+              <p className="mt-1 text-[10px] leading-3 text-stone-300">
+                {signal.value}/{signal.total} · {signal.note}
+              </p>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function OpeningContextCards({ bullets }: { bullets: string[] }) {
+  return (
+    <div className="deck-reveal grid gap-2.5 md:grid-cols-3">
+      {bullets.map((bullet) => {
+        const [rawTitle, ...descriptionParts] = bullet.split(':')
+        const title = rawTitle.trim()
+        const description = descriptionParts.join(':').trim()
+
+        return (
+          <div key={bullet} className="rounded-2xl border border-white/10 bg-black/25 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold">{title}</p>
+            <p className="mt-2 text-xs leading-5 text-stone-200 sm:text-sm">{description || bullet}</p>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function OpeningStatsStrip({ stats }: { stats: QaInsightStat[] }) {
+  return (
+    <div className="grid gap-2.5 md:grid-cols-3">
+      {stats.map((stat) => (
+        <div
+          key={`${stat.label}-${stat.value}`}
+          className="deck-reveal rounded-2xl border border-white/10 bg-white/[0.045] p-2.5 backdrop-blur"
+        >
+          <div className="text-[10px] font-medium uppercase tracking-[0.22em] text-stone-500">{stat.label}</div>
+          <div className="mt-1 text-2xl font-semibold tracking-tight text-gold">{stat.value}</div>
+          {stat.note && <p className="mt-1 text-[11px] leading-4 text-stone-300">{stat.note}</p>}
+        </div>
+      ))}
     </div>
   )
 }
@@ -923,10 +1331,75 @@ function ThemeGrid({ themes }: { themes: QaInsightTheme[] }) {
   )
 }
 
+function ThemeFindingWithMetrics({ themes, stats }: { themes: QaInsightTheme[]; stats: QaInsightStat[] }) {
+  const theme = themes[0]
+  const standaloneMax = Math.max(
+    1,
+    ...stats
+      .map((stat) => Number.parseFloat(stat.value))
+      .filter((value) => Number.isFinite(value))
+  )
+
+  if (!theme) return null
+
+  return (
+    <div className="grid min-h-0 gap-3 lg:grid-cols-[1.08fr_0.92fr]">
+      <div className="deck-reveal rounded-3xl border border-white/10 bg-white/[0.045] p-4 backdrop-blur">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gold">Theme readout</p>
+          <FileText className="h-5 w-5 shrink-0 text-gold" />
+        </div>
+        <div className="space-y-2.5">
+          <ThemeRow label="Finding" text={theme.finding} />
+          <ThemeRow label="Implication" text={theme.implication} />
+          <ThemeRow label="Recommendation" text={theme.recommendation} />
+        </div>
+      </div>
+
+      <div className="deck-reveal rounded-3xl border border-primary/20 bg-primary/10 p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-gold">Signals</p>
+        <div className="mt-3 space-y-3">
+          {stats.map((stat) => {
+            const pct = getMetricPercent(stat.value, standaloneMax)
+
+            return (
+              <div key={`${stat.label}-${stat.value}`} className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                <div className="grid grid-cols-[auto_1fr] items-center gap-4">
+                  <span className="min-w-9 shrink-0 text-center text-4xl font-semibold tracking-tight text-gold">{stat.value}</span>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-stone-500">{stat.label}</p>
+                    {stat.note && <p className="mt-1 text-xs leading-4 text-stone-300">{stat.note}</p>}
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+                      <div className={DATA_BAR_FILL_CLASS} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function getMetricPercent(value: string, standaloneMax: number) {
+  const ratioMatch = value.match(/^(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/)
+
+  if (ratioMatch) {
+    const numerator = Number.parseFloat(ratioMatch[1])
+    const denominator = Number.parseFloat(ratioMatch[2])
+    return denominator > 0 ? Math.max(4, Math.min(100, (numerator / denominator) * 100)) : 0
+  }
+
+  const numericValue = Number.parseFloat(value)
+  return Number.isFinite(numericValue) ? Math.max(4, Math.min(100, (numericValue / standaloneMax) * 100)) : 0
+}
+
 function ThemeRow({ label, text }: { label: string; text: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-      <div className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">{label}</div>
+      <div className="text-xs font-semibold uppercase tracking-[0.24em] text-gold/80">{label}</div>
       <p className="mt-1.5 text-xs leading-5 text-stone-200 sm:text-sm">{text}</p>
     </div>
   )
@@ -1062,12 +1535,20 @@ function EvidenceGrid({ evidence }: { evidence: QaEvidenceItem[] }) {
     <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3">
       {evidence.map((item, index) => (
         <div key={`${item.participant}-${index}`} className="evidence-reveal rounded-2xl border border-primary/20 bg-primary/10 p-3">
-          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold">
-            <AlertTriangle className="h-4 w-4" />
-            {item.participant ?? 'Evidence'}
-          </div>
-          <p className="text-xs leading-5 text-stone-100 sm:text-sm">{item.quote}</p>
-          {item.context && <p className="mt-2 text-xs leading-5 text-stone-400">{item.context}</p>}
+          {item.title && (
+            <div className="mb-3 rounded-xl border border-primary/25 bg-primary/15 p-2.5">
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-gold">Insight</div>
+              <h3 className="text-base font-semibold leading-tight text-stone-50">{item.title}</h3>
+            </div>
+          )}
+          {item.participant && (
+            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-gold">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {item.participant}
+            </div>
+          )}
+          <p className="text-xs font-medium leading-4 text-stone-100 sm:text-[13px]">{item.quote}</p>
+          {item.context && <p className="mt-1.5 text-[11px] leading-4 text-stone-400 sm:text-xs">{item.context}</p>}
         </div>
       ))}
     </div>
